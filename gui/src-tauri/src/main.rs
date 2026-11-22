@@ -302,6 +302,133 @@ fn native_toolbar(w: &tauri::WebviewWindow) {
     win.setToolbarStyle(NSWindowToolbarStyle::Unified);
 }
 
+/// The menu bar's words, per interface language (the UI's own text is in gui/src/locales).
+fn words(lang: &str) -> impl Fn(&str) -> String + '_ {
+    move |en: &str| {
+        let (hans, hant) = match en {
+            "Health" => ("健康", "健康"),
+            "About Health" => ("关于健康", "關於健康"),
+            "Services" => ("服务", "服務"),
+            "Hide Health" => ("隐藏健康", "隱藏健康"),
+            "Hide Others" => ("隐藏其他", "隱藏其他"),
+            "Show All" => ("全部显示", "全部顯示"),
+            "Quit Health" => ("退出健康", "結束健康"),
+            "Edit" => ("编辑", "編輯"),
+            "Undo" => ("撤销", "還原"),
+            "Redo" => ("重做", "重做"),
+            "Cut" => ("剪切", "剪下"),
+            "Copy" => ("拷贝", "拷貝"),
+            "Paste" => ("粘贴", "貼上"),
+            "Select All" => ("全选", "全選"),
+            "View" => ("显示", "顯示方式"),
+            "Enter Full Screen" => ("进入全屏幕", "進入全螢幕"),
+            "Go" => ("前往", "前往"),
+            "Readings" => ("读数", "讀數"),
+            "Add data" => ("添加数据", "添加數據"),
+            "Sources" => ("来源", "來源"),
+            "Backup" => ("备份", "備份"),
+            "Agent access" => ("Agent 访问", "Agent 訪問"),
+            "Health account" => ("健康账户", "健康賬戶"),
+            "Back" => ("返回", "返回"),
+            "Find a measure" => ("查找指标", "查找指標"),
+            "Import a file…" => ("导入文件…", "導入文件…"),
+            "Window" => ("窗口", "視窗"),
+            "Minimize" => ("最小化", "縮到最小"),
+            "Zoom" => ("缩放", "縮放"),
+            "Close Window" => ("关闭窗口", "關閉視窗"),
+            _ => (en, en),
+        };
+        match lang {
+            "zh-Hans" => hans.to_string(),
+            "zh-Hant" => hant.to_string(),
+            _ => en.to_string(),
+        }
+    }
+}
+
+/// The macOS menu bar in `lang`: the standard menus, plus "Go" with the sections' shortcuts.
+#[cfg(target_os = "macos")]
+fn menu(app: &AppHandle, lang: &str) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
+    use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem as P, Submenu};
+    let w = words(lang);
+    let item = |id: &str, label: &str, key: &str| MenuItem::with_id(app, format!("ui:{id}"), w(label), true, Some(key));
+    let health = Submenu::with_items(
+        app,
+        w("Health"),
+        true,
+        &[
+            &P::about(app, Some(&w("About Health")), Some(AboutMetadata::default()))?,
+            &P::separator(app)?,
+            &P::services(app, Some(&w("Services")))?,
+            &P::separator(app)?,
+            &P::hide(app, Some(&w("Hide Health")))?,
+            &P::hide_others(app, Some(&w("Hide Others")))?,
+            &P::show_all(app, Some(&w("Show All")))?,
+            &P::separator(app)?,
+            &P::quit(app, Some(&w("Quit Health")))?,
+        ],
+    )?;
+    let edit = Submenu::with_items(
+        app,
+        w("Edit"),
+        true,
+        &[
+            &P::undo(app, Some(&w("Undo")))?,
+            &P::redo(app, Some(&w("Redo")))?,
+            &P::separator(app)?,
+            &P::cut(app, Some(&w("Cut")))?,
+            &P::copy(app, Some(&w("Copy")))?,
+            &P::paste(app, Some(&w("Paste")))?,
+            &P::select_all(app, Some(&w("Select All")))?,
+        ],
+    )?;
+    let view = Submenu::with_items(app, w("View"), true, &[&P::fullscreen(app, Some(&w("Enter Full Screen")))?])?;
+    let go = Submenu::with_items(
+        app,
+        w("Go"),
+        true,
+        &[
+            &item("readings", "Readings", "CmdOrCtrl+1")?,
+            &item("add", "Add data", "CmdOrCtrl+2")?,
+            &item("sources", "Sources", "CmdOrCtrl+3")?,
+            &item("backup", "Backup", "CmdOrCtrl+4")?,
+            &item("agents", "Agent access", "CmdOrCtrl+5")?,
+            &item("account", "Health account", "CmdOrCtrl+6")?,
+            &P::separator(app)?,
+            &item("back", "Back", "CmdOrCtrl+[")?,
+            &item("find", "Find a measure", "CmdOrCtrl+F")?,
+            &item("import", "Import a file…", "CmdOrCtrl+O")?,
+        ],
+    )?;
+    let window = Submenu::with_items(
+        app,
+        w("Window"),
+        true,
+        &[
+            &P::minimize(app, Some(&w("Minimize")))?,
+            &P::maximize(app, Some(&w("Zoom")))?,
+            &P::separator(app)?,
+            &P::close_window(app, Some(&w("Close Window")))?,
+        ],
+    )?;
+    Menu::with_items(app, &[&health, &edit, &view, &go, &window])
+}
+
+/// The UI's language changed (or the page loaded): the menu bar and the window title follow it.
+#[tauri::command]
+fn set_language(app: AppHandle, lang: String) -> Result<(), String> {
+    let lang = match lang.as_str() {
+        "zh-Hans" | "zh-Hant" => lang,
+        _ => "en".to_string(),
+    };
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.set_title(&words(&lang)("Health"));
+    }
+    #[cfg(target_os = "macos")]
+    app.set_menu(menu(&app, &lang).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn main() {
     let shell = Arc::new(Shell::default());
     let app = tauri::Builder::default()
@@ -321,7 +448,8 @@ fn main() {
             agent_clients,
             connect_agent,
             ocr_status,
-            ocr_install
+            ocr_install,
+            set_language
         ])
         // Health is an app you open and close, not a background service: no tray icon, and closing the window
         // quits (Tauri's default). Agents don't need it running: `health mcp` opens the store itself.
@@ -331,36 +459,15 @@ fn main() {
             }
         })
         .setup(|app| {
-            // macOS: the standard menus plus "Go", whose shortcuts the UI shows. Elsewhere the window has no menu
-            // bar and the UI handles the same keys itself.
+            // macOS: the standard menus plus "Go", whose shortcuts the UI shows (in the UI's language, which
+            // set_language sends once the page has loaded). Elsewhere the window has no menu bar and the UI
+            // handles the same keys itself.
             #[cfg(target_os = "macos")]
             {
-                let item =
-                    |id: &str, label: &str, key: &str| tauri::menu::MenuItem::with_id(app, format!("ui:{id}"), label, true, Some(key));
-                let go = tauri::menu::Submenu::with_items(
-                    app,
-                    "Go",
-                    true,
-                    &[
-                        &item("readings", "Readings", "CmdOrCtrl+1")?,
-                        &item("add", "Add data", "CmdOrCtrl+2")?,
-                        &item("sources", "Sources", "CmdOrCtrl+3")?,
-                        &item("backup", "Backup", "CmdOrCtrl+4")?,
-                        &item("agents", "Agent access", "CmdOrCtrl+5")?,
-                        &item("account", "Health account", "CmdOrCtrl+6")?,
-                        &tauri::menu::PredefinedMenuItem::separator(app)?,
-                        &item("back", "Back", "CmdOrCtrl+[")?,
-                        &item("find", "Find a measure", "CmdOrCtrl+F")?,
-                        &item("import", "Import a file…", "CmdOrCtrl+O")?,
-                    ],
-                )?;
                 if let Some(w) = app.get_webview_window("main") {
                     native_toolbar(&w);
                 }
-                let menu = tauri::menu::Menu::default(app.handle())?;
-                let at = menu.items()?.len().saturating_sub(2); // before Window and Help
-                menu.insert(&go, at)?;
-                app.set_menu(menu)?;
+                app.set_menu(menu(app.handle(), "en")?)?;
             }
             let (handle, s) = (app.handle().clone(), app.state::<Arc<Shell>>().inner().clone());
             std::thread::spawn(move || supervise(handle, s));

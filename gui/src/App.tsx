@@ -27,9 +27,12 @@ import {
   setBadge,
   onStatus,
   op,
+  setShellLanguage,
   unlock,
 } from "./api";
 import { DailyChart, type Pt, Spark } from "./charts";
+import { useTranslation } from "react-i18next";
+import { LANGS, choice, choose, locale as i18nLocale, t, tk } from "./i18n";
 import { CLIENTS, type Client } from "./agents";
 import { KEY, nameOf } from "./names";
 import {
@@ -59,12 +62,12 @@ import {
 
 type Page = "readings" | "add" | "sources" | "review" | "agents" | "backup" | "account";
 const PAGES: { key: Page; label: string }[] = [
-  { key: "readings", label: "Readings" },
-  { key: "add", label: "Add data" },
-  { key: "sources", label: "Sources" },
-  { key: "backup", label: "Backup" },
-  { key: "agents", label: "Agent access" },
-  { key: "account", label: "Health account" },
+  { key: "readings", label: tk("Readings") },
+  { key: "add", label: tk("Add data") },
+  { key: "sources", label: tk("Sources") },
+  { key: "backup", label: tk("Backup") },
+  { key: "agents", label: tk("Agent access") },
+  { key: "account", label: tk("Health account") },
 ];
 const MAC = typeof navigator !== "undefined" && /Mac/.test(navigator.userAgent);
 const MOD = MAC ? "⌘" : "Ctrl+";
@@ -141,9 +144,9 @@ function FirstRun({ done }: { done: () => void }) {
   const [err, setErr] = useState<string>();
   return (
     <main className="gate">
-      <h2>Welcome</h2>
+      <h2>{t("Welcome")}</h2>
       <p className="lede">
-        Your health data will live in one encrypted file on this computer. The key is kept in your system keychain. Nothing is sent anywhere.
+        {t("Your health data will live in one encrypted file on this computer. The key is kept in your system keychain. Nothing is sent anywhere.")}
       </p>
       <Problem text={err} />
       <button
@@ -161,7 +164,7 @@ function FirstRun({ done }: { done: () => void }) {
           }
         }}
       >
-        {busy ? "Creating…" : "Create my health store"}
+        {busy ? t("Creating…") : t("Create my health store")}
       </button>
     </main>
   );
@@ -181,19 +184,19 @@ function Unlock({ done }: { done: () => void }) {
             setP("");
             done();
           } catch (x) {
-            setErr(x instanceof OpError && x.code === "bad_passphrase" ? "That passphrase is not right." : String(x));
+            setErr(x instanceof OpError && x.code === "bad_passphrase" ? t("That passphrase is not right.") : String(x));
           }
         }}
       >
-        <h2>Health is locked</h2>
-        <p className="lede">Your data is encrypted with your passphrase. It locks again after a while without use.</p>
+        <h2>{t("Health is locked")}</h2>
+        <p className="lede">{t("Your data is encrypted with your passphrase. It locks again after a while without use.")}</p>
         <label>
-          Passphrase
+          {t("Passphrase")}
           <input type="password" autoComplete="current-password" autoFocus value={p} onChange={(e) => setP(e.target.value)} required />
         </label>
         <Problem text={err} />
         <button type="submit" className="primary">
-          Unlock
+          {t("Unlock")}
         </button>
       </form>
     </main>
@@ -201,6 +204,9 @@ function Unlock({ done }: { done: () => void }) {
 }
 
 export function App() {
+  // redraw everything when the language changes; the menu bar follows
+  const { i18n } = useTranslation();
+  useEffect(() => setShellLanguage(i18n.language), [i18n.language]);
   const [page, setPage] = useState<Page>(savedPage);
   // ⌘F asks Readings to focus its search; Readings clears the request once its search box exists
   const [find, setFind] = useState(false);
@@ -286,8 +292,8 @@ export function App() {
   if (starting)
     return (
       <main className="gate" role="status">
-        <h2>Starting the health core…</h2>
-        <p className="lede">{core.error ?? "This takes a moment. Your data is safe on disk."}</p>
+        <h2>{t("Starting the health core…")}</h2>
+        <p className="lede">{core.error ?? t("This takes a moment. Your data is safe on disk.")}</p>
       </main>
     );
   const open = (code: string) => setMetric(code);
@@ -302,14 +308,14 @@ export function App() {
         title={hint}
       >
         <Icon k={p.key} />
-        <span className="label">{p.label}</span>
+        <span className="label">{t(p.label)}</span>
         {p.key === "review" && status && status.reviews > 0 && <span className="count">{status.reviews}</span>}
       </button>
     </li>
   );
   const hint = (k: Page) => {
     const i = PAGES.findIndex((x) => x.key === k);
-    return `${PAGES[i]!.label} (${MOD}${i + 1})`;
+    return `${t(PAGES[i]!.label)} (${MOD}${i + 1})`;
   };
   return (
     <div className={`app${isDesktop ? " desktop" : ""}${isDesktop && MAC ? " mac" : ""}`}>
@@ -317,7 +323,7 @@ export function App() {
       {isDesktop && MAC && (
         <>
           <div className="titlebar" data-tauri-drag-region />
-          <button type="button" className="toolbar-btn" aria-label="Add data" title={`Add data (${MOD}2)`} onClick={() => command("add")}>
+          <button type="button" className="toolbar-btn" aria-label={t("Add data")} title={`${t("Add data")} (${MOD}2)`} onClick={() => command("add")}>
             <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
               <path d="M8 3v10M3 8h10" />
             </svg>
@@ -326,19 +332,19 @@ export function App() {
       )}
       {hovering && (
         <div className="drop-overlay" aria-hidden="true">
-          <p>Drop to import</p>
-          <p className="fine">Apple Health export, Health backup, WHOOP data</p>
+          <p>{t("Drop to import")}</p>
+          <p className="fine">{t("Apple Health export, Health backup, WHOOP data")}</p>
         </div>
       )}
-      <nav className="rail" aria-label="Sections">
+      <nav className="rail" aria-label={t("Sections")}>
         <ul>
           {navItem(PAGES[0]!, hint("readings"))}
-          {status && status.reviews > 0 && navItem({ key: "review", label: "Waiting for you" })}
+          {status && status.reviews > 0 && navItem({ key: "review", label: tk("Waiting for you") })}
         </ul>
         {present.length > 0 && (
           <div className="rail-section">
             <button type="button" className="rail-head" aria-expanded={cats} onClick={() => setCats(!cats)}>
-              Categories
+              {t("Categories")}
               <Chevron open={cats} />
             </button>
             {cats && (
@@ -353,7 +359,7 @@ export function App() {
                       }}
                     >
                       <GroupIcon k={g.key} />
-                      <span className="label">{g.label}</span>
+                      <span className="label">{t(g.label)}</span>
                     </button>
                   </li>
                 ))}
@@ -362,7 +368,7 @@ export function App() {
           </div>
         )}
         <div className="rail-section">
-          <p className="rail-head">Your data</p>
+          <p className="rail-head">{t("Your data")}</p>
           <ul>
             {navItem(PAGES[1]!, hint("add"))}
             {navItem(PAGES[2]!, hint("sources"))}
@@ -370,21 +376,35 @@ export function App() {
           </ul>
         </div>
         <div className="rail-section">
-          <p className="rail-head">Sharing</p>
+          <p className="rail-head">{t("Sharing")}</p>
           <ul>
             {navItem(PAGES[5]!, hint("account"))}
             {navItem(PAGES[4]!, hint("agents"))}
           </ul>
         </div>
-        {status && (
-          <p className="fine rail-foot">
-            {status.observations.toLocaleString()} readings from {status.sources} {status.sources === 1 ? "source" : "sources"}, stored only on this
-            computer
-          </p>
-        )}
+        <div className="rail-foot">
+          {status && (
+            <p className="fine">
+              {t("{{obs}} readings from {{count}} sources, stored only on this computer", {
+                obs: status.observations.toLocaleString(i18n.language),
+                count: status.sources,
+              })}
+            </p>
+          )}
+          <label className="fine lang">
+            {t("Language")}
+            <select value={choice()} onChange={(e) => choose(e.target.value as Parameters<typeof choose>[0])}>
+              {LANGS.map((l) => (
+                <option key={l.key} value={l.key}>
+                  {l.key === "system" ? t("System") : l.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </nav>
       <main className="main">
-        <div className="view" key={page}>
+        <div className="view" key={`${page}-${i18n.language}`}>
           {page === "readings" && (
             <Readings latest={latest} err={latestErr} open={open} go={setPage} reviews={status?.reviews ?? 0} find={find} found={() => setFind(false)} />
           )}
@@ -401,7 +421,7 @@ export function App() {
           {page === "account" && <HealthAccount go={setPage} />}
         </div>
       </main>
-      {metric && <Sheet label="History" close={() => setMetric(undefined)}>
+      {metric && <Sheet label={t("History")} close={() => setMetric(undefined)}>
         <Record code={metric} pick={setMetric} />
       </Sheet>}
     </div>
@@ -445,7 +465,7 @@ function Sheet({ label, close, children }: { label: string; close: () => void; c
       onClick={(e) => e.target === ref.current && pressedOutside.current && close()}
     >
       <div className="sheet-body">
-        <button type="button" className="close" aria-label="Close" onClick={close}>
+        <button type="button" className="close" aria-label={t("Close")} onClick={close}>
           <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
             <path d="M4 4l8 8M12 4l-8 8" />
           </svg>
@@ -486,7 +506,7 @@ function Copy({ text, label }: { text: string; label: string }) {
         }
       }}
     >
-      {done ? "Copied" : label}
+      {done ? t("Copied") : label}
     </button>
   );
 }
@@ -499,8 +519,8 @@ function PasswordField({ label, value, onChange, auto }: { label: string; value:
       <label htmlFor={id}>{label}</label>
       <span className="with-toggle">
         <input id={id} type={show ? "text" : "password"} autoComplete={auto} value={value} onChange={(e) => onChange(e.target.value)} required />
-        <button type="button" className="link" aria-label={show ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`} aria-pressed={show} onClick={() => setShow(!show)}>
-          {show ? "Hide" : "Show"}
+        <button type="button" className="link" aria-label={show ? t("Hide {{field}}", { field: label }) : t("Show {{field}}", { field: label })} aria-pressed={show} onClick={() => setShow(!show)}>
+          {show ? t("Hide") : t("Show")}
         </button>
       </span>
     </div>
@@ -512,7 +532,7 @@ function FilePick({ path, onPath }: { path?: string; onPath: (p: string) => void
   if (!isDesktop)
     return (
       <label className="block">
-        File path
+        {t("File path")}
         <input value={path ?? ""} onChange={(e) => onPath(e.target.value)} placeholder="/Users/you/Downloads/export.zip" />
       </label>
     );
@@ -525,7 +545,7 @@ function FilePick({ path, onPath }: { path?: string; onPath: (p: string) => void
           <span className="fine">{path}</span>
         </p>
       ) : (
-        <p>Drag a file here, or anywhere in this window.</p>
+        <p>{t("Drag a file here, or anywhere in this window.")}</p>
       )}
       <button
         type="button"
@@ -535,7 +555,7 @@ function FilePick({ path, onPath }: { path?: string; onPath: (p: string) => void
           if (p) onPath(p);
         }}
       >
-        {path ? "Choose another file…" : "Choose file…"}
+        {path ? t("Choose another file…") : t("Choose file…")}
       </button>
     </div>
   );
@@ -560,8 +580,8 @@ interface BackupResult {
 function AddData({ file, onFile, go, done }: { file?: string; onFile: (p?: string) => void; go: (p: Page) => void; done: (code: string) => void }) {
   return (
     <section className="page narrow">
-      <h2>Add data</h2>
-      <p className="lede">Bring in a file, or write down a reading yourself.</p>
+      <h2>{t("Add data")}</h2>
+      <p className="lede">{t("Bring in a file, or write down a reading yourself.")}</p>
       <div className="stack">
         <Import file={file} onFile={onFile} go={go} />
         <Enter done={done} />
@@ -577,16 +597,15 @@ function OcrInstall({ done }: { done: () => void }) {
   if (!isDesktop)
     return (
       <div className="group notice">
-        <p>Install it once from a terminal:</p>
+        <p>{t("Install it once from a terminal:")}</p>
         <pre>health component install ocr</pre>
       </div>
     );
   return (
     <div className="group notice" aria-busy={busy}>
-      <h3>Read lab reports on this computer</h3>
+      <h3>{t("Read lab reports on this computer")}</h3>
       <p className="fine">
-        Health downloads the text-recognition models once (about 21 MB, plus 135 MB that suggests which measure each result is). Every file is checked
-        before use, and your reports never leave this computer.
+        {t("Health downloads the text-recognition models once (about 21 MB, plus 135 MB that suggests which measure each result is). Every file is checked before use, and your reports never leave this computer.")}
       </p>
       <Problem text={err} />
       <div className="actions">
@@ -607,7 +626,7 @@ function OcrInstall({ done }: { done: () => void }) {
             }
           }}
         >
-          {busy ? "Downloading…" : "Install"}
+          {busy ? t("Downloading…") : t("Install")}
         </button>
       </div>
     </div>
@@ -639,12 +658,10 @@ function Import({ file, onFile, go }: { file?: string; onFile: (p?: string) => v
         const r = await op<{ import_id: number; items: number; matched: number }>("import.ocr", { path: file, tz_min: -new Date().getTimezoneOffset() });
         setDone(
           <>
-            <p>
-              Read {r.items} {r.items === 1 ? "result" : "results"}. Nothing is added to your readings until you check them.
-            </p>
+            <p>{t("Read {{count}} results. Nothing is added to your readings until you check them.", { count: r.items })}</p>
             <div className="actions">
               <button type="button" className="primary" onClick={() => go("review")}>
-                Check them now
+                {t("Check them now")}
               </button>
             </div>
           </>,
@@ -654,14 +671,15 @@ function Import({ file, onFile, go }: { file?: string; onFile: (p?: string) => v
       if (kind === "backup") {
         const r = await op<BackupResult>("backup.import", { path: file, password });
         const notes: string[] = [];
-        if (r.refused_imports + r.refused_corrections) notes.push(`${r.refused_imports + r.refused_corrections} entries were refused because their dates lie in the future, which means a damaged or altered file.`);
-        if (r.skipped_metrics.length) notes.push(`${r.skipped_metrics.length} measures were skipped because their unit differs on this computer: ${r.skipped_metrics.join(", ")}.`);
-        if (r.missing_blobs.length) notes.push(`${r.missing_blobs.length} original files (such as lab report photos) are not in this backup; the readings from them are.`);
+        if (r.refused_imports + r.refused_corrections) notes.push(t("{{count}} entries were refused because their dates lie in the future, which means a damaged or altered file.", { count: r.refused_imports + r.refused_corrections }));
+        if (r.skipped_metrics.length) notes.push(t("{{count}} measures were skipped because their unit differs on this computer: {{list}}.", { count: r.skipped_metrics.length, list: r.skipped_metrics.join(", ") }));
+        if (r.missing_blobs.length) notes.push(t("{{count}} original files (such as lab report photos) are not in this backup; the readings from them are.", { count: r.missing_blobs.length }));
         setDone(
           <>
             <p>
-              Restored: {r.added_imports} imports added
-              {r.erased_imports ? `, ${r.erased_imports} removed because they were deleted on the other device` : ""}. Nothing here was overwritten.
+              {r.erased_imports
+                ? t("Restored: {{added}} imports added, {{erased}} removed because they were deleted on the other device. Nothing here was overwritten.", { added: r.added_imports, erased: r.erased_imports })
+                : t("Restored: {{added}} imports added. Nothing here was overwritten.", { added: r.added_imports })}
             </p>
             {notes.map((n) => (
               <p key={n} className="fine">
@@ -676,10 +694,10 @@ function Import({ file, onFile, go }: { file?: string; onFile: (p?: string) => v
         setDone(
           <>
             <p>
-              Imported {r.written.toLocaleString()} readings from {r.sources} {r.sources === 1 ? "device" : "devices"}
-              {r.added < r.written ? ` (${(r.written - r.added).toLocaleString()} were already here and were updated)` : ""}.
+              {t("Imported {{n}} readings from {{count}} devices.", { n: r.written.toLocaleString(), count: r.sources })}
+              {r.added < r.written ? ` ${t("{{n}} were already here and were updated.", { n: (r.written - r.added).toLocaleString() })}` : ""}
             </p>
-            {broken > 0 && <p className="fine">{broken.toLocaleString()} records had a bad date or value and were left out.</p>}
+            {broken > 0 && <p className="fine">{t("{{n}} records had a bad date or value and were left out.", { n: broken.toLocaleString() })}</p>}
           </>,
         );
       }
@@ -693,14 +711,13 @@ function Import({ file, onFile, go }: { file?: string; onFile: (p?: string) => v
   };
   return (
     <section className="page narrow">
-      <h2>Import a file</h2>
+      <h2>{t("Import a file")}</h2>
       <p className="lede">
-        A photo or PDF of a lab report, an Apple Health export, a Health backup (.zuhealth) or WHOOP data. Importing the same file again updates it;
-        nothing is doubled.
+        {t("A photo or PDF of a lab report, an Apple Health export, a Health backup (.zuhealth) or WHOOP data. Importing the same file again updates it; nothing is doubled.")}
       </p>
       <FilePick path={file} onPath={onFile} />
       {file && !kind && (
-        <Problem text="Health can't read this kind of file. Choose a lab report photo or PDF, a .zip from Apple Health, a .zuhealth backup, or a WHOOP .json file." />
+        <Problem text={t("Health can't read this kind of file. Choose a lab report photo or PDF, a .zip from Apple Health, a .zuhealth backup, or a WHOOP .json file.")} />
       )}
       {needsOcr && <OcrInstall done={() => (setNeedsOcr(false), setErr(undefined))} />}
       {file && kind && (
@@ -712,23 +729,23 @@ function Import({ file, onFile, go }: { file?: string; onFile: (p?: string) => v
             run();
           }}
         >
-          <p className="fine">{KIND_LABEL[kind]}</p>
-          {kind === "backup" && <PasswordField label="Backup password" value={password} onChange={setPassword} auto="current-password" />}
+          <p className="fine">{t(KIND_LABEL[kind])}</p>
+          {kind === "backup" && <PasswordField label={t("Backup password")} value={password} onChange={setPassword} auto="current-password" />}
           {kind === "rows" && (
             <label>
-              Where these readings come from
+              {t("Where these readings come from")}
               <input value={source} onChange={(e) => setSource(e.target.value)} required />
             </label>
           )}
           <Problem text={err} />
           <button type="submit" className="primary" disabled={busy}>
-            {busy ? (kind === "backup" ? "Restoring…" : "Importing…") : kind === "backup" ? "Restore backup" : "Import"}
+            {busy ? (kind === "backup" ? t("Restoring…") : t("Importing…")) : kind === "backup" ? t("Restore backup") : t("Import")}
           </button>
           {busy && (
             <p className="fine">
               {kind === "report"
-                ? "Reading the report: a few seconds a page."
-                : "Large exports can take a few minutes. Health answers again when the import is done; keep this page open to see the result."}
+                ? t("Reading the report: a few seconds a page.")
+                : t("Large exports can take a few minutes. Health answers again when the import is done; keep this page open to see the result.")}
             </p>
           )}
         </form>
@@ -738,10 +755,10 @@ function Import({ file, onFile, go }: { file?: string; onFile: (p?: string) => v
           {done}
           <div className="actions">
             <button type="button" className="primary" onClick={() => go("readings")}>
-              See my readings
+              {t("See my readings")}
             </button>
             <button type="button" onClick={() => onFile(undefined)}>
-              Import another file
+              {t("Import another file")}
             </button>
           </div>
         </div>
@@ -775,7 +792,7 @@ function display(p: Point, days?: Day[]): { value: string; unit: string; note?: 
   if (p.agg === "cumulative" && days?.length) {
     const last = days[days.length - 1]!;
     const today = last.day === day(Date.now());
-    const note = today ? "today" : ago(dayMs(last.day));
+    const note = today ? t("today") : ago(dayMs(last.day));
     const asTime = asDuration(last.sum ?? 0, p.unit, true);
     return asTime ? { value: asTime, unit: "", note } : { value: num(last.sum ?? 0), unit: unitLabel(p.unit), note };
   }
@@ -784,8 +801,8 @@ function display(p: Point, days?: Day[]): { value: string; unit: string; note?: 
 
 /** Generic device names ("OCR", "photo") read better as their kind. */
 function sourceLabel(src?: Source): string {
-  if (!src) return "Source";
-  if (src.connector === "manual") return "Entered by you";
+  if (!src) return t("Source");
+  if (src.connector === "manual") return t("Entered by you");
   const generic = ["ocr", "photo", src.connector].includes(src.name.toLowerCase());
   return generic ? sourceKind(src.connector) : src.name;
 }
@@ -797,8 +814,8 @@ function Flag({ p }: { p: Point }) {
   const f = (p.detail?.flag ?? (p.detail?.printed as { flag?: string } | undefined)?.flag) as string | undefined;
   if (p.corrected || (f !== "H" && f !== "L")) return null;
   return (
-    <span className="flag" title={f === "H" ? "Above the reference range" : "Below the reference range"}>
-      {f === "H" ? "↑ high" : "↓ low"}
+    <span className="flag" title={f === "H" ? t("Above the reference range") : t("Below the reference range")}>
+      {f === "H" ? t("↑ high") : t("↓ low")}
     </span>
   );
 }
@@ -925,11 +942,11 @@ function Section({ g, rows, sources, open, all }: { g: (typeof GROUPS)[number]; 
       <header>
         <h3 id={`h-${g.key}`}>
           <GroupIcon k={g.key} />
-          {g.label}
+          {t(g.label)}
         </h3>
         {!all && rows.length > fold && (
           <button type="button" className="link" aria-expanded={more} onClick={() => setMore(!more)}>
-            {more ? "Show fewer" : `Show all ${rows.length}`}
+            {more ? t("Show fewer") : t("Show all {{n}}", { n: rows.length })}
           </button>
         )}
       </header>
@@ -940,8 +957,9 @@ function Section({ g, rows, sources, open, all }: { g: (typeof GROUPS)[number]; 
       </div>
       {from.length > 0 && (
         <p className="fine from">
-          From {[...new Set(from)].slice(0, 3).join(", ")}
-          {new Set(from).size > 3 ? ` and ${new Set(from).size - 3} more` : ""}
+          {new Set(from).size > 3
+            ? t("From {{list}} and {{n}} more", { list: [...new Set(from)].slice(0, 3).join(t(", ")), n: new Set(from).size - 3 })
+            : t("From {{list}}", { list: [...new Set(from)].slice(0, 3).join(t(", ")) })}
         </p>
       )}
     </section>
@@ -955,7 +973,7 @@ function Summary({ latest, open }: { latest: Point[]; open: (code: string) => vo
     .filter((p): p is Point => !!p);
   if (!picks.length) return null;
   return (
-    <div className="pills" role="group" aria-label="At a glance">
+    <div className="pills" role="group" aria-label={t("At a glance")}>
       {picks.map((p) => (
         <Pill key={p.metric} p={p} open={open} />
       ))}
@@ -1013,18 +1031,17 @@ function Readings({
     }
   }, [find, latest, found]);
   if (err) return <Problem text={err} />;
-  if (!latest) return <p className="empty" aria-busy="true">Loading your readings…</p>;
+  if (!latest) return <p className="empty" aria-busy="true">{t("Loading your readings…")}</p>;
   if (!latest.length)
     return (
       <section className="page">
-        <h2>Readings</h2>
+        <h2>{t("Readings")}</h2>
         <p className="lede">
-          Nothing here yet. Restore a Health backup (.zuhealth), import an Apple Health or WHOOP export, or add a reading by hand. You can also
-          drop a file anywhere on this window.
+          {t("Nothing here yet. Restore a Health backup (.zuhealth), import an Apple Health or WHOOP export, or add a reading by hand. You can also drop a file anywhere on this window.")}
         </p>
         <div className="actions">
           <button type="button" className="primary" onClick={() => go("add")}>
-            Add data
+            {t("Add data")}
           </button>
         </div>
       </section>
@@ -1037,8 +1054,8 @@ function Readings({
     <section className="page wide">
       <div className="page-head">
         <div>
-          <h2>Readings</h2>
-          <p className="fine">Updated {when(newest)}</p>
+          <h2>{t("Readings")}</h2>
+          <p className="fine">{t("Updated {{when}}", { when: when(newest) })}</p>
         </div>
         <div className="search-field">
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
@@ -1048,8 +1065,8 @@ function Readings({
           <input
             ref={search}
             type="search"
-            placeholder={`Find a measure (${MOD}F)`}
-            aria-label="Find a measure"
+            placeholder={`${t("Find a measure")} (${MOD}F)`}
+            aria-label={t("Find a measure")}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === "Escape" && setQ("")}
@@ -1059,13 +1076,13 @@ function Readings({
       {!needle && <Summary latest={latest} open={open} />}
       {reviews > 0 && (
         <p className="notice">
-          {reviews} {reviews === 1 ? "import is" : "imports are"} waiting for you to check.{" "}
+          {t("{{count}} imports are waiting for you to check.", { count: reviews })}{" "}
           <button type="button" className="link" onClick={() => go("review")}>
-            Review now
+            {t("Review now")}
           </button>
         </p>
       )}
-      {!groups.length && <p className="empty">No measure matches “{q}”.</p>}
+      {!groups.length && <p className="empty">{t("No measure matches “{{q}}”.", { q })}</p>}
       {groups.map(({ g, rows }) => (
         <Section key={g.key} g={g} rows={rows} sources={sources ?? []} open={open} all={!!needle} />
       ))}
@@ -1074,10 +1091,10 @@ function Readings({
 }
 
 const RANGES = [
-  { label: "30 days", days: 30 },
-  { label: "90 days", days: 90 },
-  { label: "1 year", days: 365 },
-  { label: "All", days: 0 },
+  { label: tk("30 days"), days: 30 },
+  { label: tk("90 days"), days: 90 },
+  { label: tk("1 year"), days: 365 },
+  { label: tk("All"), days: 0 },
 ];
 
 function MetricPicker({ onPick, placeholder }: { onPick: (m: Metric) => void; placeholder: string }) {
@@ -1102,7 +1119,7 @@ function MetricPicker({ onPick, placeholder }: { onPick: (m: Metric) => void; pl
                   setQ("");
                 }}
               >
-                {m.name} <span className="fine">{m.code}</span>
+                {nameOf(m.code, m.name)} <span className="fine">{m.code}</span>
               </button>
             </li>
           ))}
@@ -1131,8 +1148,8 @@ function Record({ code, pick }: { code?: string; pick: (c: string) => void }) {
   if (!code)
     return (
       <section className="page">
-        <h2>History</h2>
-        <MetricPicker placeholder="Search measures, e.g. weight" onPick={(m) => pick(m.code)} />
+        <h2>{t("History")}</h2>
+        <MetricPicker placeholder={t("Search measures, e.g. weight")} onPick={(m) => pick(m.code)} />
       </section>
     );
   const agg = info?.agg ?? "instant";
@@ -1164,47 +1181,47 @@ function Record({ code, pick }: { code?: string; pick: (c: string) => void }) {
       <p className="fine" title={code}>
         {info && nameOf(info.code, info.name) !== info.name ? info.name : code}
       </p>
-      <div className="segmented" role="group" aria-label="Range">
+      <div className="segmented" role="group" aria-label={t("Range")}>
         {RANGES.map((r) => (
           <button key={r.label} type="button" aria-pressed={span === r.days} onClick={() => setRange(r.days)}>
-            {r.label}
+            {t(r.label)}
           </button>
         ))}
       </div>
       {vals.length > 0 && (
         <dl className="stats">
           <div>
-            <dt>Average</dt>
+            <dt>{t("Average")}</dt>
             <dd>
               {fmt(vals.reduce((a, b) => a + b, 0) / vals.length)} <span className="unit">{shownUnit}</span>
             </dd>
           </div>
           <div>
-            <dt>Lowest</dt>
+            <dt>{t("Lowest")}</dt>
             <dd>
               {fmt(Math.min(...lows))} <span className="unit">{shownUnit}</span>
             </dd>
           </div>
           <div>
-            <dt>Highest</dt>
+            <dt>{t("Highest")}</dt>
             <dd>
               {fmt(Math.max(...highs))} <span className="unit">{shownUnit}</span>
             </dd>
           </div>
           <div>
-            <dt>Days with data</dt>
+            <dt>{t("Days with data")}</dt>
             <dd>{vals.length}</dd>
           </div>
           {refText && (
             <div>
-              <dt>Reference range</dt>
+              <dt>{t("Reference range")}</dt>
               <dd>{refText}</dd>
             </div>
           )}
         </dl>
       )}
       <DailyChart pts={pts} unit={shownUnit} fmt={fmt} />
-      <h3>Latest entries</h3>
+      <h3>{t("Latest entries")}</h3>
       <table className="rows">
         <tbody>
           {recent.map((p) => {
@@ -1216,26 +1233,26 @@ function Record({ code, pick }: { code?: string; pick: (c: string) => void }) {
                 <td className="n value">
                   {s.value} <span className="unit">{s.unit}</span>
                   <Flag p={p} />
-                  {p.corrected && <span className="fine"> corrected</span>}
+                  {p.corrected && <span className="fine"> {t("corrected")}</span>}
                 </td>
               </tr>
             );
           })}
         </tbody>
       </table>
-      <MetricPicker placeholder="Look at another measure" onPick={(m) => pick(m.code)} />
+      <MetricPicker placeholder={t("Look at another measure")} onPick={(m) => pick(m.code)} />
     </section>
   );
 }
 
 /** Common measures, one tap away (as the web version's record page). */
 const QUICK: [string, string][] = [
-  ["loinc:29463-7", "Weight"],
-  ["loinc:8480-6", "Blood pressure, systolic"],
-  ["loinc:8462-4", "Blood pressure, diastolic"],
-  ["loinc:8867-4", "Heart rate"],
-  ["loinc:2339-0", "Blood glucose"],
-  ["loinc:8310-5", "Body temperature"],
+  ["loinc:29463-7", tk("Weight")],
+  ["loinc:8480-6", tk("Blood pressure, systolic")],
+  ["loinc:8462-4", tk("Blood pressure, diastolic")],
+  ["loinc:8867-4", tk("Heart rate")],
+  ["loinc:2339-0", tk("Blood glucose")],
+  ["loinc:8310-5", tk("Body temperature")],
 ];
 
 /** A typed number: "10,000" and "10 000" are ten thousand; "36,6" and "0,125" use a decimal comma; anything
@@ -1275,9 +1292,9 @@ function Enter({ done }: { done: (code: string) => void }) {
     const local = new Date(at);
     const text = m.agg === "none";
     const trimmed = value.trim();
-    if (!trimmed) return setErr("Type a value.");
+    if (!trimmed) return setErr(t("Type a value."));
     const v = text ? trimmed : parseNumber(trimmed);
-    if (!text && !Number.isFinite(v)) return setErr("Type a number, such as 72 or 36.6.");
+    if (!text && !Number.isFinite(v)) return setErr(t("Type a number, such as 72 or 36.6."));
     if (busy) return;
     setBusy(true);
     try {
@@ -1293,14 +1310,14 @@ function Enter({ done }: { done: (code: string) => void }) {
   };
   return (
     <section className="page narrow">
-      <h2>Enter by hand</h2>
+      <h2>{t("Enter by hand")}</h2>
       {!m ? (
         <>
-          <MetricPicker placeholder="What did you measure?" onPick={pick} />
-          <div className="chips" role="group" aria-label="Common measures">
+          <MetricPicker placeholder={t("What did you measure?")} onPick={pick} />
+          <div className="chips" role="group" aria-label={t("Common measures")}>
             {QUICK.map(([code, label]) => (
               <button key={code} type="button" className="chip-button" onClick={() => pick({ code, name: label, unit: "", agg: "instant" })}>
-                {label}
+                {t(label)}
               </button>
             ))}
           </div>
@@ -1314,25 +1331,25 @@ function Enter({ done }: { done: (code: string) => void }) {
           }}
         >
           <p>
-            <strong>{m.name}</strong>{" "}
+            <strong>{nameOf(m.code, m.name)}</strong>{" "}
             <button type="button" className="link" onClick={() => setM(undefined)}>
-              Change
+              {t("Change")}
             </button>
           </p>
           <label>
-            Value
+            {t("Value")}
             <input inputMode={m.agg === "none" ? "text" : "decimal"} value={value} onChange={(e) => setValue(e.target.value)} required />
           </label>
           {m.agg !== "none" && value.includes(",") && Number.isFinite(parseNumber(value)) && (
             <p className="fine" role="status">
-              Read as {parseNumber(value).toLocaleString(undefined, { maximumFractionDigits: 6 })}
+              {t("Read as {{n}}", { n: parseNumber(value).toLocaleString(undefined, { maximumFractionDigits: 6 }) })}
             </p>
           )}
           {m.units.length > 1 && (
             <label>
-              Unit
+              {t("Unit")}
               <select value={unit} onChange={(e) => setUnit(e.target.value)} required>
-                <option value="">Choose the unit on your device</option>
+                <option value="">{t("Choose the unit on your device")}</option>
                 {m.units.map((u) => (
                   <option key={u} value={u}>
                     {unitLabel(u) || u}
@@ -1342,12 +1359,12 @@ function Enter({ done }: { done: (code: string) => void }) {
             </label>
           )}
           <label>
-            When
+            {t("When")}
             <input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} required />
           </label>
           <Problem text={err} />
           <button type="submit" className="primary" disabled={busy}>
-            Save reading
+            {t("Save reading")}
           </button>
         </form>
       )}
@@ -1355,7 +1372,6 @@ function Enter({ done }: { done: (code: string) => void }) {
   );
 }
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
 function Sources({ go }: { go: (p: Page) => void }) {
   const [sources, , reloadSources] = useOp(() => op<Source[]>("source.list"), []);
@@ -1381,7 +1397,7 @@ function Sources({ go }: { go: (p: Page) => void }) {
       const order = [...(sources ?? [])];
       [order[i - 1], order[i]] = [order[i]!, order[i - 1]!];
       for (const [k, s] of order.entries()) if (s.priority !== (k + 1) * 10) await op("source.update", { id: s.id, priority: (k + 1) * 10 });
-    }, "Order saved.");
+    }, t("Order saved."));
     setOrdering(false);
   };
   const device = (id: number) => {
@@ -1395,11 +1411,11 @@ function Sources({ go }: { go: (p: Page) => void }) {
   const ordered = [...kinds.entries()].sort((a, b) => Math.max(...b[1].map((x) => x.at ?? 0)) - Math.max(...a[1].map((x) => x.at ?? 0)));
   return (
     <section className="page narrow">
-      <h2>Sources</h2>
+      <h2>{t("Sources")}</h2>
       <p className="lede">
-        Where your readings came from. Open a kind to see each import, or delete one: its readings go with it.{" "}
+        {t("Where your readings came from. Open a kind to see each import, or delete one: its readings go with it.")}{" "}
         <button type="button" className="link" onClick={() => go("add")}>
-          Add data
+          {t("Add data")}
         </button>
       </p>
       {msg && (
@@ -1408,7 +1424,7 @@ function Sources({ go }: { go: (p: Page) => void }) {
         </p>
       )}
       <Problem text={err} />
-      {batches && !batches.length && <p className="empty">No imports yet.</p>}
+      {batches && !batches.length && <p className="empty">{t("No imports yet.")}</p>}
       <div className="list-card">
         {ordered.map(([kind, list]) => {
           const devices = new Set(list.map((b) => b.source_id));
@@ -1418,8 +1434,8 @@ function Sources({ go }: { go: (p: Page) => void }) {
               <summary>
                 <span className="name">{sourceKind(kind)}</span>
                 <span className="fine">
-                  {plural(list.length, "import")}
-                  {devices.size > 1 ? `, ${plural(devices.size, "device")}` : ""} · {last ? shortDate(last) : ""}
+                  {t("{{count}} imports", { count: list.length })}
+                  {devices.size > 1 ? `${t(", ")}${t("{{count}} devices", { count: devices.size })}` : ""} · {last ? shortDate(last) : ""}
                 </span>
               </summary>
               <ul className="batches">
@@ -1430,21 +1446,21 @@ function Sources({ go }: { go: (p: Page) => void }) {
                       <br />
                       <span className="fine">
                         {device(b.source_id)}
-                        {b.status === "review" ? <span className="signal">waiting for you</span> : plural(b.metrics, "measure")}
+                        {b.status === "review" ? <span className="signal">{t("waiting for you")}</span> : t("{{count}} measures", { count: b.metrics })}
                       </span>
                     </span>
                     {confirm === b.import_id ? (
                       <span className="actions">
-                        <button type="button" className="danger" onClick={() => run(() => op("import.erase", { id: b.import_id }), "Deleted, with its readings.")}>
-                          Delete import and its readings
+                        <button type="button" className="danger" onClick={() => run(() => op("import.erase", { id: b.import_id }), t("Deleted, with its readings."))}>
+                          {t("Delete import and its readings")}
                         </button>
                         <button type="button" onClick={() => setConfirm(undefined)}>
-                          Keep
+                          {t("Keep")}
                         </button>
                       </span>
                     ) : (
                       <button type="button" className="link" onClick={() => setConfirm(b.import_id)}>
-                        Delete…
+                        {t("Delete…")}
                       </button>
                     )}
                   </li>
@@ -1456,17 +1472,17 @@ function Sources({ go }: { go: (p: Page) => void }) {
       </div>
       <details className="group">
         <summary>
-          <h3>When two sources report the same day</h3>
+          <h3>{t("When two sources report the same day")}</h3>
         </summary>
-        <p className="fine">The one higher in this list is used for daily summaries. Nothing is added up.</p>
+        <p className="fine">{t("The one higher in this list is used for daily summaries. Nothing is added up.")}</p>
         <ol className="order">
           {(sources ?? []).map((s, i) => (
             <li key={s.id}>
               <span>
-                {s.connector === "manual" ? "Entered by you" : s.name} <span className="fine">{sourceKind(s.connector)}</span>
+                {s.connector === "manual" ? t("Entered by you") : s.name} <span className="fine">{sourceKind(s.connector)}</span>
               </span>
-              <button type="button" className="link" disabled={i === 0 || ordering} aria-label={`Prefer ${s.name}`} onClick={() => moveUp(i)}>
-                Move up
+              <button type="button" className="link" disabled={i === 0 || ordering} aria-label={t("Prefer {{name}}", { name: s.name })} onClick={() => moveUp(i)}>
+                {t("Move up")}
               </button>
             </li>
           ))}
@@ -1541,8 +1557,10 @@ function OcrReview({ b, done, discard }: { b: BatchDetail; done: (text: string) 
         tz_min: -new Date(`${date}T12:00`).getTimezoneOffset(),
       });
       done(
-        `Saved ${r.saved} ${r.saved === 1 ? "result" : "results"}${r.created ? `, with ${r.created} new ${r.created === 1 ? "measure" : "measures"}` : ""}.` +
-          (r.left ? ` ${r.left} left out: no measure, or a unit that doesn't fit it.` : ""),
+        (r.created
+          ? t("Saved {{count}} results, with {{created}} new measures.", { count: r.saved, created: r.created })
+          : t("Saved {{count}} results.", { count: r.saved })) +
+          (r.left ? ` ${t("{{n}} left out: no measure, or a unit that doesn't fit it.", { n: r.left })}` : ""),
       );
     } catch (e) {
       setErr(errText(e));
@@ -1554,20 +1572,20 @@ function OcrReview({ b, done, discard }: { b: BatchDetail; done: (text: string) 
   return (
     <div className="group ocr">
       <div className="ocr-head">
-        <h3>Lab report</h3>
+        <h3>{t("Lab report")}</h3>
         <label className="inline">
-          Test date
+          {t("Test date")}
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
         </label>
       </div>
-      {c.dated === false && <p className="notice">The date wasn't found on the report. Set the day the sample was taken.</p>}
+      {c.dated === false && <p className="notice">{t("The date wasn't found on the report. Set the day the sample was taken.")}</p>}
       <table className="rows ocr-items">
         <thead>
           <tr>
-            <th>On the report</th>
-            <th>Result</th>
-            <th>Measure</th>
-            <th>Unit</th>
+            <th>{t("On the report")}</th>
+            <th>{t("Result")}</th>
+            <th>{t("Measure")}</th>
+            <th>{t("Unit")}</th>
           </tr>
         </thead>
         <tbody>
@@ -1582,20 +1600,20 @@ function OcrReview({ b, done, discard }: { b: BatchDetail; done: (text: string) 
                 <td>
                   {it.name}
                   {it.panel && <span className="fine"> · {it.panel}</span>}
-                  {it.ref && <div className="fine">Reference {it.ref}</div>}
+                  {it.ref && <div className="fine">{t("Reference {{ref}}", { ref: it.ref })}</div>}
                 </td>
                 <td className="value">
                   {it.cmp ?? ""}
                   {String(it.v)} <span className="unit">{it.unit}</span>
                   {it.flag && (
-                    <span className="flag" title={it.flag === "H" ? "Marked high" : "Marked low"}>
+                    <span className="flag" title={it.flag === "H" ? t("Marked high") : t("Marked low")}>
                       {it.flag === "H" ? "↑" : "↓"}
                     </span>
                   )}
                 </td>
                 <td>
                   <select
-                    aria-label={`Measure for ${it.name}`}
+                    aria-label={t("Measure for {{name}}", { name: it.name })}
                     value={value}
                     onChange={(e) => {
                       const v = e.target.value;
@@ -1606,19 +1624,19 @@ function OcrReview({ b, done, discard }: { b: BatchDetail; done: (text: string) 
                       else set(i, v ? { code: v } : {});
                     }}
                   >
-                    <option value="">Choose…</option>
+                    <option value="">{t("Choose…")}</option>
                     {offered.map((code) => (
                       <option key={code} value={code}>
                         {label(code)}
                       </option>
                     ))}
-                    <option value="other">Another measure…</option>
-                    <option value="new">New measure “{it.name}”</option>
-                    <option value="skip">Skip</option>
+                    <option value="other">{t("Another measure…")}</option>
+                    <option value="new">{t("New measure “{{name}}”", { name: it.name })}</option>
+                    <option value="skip">{t("Skip")}</option>
                   </select>
                   {other === i && (
                     <MetricPicker
-                      placeholder="Search measures"
+                      placeholder={t("Search measures")}
                       onPick={(x) => {
                         set(i, { code: x.code });
                         setOther(undefined);
@@ -1628,8 +1646,8 @@ function OcrReview({ b, done, discard }: { b: BatchDetail; done: (text: string) 
                 </td>
                 <td>
                   {numeric && m.units.some((u) => u) && (m.units.length > 1 || needsUnit(i)) && (
-                    <select aria-label={`Unit for ${it.name}`} value={p.unit ?? ""} onChange={(e) => set(i, { ...p, unit: e.target.value || undefined })}>
-                      <option value="">{picked[`${p.code} ${it.unit}`] ? `As printed (${it.unit})` : "Choose the unit…"}</option>
+                    <select aria-label={t("Unit for {{name}}", { name: it.name })} value={p.unit ?? ""} onChange={(e) => set(i, { ...p, unit: e.target.value || undefined })}>
+                      <option value="">{picked[`${p.code} ${it.unit}`] ? t("As printed ({{unit}})", { unit: it.unit }) : t("Choose the unit…")}</option>
                       {m.units.map((u) => (
                         <option key={u} value={u}>
                           {unitLabel(u) || u}
@@ -1646,10 +1664,10 @@ function OcrReview({ b, done, discard }: { b: BatchDetail; done: (text: string) 
       <Problem text={err} />
       <div className="actions">
         <button type="button" className="primary" disabled={busy || !count || !date} onClick={save}>
-          Save {count} {count === 1 ? "result" : "results"}
+          {t("Save {{count}} results", { count })}
         </button>
         <button type="button" onClick={discard}>
-          Discard
+          {t("Discard")}
         </button>
       </div>
     </div>
@@ -1674,8 +1692,8 @@ function Review() {
   if (err) return <Problem text={err} />;
   return (
     <section className="page">
-      <h2>Waiting for you</h2>
-      <p className="lede">Nothing here is visible in your readings until you confirm it.</p>
+      <h2>{t("Waiting for you")}</h2>
+      <p className="lede">{t("Nothing here is visible in your readings until you confirm it.")}</p>
       {msg &&
         (msg.ok ? (
           <p className="fine" role="status">
@@ -1684,7 +1702,7 @@ function Review() {
         ) : (
           <Problem text={msg.text} />
         ))}
-      {items && !items.length && <p className="empty">Nothing is waiting.</p>}
+      {items && !items.length && <p className="empty">{t("Nothing is waiting.")}</p>}
       {(items ?? []).map((b) => {
         if (b.candidates?.kind === "ocr")
           return (
@@ -1692,7 +1710,7 @@ function Review() {
               key={b.import_id}
               b={b}
               done={(text) => (setMsg({ ok: true, text }), reload())}
-              discard={() => act("review.discard", b.import_id, "Discarded.")}
+              discard={() => act("review.discard", b.import_id, t("Discarded."))}
             />
           );
         if (b.candidates?.kind === "result")
@@ -1701,7 +1719,7 @@ function Review() {
               key={b.import_id}
               b={b}
               done={(text) => (setMsg({ ok: true, text }), reload())}
-              discard={() => act("review.discard", b.import_id, "Discarded.")}
+              discard={() => act("review.discard", b.import_id, t("Discarded."))}
             />
           );
         const proposal = b.candidates?.kind === "proposal";
@@ -1709,7 +1727,7 @@ function Review() {
         const by = proposal ? agent(b.candidates?.by) : undefined;
         return (
           <div key={b.import_id} className="group">
-            <h3>{proposal ? `Proposed by ${by ?? "an agent"}` : "From a lab report photo"}</h3>
+            <h3>{proposal ? (by ? t("Proposed by {{name}}", { name: by }) : t("Proposed by an agent")) : t("From a lab report photo")}</h3>
             {b.candidates?.note && <p>“{b.candidates.note}”</p>}
             {proposal ? (
               <table className="rows">
@@ -1726,16 +1744,16 @@ function Review() {
                 </tbody>
               </table>
             ) : (
-              <p className="fine">Matching lab items to measures arrives with photo import.</p>
+              <p className="fine">{t("Matching lab items to measures arrives with photo import.")}</p>
             )}
             <div className="actions">
               {proposal && (
-                <button type="button" className="primary" onClick={() => act("review.confirm", b.import_id, "Added to your readings.")}>
-                  Add to my readings
+                <button type="button" className="primary" onClick={() => act("review.confirm", b.import_id, t("Added to your readings."))}>
+                  {t("Add to my readings")}
                 </button>
               )}
-              <button type="button" onClick={() => act("review.discard", b.import_id, "Discarded.")}>
-                Discard
+              <button type="button" onClick={() => act("review.discard", b.import_id, t("Discarded."))}>
+                {t("Discard")}
               </button>
             </div>
           </div>
@@ -1745,14 +1763,16 @@ function Review() {
   );
 }
 
-const windowText = (w: Grant["window"]) => (w === "all" ? "all time" : "last_days" in w ? `last ${w.last_days} days` : "a date range");
-const writeText = { none: "read only", propose: "may propose readings", derived: "may propose and write computed results" };
+const windowText = (w: Grant["window"]) =>
+  w === "all" ? t("all time") : "last_days" in w ? t("last {{n}} days", { n: w.last_days }) : t("a date range");
+const writeText = (w: "none" | "propose" | "derived") =>
+  ({ none: t("read only"), propose: t("may propose readings"), derived: t("may propose and write computed results") })[w];
 
-const EXPIRY = [
-  [30, "30 days"],
-  [90, "90 days"],
-  [365, "1 year"],
-] as const;
+const EXPIRY: [number, string][] = [
+  [30, tk("30 days")],
+  [90, tk("90 days")],
+  [365, tk("1 year")],
+];
 
 /** After a grant is made: how to plug it into the chosen app, one click where the shell can do it. */
 function ConnectSteps({ client, token, bin, found, done }: { client: Client; token: string; bin: string; found: boolean; done: () => void }) {
@@ -1761,12 +1781,12 @@ function ConnectSteps({ client, token, bin, found, done }: { client: Client; tok
   const oneClick = client.oneClick && isDesktop;
   return (
     <div className="group notice connect" role="status">
-      <h3>Connect {client.name}</h3>
+      <h3>{t("Connect {{name}}", { name: client.name })}</h3>
       {oneClick && (
         <>
           <p>
-            {found ? `${client.name} is on this computer.` : `${client.name}'s settings folder wasn't found; it is created if you go ahead.`} Health
-            can add itself to its settings for you. Other servers there are kept, and the original file is saved next to it (.health-bak).
+            {found ? t("{{name}} is on this computer.", { name: client.name }) : t("{{name}}'s settings folder wasn't found; it is created if you go ahead.", { name: client.name })}{" "}
+            {t("Health can add itself to its settings for you. Other servers there are kept, and the original file is saved next to it (.health-bak).")}
           </p>
           <div className="actions">
             <button
@@ -1777,18 +1797,18 @@ function ConnectSteps({ client, token, bin, found, done }: { client: Client; tok
                 setBusy(true);
                 try {
                   const f = await connectAgent(client.id, token);
-                  setResult({ ok: true, text: `Added to ${f}. Restart ${client.name} to pick it up.` });
+                  setResult({ ok: true, text: t("Added to {{file}}. Restart {{name}} to pick it up.", { file: f, name: client.name }) });
                 } catch (e) {
                   setResult({ ok: false, text: String(e) });
                 }
                 setBusy(false);
               }}
             >
-              Add to {client.name}
+              {t("Add to {{name}}", { name: client.name })}
             </button>
           </div>
           {result && <p className={result.ok ? "fine" : "problem"}>{result.text}</p>}
-          <p className="fine">Or do it by hand:</p>
+          <p className="fine">{t("Or do it by hand:")}</p>
         </>
       )}
       <ol className="steps">
@@ -1798,19 +1818,17 @@ function ConnectSteps({ client, token, bin, found, done }: { client: Client; tok
             {st.code && (
               <div className="snippet">
                 <pre>{st.code}</pre>
-                <Copy text={st.code} label="Copy" />
+                <Copy text={st.code} label={t("Copy")} />
               </div>
             )}
           </li>
         ))}
       </ol>
       <p className="fine">
-        The token is shown only this once. The app works with your data even when Health is closed (with a passphrase lock, keep Health open and
-        unlocked). If you move the Health app, or the access expires, connect again. Apps that run in a web browser (such as
-        ChatGPT or claude.ai) can't reach Health: it only answers on this computer.
+        {t("The token is shown only this once. The app works with your data even when Health is closed (with a passphrase lock, keep Health open and unlocked). If you move the Health app, or the access expires, connect again. Apps that run in a web browser (such as ChatGPT or claude.ai) can't reach Health: it only answers on this computer.")}
       </p>
       <button type="button" className="link" onClick={done}>
-        Done
+        {t("Done")}
       </button>
     </div>
   );
@@ -1823,7 +1841,7 @@ function Revoke({ id, name, done }: { id: number; name: string; done: () => void
   if (!ask)
     return (
       <button type="button" className="link" onClick={() => setAsk(true)}>
-        Revoke
+        {t("Revoke")}
       </button>
     );
   return (
@@ -1838,10 +1856,10 @@ function Revoke({ id, name, done }: { id: number; name: string; done: () => void
           )
         }
       >
-        Revoke {name}
+        {t("Revoke {{name}}", { name })}
       </button>
       <button type="button" onClick={() => setAsk(false)}>
-        Keep
+        {t("Keep")}
       </button>
       {err && <Problem text={err} />}
     </span>
@@ -1852,7 +1870,7 @@ function LastUsed({ id }: { id: number }) {
   const [last, , reload] = useOp(() => op<Audit[]>("audit.list", { grant_id: id, limit: 1 }), [id]);
   usePoll(reload);
   if (!last) return null;
-  return <span className="fine">{last[0] ? `last used ${ago(last[0].at)}` : "not used yet"}</span>;
+  return <span className="fine">{last[0] ? t("last used {{when}}", { when: ago(last[0].at) }) : t("not used yet")}</span>;
 }
 
 function Agents() {
@@ -1902,20 +1920,19 @@ function Agents() {
   const ordered = [...CLIENTS].sort((a, b) => Number(found.includes(b.id)) - Number(found.includes(a.id)));
   return (
     <section className="page">
-      <h2>Agent access</h2>
+      <h2>{t("Agent access")}</h2>
       <p className="lede">
-        Let an AI app (Claude, Codex, Cursor, Copilot, Gemini and others) read your data through MCP. It sees only what you allow here, can
-        never delete anything or read your backups, and anything it writes waits for you or lands under its own computed measures.
+        {t("Let an AI app (Claude, Codex, Cursor, Copilot, Gemini and others) read your data through MCP. It sees only what you allow here, can never delete anything or read your backups, and anything it writes waits for you or lands under its own computed measures.")}
       </p>
       {made && <ConnectSteps client={made.client} token={made.token} bin={bin} found={found.includes(made.client.id)} done={() => setMade(undefined)} />}
       {!made && (
         <div className="group">
-          <h3>Connect an app</h3>
-          <div className="clients" role="group" aria-label="Agent apps">
+          <h3>{t("Connect an app")}</h3>
+          <div className="clients" role="group" aria-label={t("Agent apps")}>
             {ordered.map((c) => (
               <button key={c.id} type="button" className="client" aria-pressed={client?.id === c.id} onClick={() => pick(c)}>
                 {c.name}
-                {found.includes(c.id) && <span className="fine">On this computer</span>}
+                {found.includes(c.id) && <span className="fine">{t("On this computer")}</span>}
               </button>
             ))}
           </div>
@@ -1929,53 +1946,53 @@ function Agents() {
             create();
           }}
         >
-          <h3>What {client.id === "other" ? "the app" : client.name} may see</h3>
+          <h3>{client.id === "other" ? t("What the app may see") : t("What {{name}} may see", { name: client.name })}</h3>
           <label>
-            Name shown in the access log
-            <input placeholder="My agent" value={name} onChange={(e) => setName(e.target.value)} required />
+            {t("Name shown in the access log")}
+            <input placeholder={t("My agent")} value={name} onChange={(e) => setName(e.target.value)} required />
           </label>
           {[false, true].map((sensitive) => (
             <fieldset key={String(sensitive)}>
-              <legend>{sensitive ? "Sensitive: tick only what the agent needs" : "What it may read"}</legend>
+              <legend>{sensitive ? t("Sensitive: tick only what the agent needs") : t("What it may read")}</legend>
               {GROUPS.filter((g) => g.key !== "derived" && g.sensitive === sensitive).map((g) => (
                 <label key={g.key} className="check">
                   <input type="checkbox" checked={groups.includes(g.key)} onChange={() => toggle(g.key)} />
-                  {g.label}
+                  {t(g.label)}
                 </label>
               ))}
             </fieldset>
           ))}
           <label className="check">
             <input type="checkbox" checked={detail} onChange={(e) => setDetail(e.target.checked)} />
-            Every reading (otherwise daily summaries only)
+            {t("Every reading (otherwise daily summaries only)")}
           </label>
           <label className="check">
             <input type="checkbox" checked={reports} onChange={(e) => setReports(e.target.checked)} />
-            Full text of lab reports (shows every item on the sheet, whatever is ticked above)
+            {t("Full text of lab reports (shows every item on the sheet, whatever is ticked above)")}
           </label>
           <label>
-            How far back
+            {t("How far back")}
             <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
-              <option value={30}>30 days</option>
-              <option value={90}>90 days</option>
-              <option value={365}>1 year</option>
-              <option value={0}>Everything</option>
+              <option value={30}>{t("30 days")}</option>
+              <option value={90}>{t("90 days")}</option>
+              <option value={365}>{t("1 year")}</option>
+              <option value={0}>{t("Everything")}</option>
             </select>
           </label>
           <label>
-            Writing
+            {t("Writing")}
             <select value={write} onChange={(e) => setWrite(e.target.value as Grant["write"])}>
-              <option value="none">Read only</option>
-              <option value="propose">May propose readings for me to confirm</option>
-              <option value="derived">May also write computed results</option>
+              <option value="none">{t("Read only")}</option>
+              <option value="propose">{t("May propose readings for me to confirm")}</option>
+              <option value="derived">{t("May also write computed results")}</option>
             </select>
           </label>
           <label>
-            Access ends after
+            {t("Access ends after")}
             <select value={expiry} onChange={(e) => setExpiry(Number(e.target.value))}>
               {EXPIRY.map(([d, l]) => (
                 <option key={d} value={d}>
-                  {l}
+                  {t(l)}
                 </option>
               ))}
             </select>
@@ -1983,18 +2000,18 @@ function Agents() {
           <Problem text={msg} />
           <div className="actions">
             <button type="submit" className="primary" disabled={!groups.length}>
-              Create access
+              {t("Create access")}
             </button>
             <button type="button" onClick={() => setClient(undefined)}>
-              Cancel
+              {t("Cancel")}
             </button>
           </div>
         </form>
       )}
       <div className="group">
-        <h3>Current access</h3>
+        <h3>{t("Current access")}</h3>
         <Problem text={err} />
-        {grants && !grants.length && <p className="empty">No app has access yet.</p>}
+        {grants && !grants.length && <p className="empty">{t("No app has access yet.")}</p>}
         <table className="rows">
           <tbody>
             {(grants ?? [])
@@ -2010,9 +2027,19 @@ function Agents() {
                       <LastUsed id={g.id} />
                     </th>
                     <td>
-                      {g.groups.map(groupLabel).join(", ")}; {g.detail ? "every reading" : "daily summaries"}, {windowText(g.window)}, {writeText[g.write]}
+                      {g.groups.map(groupLabel).join(t(", "))}; {g.detail ? t("every reading") : t("daily summaries")}
+                      {t(", ")}
+                      {windowText(g.window)}
+                      {t(", ")}
+                      {writeText(g.write)}
                     </td>
-                    <td>{live ? `until ${new Date(g.expires_ms).toLocaleDateString()}` : g.revoked_ms ? "revoked" : "expired"}</td>
+                    <td>
+                      {live
+                        ? t("until {{date}}", { date: new Date(g.expires_ms).toLocaleDateString(i18nLocale()) })
+                        : g.revoked_ms
+                          ? t("revoked")
+                          : t("expired")}
+                    </td>
                     <td className="n">
                       {live && <Revoke id={g.id} name={g.name} done={reload} />}
                     </td>
@@ -2041,10 +2068,10 @@ function AuditLog() {
   const nameOf = (id: number) => grants?.find((g) => g.id === id)?.name ?? `#${id}`;
   return (
     <section className="page">
-      <h2>Access log</h2>
-      <p className="lede">Every call an agent made: what it asked for and how many rows it got back. Values are never logged.</p>
+      <h2>{t("Access log")}</h2>
+      <p className="lede">{t("Every call an agent made: what it asked for and how many rows it got back. Values are never logged.")}</p>
       <Problem text={err} />
-      {log && !log.length && <p className="empty">No agent has read anything yet.</p>}
+      {log && !log.length && <p className="empty">{t("No agent has read anything yet.")}</p>}
       <table className="rows">
         <tbody>
           {(log ?? []).map((a, i) => (
@@ -2053,7 +2080,7 @@ function AuditLog() {
               <th scope="row">{nameOf(a.grant_id)}</th>
               <td>{a.op}</td>
               <td>{a.metrics.join(", ")}</td>
-              <td className="n">{a.denied ? <span className="signal">refused</span> : `${a.rows} rows`}</td>
+              <td className="n">{a.denied ? <span className="signal">{t("refused")}</span> : t("{{count}} rows", { count: a.rows })}</td>
             </tr>
           ))}
         </tbody>
@@ -2078,20 +2105,22 @@ function Backup({ go }: { go: (p: Page) => void }) {
   const save = async () => {
     setErr(undefined);
     setDone(undefined);
-    if (pw.length < 8) return setErr("Use at least 8 characters.");
-    if (pw !== pw2) return setErr("The two passwords differ.");
+    if (pw.length < 8) return setErr(t("Use at least 8 characters."));
+    if (pw !== pw2) return setErr(t("The two passwords differ."));
     let path = out;
     if (isDesktop) {
-      const p = await chooseSavePath(`health-${stamp}.zuhealth`, "Health backup", "zuhealth");
+      const p = await chooseSavePath(`health-${stamp}.zuhealth`, t("Health backup"), "zuhealth");
       if (!p) return;
       path = p;
     }
-    if (!path) return setErr("Choose where to save the backup.");
+    if (!path) return setErr(t("Choose where to save the backup."));
     setBusy(true);
     try {
       // the native save dialog already asked before replacing a file
       const r = await op<{ bytes: number; path: string }>("backup.export", { path, password: pw, replace: isDesktop });
-      setDone(`Saved ${fileName(r.path)} (${(r.bytes / 1e6).toFixed(1)} MB). Keep the password safe: without it the backup cannot be opened.`);
+      setDone(
+        t("Saved {{file}} ({{mb}} MB). Keep the password safe: without it the backup cannot be opened.", { file: fileName(r.path), mb: (r.bytes / 1e6).toFixed(1) }),
+      );
       setPw("");
       setPw2("");
     } catch (e) {
@@ -2102,13 +2131,12 @@ function Backup({ go }: { go: (p: Page) => void }) {
   };
   return (
     <section className="page narrow">
-      <h2>Backup</h2>
+      <h2>{t("Backup")}</h2>
       <p className="lede">
-        A backup is one encrypted file with everything in Health. It also opens in the web version. To restore one,{" "}
+        {t("A backup is one encrypted file with everything in Health. It also opens in the web version.")}{" "}
         <button type="button" className="link" onClick={() => go("add")}>
-          import it
+          {t("Restore a backup")}
         </button>
-        .
       </p>
       <form
         className="group form"
@@ -2118,18 +2146,18 @@ function Backup({ go }: { go: (p: Page) => void }) {
           save();
         }}
       >
-        <PasswordField label="Password" value={pw} onChange={setPw} auto="new-password" />
-        <PasswordField label="Repeat password" value={pw2} onChange={setPw2} auto="new-password" />
-        <p className="fine">At least 8 characters. There is no way to recover a forgotten backup password.</p>
+        <PasswordField label={t("Password")} value={pw} onChange={setPw} auto="new-password" />
+        <PasswordField label={t("Repeat password")} value={pw2} onChange={setPw2} auto="new-password" />
+        <p className="fine">{t("At least 8 characters. There is no way to recover a forgotten backup password.")}</p>
         {!isDesktop && (
           <label>
-            Save to
+            {t("Save to")}
             <input value={out} onChange={(e) => setOut(e.target.value)} placeholder={`/Users/you/Documents/health-${stamp}.zuhealth`} />
           </label>
         )}
         <Problem text={err} />
         <button type="submit" className="primary" disabled={busy}>
-          {busy ? "Saving…" : isDesktop ? "Save backup…" : "Save backup"}
+          {busy ? t("Saving…") : isDesktop ? t("Save backup…") : t("Save backup")}
         </button>
       </form>
       {done && (
@@ -2200,6 +2228,7 @@ function HealthAccount({ go }: { go: (p: Page) => void }) {
   const [linking, setLinking] = useState(false);
   const [giving, setGiving] = useState(false);
   const [polled, setPolled] = useState<string>();
+  const [waiting, setWaiting] = useState(false);
   const load = useCallback(() => {
     op<{ account: AccountInfo | null }>("account.show").then((r) => setAcc(r.account), (e) => setErr(errText(e)));
   }, []);
@@ -2223,11 +2252,12 @@ function HealthAccount({ go }: { go: (p: Page) => void }) {
     try {
       const r = await op<Polled>("inbox.poll");
       const parts = [
-        r.saved && `${r.saved} new ${r.saved === 1 ? "result" : "results"} saved`,
-        r.review && `${r.review} waiting for you to check`,
-        r.dropped && `${r.dropped} discarded (failed a check)`,
+        r.saved && t("{{count}} new results saved", { count: r.saved }),
+        r.review && t("{{count}} waiting for you to check", { count: r.review }),
+        r.dropped && t("{{count}} discarded (failed a check)", { count: r.dropped }),
       ].filter(Boolean);
-      setPolled(parts.length ? `${parts.join(", ")}.` : "No new results.");
+      setPolled(parts.length ? `${parts.join(t(", "))}${t(".")}` : t("No new results."));
+      setWaiting(r.review > 0);
       load();
     } catch (e) {
       setErr(errText(e));
@@ -2235,34 +2265,33 @@ function HealthAccount({ go }: { go: (p: Page) => void }) {
       setBusy(false);
     }
   };
-  if (acc === undefined) return <section className="page narrow" aria-busy="true"><h2>Health account</h2></section>;
+  if (acc === undefined) return <section className="page narrow" aria-busy="true"><h2>{t("Health account")}</h2></section>;
   if (linking) return <LinkThis done={() => { setLinking(false); load(); }} />;
   if (giving) return <GiveAccount done={() => { setGiving(false); load(); }} />;
   return (
     <section className="page narrow">
-      <h2>Health account</h2>
+      <h2>{t("Health account")}</h2>
       <p className="lede">
-        Labs and service desks send results to your health account, sealed so only your devices can open them. Your account key stays on your
-        devices; Health sends no readings anywhere.
+        {t("Labs and service desks send results to your health account, sealed so only your devices can open them. Your account key stays on your devices; Health sends no readings anywhere.")}
       </p>
       {acc?.identity ? (
         <div className="group identity">
-          <Qr text={acc.identity} label="Your identity code" />
+          <Qr text={acc.identity} label={t("Your identity code")} />
           <div>
-            <h3>Your identity code</h3>
-            <p className="fine">Show it at a lab or service desk so they can send your results here.</p>
-            <p className="fine mono">Account {acc.id.slice(0, 8)}…</p>
+            <h3>{t("Your identity code")}</h3>
+            <p className="fine">{t("Show it at a lab or service desk so they can send your results here.")}</p>
+            <p className="fine mono">{t("Account {{id}}…", { id: acc.id.slice(0, 8) })}</p>
           </div>
         </div>
       ) : (
         <div className="group form">
-          <p>{acc ? "This computer has an account, but its identity code hasn't been shown yet." : "There is no health account on this computer yet."}</p>
+          <p>{acc ? t("This computer has an account, but its identity code hasn't been shown yet.") : t("There is no health account on this computer yet.")}</p>
           <div className="actions">
             <button type="button" className="primary" disabled={busy} onClick={show}>
-              {busy ? "Contacting the service…" : acc ? "Show my identity code" : "Create my account"}
+              {busy ? t("Contacting the service…") : acc ? t("Show my identity code") : t("Create my account")}
             </button>
             <button type="button" disabled={busy} onClick={() => setLinking(true)}>
-              Use my account from another device…
+              {t("Use my account from another device…")}
             </button>
           </div>
         </div>
@@ -2270,16 +2299,16 @@ function HealthAccount({ go }: { go: (p: Page) => void }) {
       <Problem text={err} />
       {acc && (
         <div className="group form">
-          <h3>Results</h3>
-          <p className="fine">Health checks for new results when it opens and every few minutes while it's open.</p>
-          {acc.drops > 0 && <p className="fine">{acc.drops} {acc.drops === 1 ? "result was" : "results were"} discarded because they failed a check.</p>}
+          <h3>{t("Results")}</h3>
+          <p className="fine">{t("Health checks for new results when it opens and every few minutes while it's open.")}</p>
+          {acc.drops > 0 && <p className="fine">{t("{{count}} results were discarded because they failed a check.", { count: acc.drops })}</p>}
           <div className="actions">
             <button type="button" disabled={busy || !acc.registered} onClick={check}>
-              Check for results now
+              {t("Check for results now")}
             </button>
-            {polled && polled.includes("waiting") && (
+            {waiting && (
               <button type="button" className="link" onClick={() => go("review")}>
-                Check them now
+                {t("Check them now")}
               </button>
             )}
           </div>
@@ -2288,13 +2317,13 @@ function HealthAccount({ go }: { go: (p: Page) => void }) {
       )}
       {acc && (
         <div className="group form">
-          <h3>Devices</h3>
+          <h3>{t("Devices")}</h3>
           <div className="actions">
             <button type="button" onClick={() => setLinking(true)}>
-              Use my account from another device…
+              {t("Use my account from another device…")}
             </button>
             <button type="button" onClick={() => setGiving(true)}>
-              Link a new device…
+              {t("Link a new device…")}
             </button>
           </div>
         </div>
@@ -2354,41 +2383,43 @@ function LinkThis({ done }: { done: () => void }) {
   };
   return (
     <section className="page narrow">
-      <h2>Use my account from another device</h2>
+      <h2>{t("Use my account from another device")}</h2>
       {st.state === "waiting" && code && (
         <div className="group identity">
-          <Qr text={code} label="Link code" />
+          <Qr text={code} label={t("Link code")} />
           <div>
-            <p>On the device that has your account, open Health › Link a new device and scan this code.</p>
-            <p className="fine">From another computer, paste this code instead:</p>
+            <p>{t("On the device that has your account, open Health › Link a new device and scan this code.")}</p>
+            <p className="fine">{t("From another computer, paste this code instead:")}</p>
             <p className="fine mono link-code">{code}</p>
-            <p className="fine">Waiting… The code works for 10 minutes.</p>
+            <p className="fine">{t("Waiting… The code works for 10 minutes.")}</p>
           </div>
         </div>
       )}
       {st.state === "received" && (
         <div className="group form">
-          <p>Check that your other device shows the same code:</p>
-          <p className="check-code" aria-label={`Check code ${st.check}`}>{st.check}</p>
+          <p>{t("Check that your other device shows the same code:")}</p>
+          <p className="check-code" aria-label={t("Check code {{code}}", { code: st.check })}>{st.check}</p>
           {st.replaces && (
-            <p className="notice">This computer's identity code will change to the other device's. Results not yet received here won't arrive.</p>
+            <p className="notice">{t("This computer's identity code will change to the other device's. Results not yet received here won't arrive.")}</p>
           )}
           <div className="actions">
             <button type="button" className="primary" disabled={busy} onClick={adopt}>
-              {busy ? "Linking…" : "They match"}
+              {busy ? t("Linking…") : t("They match")}
             </button>
             <button type="button" disabled={busy} onClick={done}>
-              They don't match
+              {t("They don't match")}
             </button>
           </div>
         </div>
       )}
       {(st.state === "expired" || st.state === "failed") && (
         <div className="group form">
-          <p>{st.state === "expired" ? "The code expired." : "The link failed."} Nothing was changed on this computer.</p>
+          <p>
+            {st.state === "expired" ? t("The code expired.") : t("The link failed.")} {t("Nothing was changed on this computer.")}
+          </p>
           <div className="actions">
             <button type="button" className="primary" onClick={start}>
-              Start again
+              {t("Start again")}
             </button>
           </div>
         </div>
@@ -2396,7 +2427,7 @@ function LinkThis({ done }: { done: () => void }) {
       <Problem text={err} />
       <div className="actions">
         <button type="button" className="link" disabled={busy} onClick={done}>
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     </section>
@@ -2424,14 +2455,14 @@ function GiveAccount({ done }: { done: () => void }) {
   };
   return (
     <section className="page narrow">
-      <h2>Link a new device</h2>
+      <h2>{t("Link a new device")}</h2>
       {check ? (
         <div className="group form">
-          <p>The new device must show the same code:</p>
-          <p className="check-code" aria-label={`Check code ${check}`}>{check}</p>
+          <p>{t("The new device must show the same code:")}</p>
+          <p className="check-code" aria-label={t("Check code {{code}}", { code: check })}>{check}</p>
           <div className="actions">
             <button type="button" className="primary" onClick={done}>
-              Done
+              {t("Done")}
             </button>
           </div>
         </div>
@@ -2444,20 +2475,20 @@ function GiveAccount({ done }: { done: () => void }) {
           }}
         >
           <label>
-            Link code shown on the new device
+            {t("Link code shown on the new device")}
             <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="SBHL1:…" spellCheck={false} autoComplete="off" />
           </label>
           <label className="check">
             <input type="checkbox" checked={sure} onChange={(e) => setSure(e.target.checked)} />
-            This hands my health account to the device showing this code. It is my own device.
+            {t("This hands my health account to the device showing this code. It is my own device.")}
           </label>
           <Problem text={err} />
           <div className="actions">
             <button type="submit" className="primary" disabled={busy || !sure || !code.trim()}>
-              {busy ? "Sending…" : "Hand over my account"}
+              {busy ? t("Sending…") : t("Hand over my account")}
             </button>
             <button type="button" onClick={done}>
-              Cancel
+              {t("Cancel")}
             </button>
           </div>
         </form>
@@ -2501,17 +2532,22 @@ function ResultReview({ b, done, discard }: { b: BatchDetail; done: (text: strin
     try {
       const choices = lines.map((s) => (s.skip ? { skip: true } : { code: s.metric?.code, ...(s.unit ? { unit: s.unit } : {}) }));
       const r = await op<{ written: number }>("review.confirm_result", { id: b.import_id, choices });
-      done(`Saved ${r.written} ${r.written === 1 ? "reading" : "readings"}.`);
+      done(t("Saved {{count}} readings.", { count: r.written }));
     } catch (e) {
       setErr(errText(e));
       setBusy(false);
     }
   };
-  const from = c.src.replace(/^lab:/, "Lab device ").replace(/^staff:/, "Service desk ").replace(/^room:/, "Room ");
+  const [kind, device] = [c.src.split(":")[0], c.src.split(":").slice(1).join(":")];
+  const from =
+    kind === "lab" ? t("Lab device {{id}}", { id: device }) : kind === "staff" ? t("Service desk {{id}}", { id: device }) : t("Room {{id}}", { id: device });
   return (
     <div className="group ocr">
-      <h3>A result from {from}</h3>
-      <p className="fine">{when(c.at, c.tz)}. Choose what each line is, or skip it.</p>
+      <h3>{t("A result from {{from}}", { from })}</h3>
+      <p className="fine">
+        {when(c.at, c.tz)}
+        {t(".")} {t("Choose what each line is, or skip it.")}
+      </p>
       <table className="rows">
         <tbody>
           {c.lines.map((l, i) => {
@@ -2531,21 +2567,21 @@ function ResultReview({ b, done, discard }: { b: BatchDetail; done: (text: strin
                         className="link"
                         onClick={() => setLines((ls) => ls.map((x, j) => (j === i ? { unit: "", skip: false } : x)))}
                       >
-                        Change
+                        {t("Change")}
                       </button>
                     </span>
                   ) : (
-                    <MetricPicker placeholder="Which measure is this?" onPick={(m) => choose(i, m.code)} />
+                    <MetricPicker placeholder={t("Which measure is this?")} onPick={(m) => choose(i, m.code)} />
                   )}
                 </td>
                 <td>
                   {s.metric && numericAgg(s.metric) && (s.metric.units.length > 1 || (s.metric.units.length === 1 && !s.unit)) && (
                     <select
-                      aria-label={`Unit for ${l.code}`}
+                      aria-label={t("Unit for {{name}}", { name: l.code })}
                       value={s.unit}
                       onChange={(e) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, unit: e.target.value } : x)))}
                     >
-                      <option value="">Unit…</option>
+                      <option value="">{t("Unit…")}</option>
                       {s.metric.units.map((u) => (
                         <option key={u} value={u}>
                           {unitLabel(u)}
@@ -2561,7 +2597,7 @@ function ResultReview({ b, done, discard }: { b: BatchDetail; done: (text: strin
                       checked={s.skip}
                       onChange={(e) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, skip: e.target.checked } : x)))}
                     />
-                    Skip
+                    {t("Skip")}
                   </label>
                 </td>
               </tr>
@@ -2572,10 +2608,10 @@ function ResultReview({ b, done, discard }: { b: BatchDetail; done: (text: strin
       <Problem text={err} />
       <div className="actions">
         <button type="button" className="primary" disabled={!ready || busy} onClick={save}>
-          {busy ? "Saving…" : "Save to my readings"}
+          {busy ? t("Saving…") : t("Save to my readings")}
         </button>
         <button type="button" onClick={discard}>
-          Discard
+          {t("Discard")}
         </button>
       </div>
     </div>
@@ -2621,12 +2657,12 @@ function WhoopConnect() {
       const b = await op<{ url: string; redirect: string }>("whoop.begin", { client_id: id, client_secret: secret, open: true });
       setRedirect(b.redirect);
       setSecret("");
-      setNote("WHOOP's sign-in page opened in your browser. Health finishes when you come back.");
+      setNote(t("WHOOP's sign-in page opened in your browser. Health finishes when you come back."));
     });
   const sync = () =>
     run(async () => {
       const r = await op<{ written: number }>("whoop.sync", { force: true });
-      setNote(r.written ? `${r.written} new readings from WHOOP.` : "No new WHOOP data.");
+      setNote(r.written ? t("{{count}} new readings from WHOOP.", { count: r.written }) : t("No new WHOOP data."));
     });
   if (!st) return null;
   return (
@@ -2635,20 +2671,21 @@ function WhoopConnect() {
       {st.state === "connected" ? (
         <>
           <p className="fine">
-            Connected. Health fetches new WHOOP data every hour while it's open
-            {st.last_sync ? `; last time ${when(st.last_sync)}` : ""}.
+            {st.last_sync
+              ? t("Connected. Health fetches new WHOOP data every hour while it's open; last time {{when}}.", { when: when(st.last_sync) })
+              : t("Connected. Health fetches new WHOOP data every hour while it's open.")}
           </p>
           <div className="actions">
             <button type="button" disabled={busy} onClick={sync}>
-              {busy ? "Syncing…" : "Sync now"}
+              {busy ? t("Syncing…") : t("Sync now")}
             </button>
             <button type="button" disabled={busy} onClick={() => run(async () => void (await op("whoop.disconnect")))}>
-              Disconnect
+              {t("Disconnect")}
             </button>
           </div>
         </>
       ) : st.state === "pending" ? (
-        <p className="fine">Waiting for the WHOOP sign-in in your browser…</p>
+        <p className="fine">{t("Waiting for the WHOOP sign-in in your browser…")}</p>
       ) : (
         <form
           onSubmit={(e) => {
@@ -2657,17 +2694,17 @@ function WhoopConnect() {
           }}
         >
           <p className="fine">
-            {st.state === "reauth" ? "WHOOP needs you to sign in again. " : ""}
-            Use your own WHOOP developer app (developer.whoop.com) and add this redirect URL to it: <span className="mono">{redirect}</span>
+            {st.state === "reauth" ? `${t("WHOOP needs you to sign in again.")} ` : ""}
+            {t("Use your own WHOOP developer app (developer.whoop.com) and add this redirect URL to it:")} <span className="mono">{redirect}</span>
           </p>
           <label>
-            Client ID
+            {t("Client ID")}
             <input value={id} onChange={(e) => setId(e.target.value)} autoComplete="off" spellCheck={false} />
           </label>
-          <PasswordField label="Client Secret" value={secret} onChange={setSecret} auto="off" />
+          <PasswordField label={t("Client Secret")} value={secret} onChange={setSecret} auto="off" />
           <div className="actions">
             <button type="submit" className="primary" disabled={busy || !id.trim() || !secret.trim()}>
-              Connect WHOOP
+              {t("Connect WHOOP")}
             </button>
           </div>
         </form>

@@ -9,7 +9,7 @@ Your health data in one encrypted file on your own computer. Health brings toget
 - **Results from labs.** A health account lets labs and service desks send results to you, sealed so only your devices can open them. Link this computer to the account on your phone or the web version by comparing an 8-digit check code.
 - **Lab reports by photo.** Text recognition runs on your computer; each result is matched to a measure, and nothing counts until you check it.
 - **Agents with limits.** Claude, Codex, Cursor, Copilot, Gemini and other MCP apps get a grant: which kinds of data, how far back, daily summaries or every reading, read only or allowed to propose. Every call is logged.
-- **A desktop app and a CLI.** The app (macOS, Windows, Linux) and the `health` command share one core.
+- **A desktop app and a CLI.** The app (macOS, Windows, Linux) and the `health` command share one core. The app speaks English, Simplified and Traditional Chinese: it follows the system, or pick one at the foot of the sidebar.
 
 | | |
 |---|---|

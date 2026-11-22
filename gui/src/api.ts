@@ -1,6 +1,7 @@
 // The only way the UI reaches data: one call per operation of the core's op table.
 // Tauri: `invoke("op")` (the shell holds the token and talks to serve). Browser (dev, tests): the Vite proxy.
 import { invoke } from "@tauri-apps/api/core";
+import { t } from "./i18n";
 
 export interface ApiError {
   code: string;
@@ -205,8 +206,8 @@ export async function chooseImportFile(): Promise<string | null> {
   const r = await open({
     multiple: false,
     directory: false,
-    title: "Import health data",
-    filters: [{ name: "Health data", extensions: ["zip", "zuhealth", "json", "jsonl", "jpg", "jpeg", "png", "webp", "tif", "tiff", "bmp", "gif", "pdf"] }],
+    title: t("Import health data"),
+    filters: [{ name: t("Health data"), extensions: ["zip", "zuhealth", "json", "jsonl", "jpg", "jpeg", "png", "webp", "tif", "tiff", "bmp", "gif", "pdf"] }],
   });
   return typeof r === "string" ? r : null;
 }
@@ -283,6 +284,11 @@ export interface OcrItem {
 }
 
 /** The OCR component (models) on this computer: desktop only. */
+/** The shell's menu bar and window title follow the UI's language (desktop only). */
+export function setShellLanguage(lang: string): void {
+  if (isDesktop) invoke("set_language", { lang }).catch(() => {});
+}
+
 export async function ocrComponent(): Promise<{ ready: boolean } | null> {
   return inTauri ? invoke("ocr_status") : null;
 }

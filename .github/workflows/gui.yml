@@ -26,6 +26,7 @@ jobs:
         run: |
           npm ci
           npx tsc -p .
+          node scripts/i18n.mjs
           npx playwright install --with-deps chromium
           npx playwright test
 

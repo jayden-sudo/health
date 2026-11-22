@@ -2,6 +2,7 @@
 // Spark: the reading's last 30 days, latest point dotted. DailyChart: one value per day, hover crosshair + tooltip,
 // min–max band for instant metrics, and a table view so identity never rests on the picture alone.
 import { useMemo, useState } from "react";
+import { t } from "./i18n";
 
 export interface Pt {
   day: string;
@@ -26,12 +27,12 @@ function scale(pts: Pt[], w: number, h: number, pad: number, left = pad) {
 export function Spark({ pts, label }: { pts: Pt[]; label: string }) {
   const w = 120;
   const h = 28;
-  if (pts.length < 2) return <svg className="spark" width={w} height={h} role="img" aria-label={`${label}: not enough days for a trend`} />;
+  if (pts.length < 2) return <svg className="spark" width={w} height={h} role="img" aria-label={t("{{name}}: not enough days for a trend", { name: label })} />;
   const { x, y } = scale(pts, w, h, 4);
   const d = pts.map((p, i) => `${i ? "L" : "M"}${x(p.day).toFixed(1)},${y(p.v).toFixed(1)}`).join("");
   const last = pts[pts.length - 1]!;
   return (
-    <svg className="spark" width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={`${label}: ${pts.length} days, latest ${last.v}`}>
+    <svg className="spark" width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={t("{{name}}: {{count}} days, latest {{v}}", { name: label, count: pts.length, v: last.v })}>
       <path d={d} className="trace" />
       <circle cx={x(last.day)} cy={y(last.v)} r={4} className="dot" />
     </svg>
@@ -69,16 +70,16 @@ export function DailyChart({ pts, unit, fmt }: { pts: Pt[]; unit: string; fmt: (
     <figure className="daily">
       <div className="chart-tools">
         <button type="button" className="link" onClick={() => setTable(!table)} aria-pressed={table}>
-          {table ? "Show chart" : "Show table"}
+          {table ? t("Show chart") : t("Show table")}
         </button>
       </div>
       {table ? (
         <table className="rows">
           <thead>
             <tr>
-              <th>Day</th>
-              <th className="n">{unit ? `Value (${unit})` : "Value"}</th>
-              {band && <th className="n">Range</th>}
+              <th>{t("Day")}</th>
+              <th className="n">{unit ? t("Value ({{unit}})", { unit }) : t("Value")}</th>
+              {band && <th className="n">{t("Range")}</th>}
             </tr>
           </thead>
           <tbody>
@@ -96,7 +97,7 @@ export function DailyChart({ pts, unit, fmt }: { pts: Pt[]; unit: string; fmt: (
           viewBox={`0 0 ${w} ${h}`}
           className="chart"
           role="img"
-          aria-label={`Daily values, ${pts.length} days`}
+          aria-label={t("Daily values, {{count}} days", { count: pts.length })}
           onMouseMove={(e) => setHover(near(e.clientX, e.currentTarget.getBoundingClientRect()))}
           onMouseLeave={() => setHover(null)}
         >

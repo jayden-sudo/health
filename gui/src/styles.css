@@ -247,6 +247,22 @@ body {
 .rail-foot {
   margin: auto 0.6rem 0;
   font-size: 12px;
+  display: grid;
+  gap: 8px;
+}
+.rail-foot p {
+  margin: 0;
+}
+.rail-foot .lang {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rail-foot .lang select {
+  font-size: 12px;
+  padding: 2px 4px;
+  max-width: 9rem;
 }
 .count {
   min-width: 1.35rem;
