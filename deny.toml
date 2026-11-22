@@ -5,3 +5,10 @@ allow = [
   "Unicode-3.0", "Unicode-DFS-2016", "CC0-1.0", "MPL-2.0", "GPL-3.0-only", "GPL-3.0-or-later", "LGPL-2.1-or-later", "BSL-1.0", "0BSD",
 ]
 confidence-threshold = 0.9
+# Per-crate exceptions, each GPL-3.0 compatible (decision 53):
+# - sqlcipher-src bundles SQLite (public-domain "blessing") and parts under WTFPL
+# - webpki-root-certs (via ureq's platform verifier, health-connect only): CDLA-Permissive-2.0 certificate data
+exceptions = [
+  { crate = "sqlcipher-src", allow = ["blessing", "WTFPL"] },
+  { crate = "webpki-root-certs", allow = ["CDLA-Permissive-2.0"] },
+]

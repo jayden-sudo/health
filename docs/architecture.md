@@ -61,6 +61,7 @@ pub struct OpDef {
 | `source.list`, `source.update` | `sources` | `source list|rename|priority` | –/✓ |
 | `import.list`, `import.show`, `import.erase` | `batches`, `previewBatch`, `eraseBatch` | `import list|show|erase` | –/–/✓ |
 | `review.list`, `review.confirm`, `review.discard` | `reviews`, `confirmReview` (strict), `discardReview` | `review list|confirm|discard` | –/✓/✓ |
+| `import.ocr`, `import.seen`, `review.confirm_ocr` (M5) | `ingestOcr`, `blobSeen`, `confirmReview` (noOverwrite) | `ocr <file>`, `op …` | ✓/–/✓ |
 | `report.search`, `report.show` | report_text | `report search|show` | – |
 | `backup.export`, `backup.import` | `makeBackup`, `restoreBackup` | `backup export|import` | ✓ (manual tx) |
 
@@ -245,3 +246,10 @@ Ops (all owner-only, `delegate: Never`):
 - Live WHOOP sync needs OAuth through the backend relay (protocol §6), i.e. the network. It moves to `health-connect` with M6 (decision 28). M3 imports the API's JSON shape and ports the decoder.
 - CSV labels are English (the CLI has no UI language). Grading follows the backend repo's `docs/外部分析導出方案.md`: sensitive groups only when named, never identifiers, never printed text.
 - Parity: `scripts/web-fixture-m3.ts` runs the web parser and decoder on synthetic inputs and commits the expected rows. `tests/import.rs` checks that Rust gives the same rows, and covers the §5.4 overlapping-export rule.
+
+## M5: lab-report OCR
+
+- **Crates.** `health-ocr` is a rule-for-rule port of the web `ocr/` modules: `det`/`rec`/`engine` (PP-OCRv5 through tract), `rows` (table reading), `date`, `lexicon`, `embed` (multilingual-e5 through tract + tokenizers), `matcher`, `input` (images via `image` with EXIF orientation, PDFs via hayro; 40 MB, 12 pages, 3200 px). `health-core::ocr` holds what touches the database: `ingest` (a review batch: no rows, the items in `meta.candidates`), `confirm` (the web review form's rules), `code_for` (common names → codes), new `x:ocr/` measures, and aliases learnt on confirm.
+- **Process.** `health ocr <file>` (and serve, for `import.ocr` without a result) start `health ocr-worker`: one JSON request on stdin, one reply on stdout; no key, no database. serve checks `import.seen` first, drops the profile lock while the worker runs, then records the batch with `import.ocr`. A crash in the worker returns `ocr_crashed`; the writer is untouched.
+- **Component.** `<data dir>/components/ocr/`: three required files (21 MB) and two for matching (135 MB), each pinned by size and SHA-256 (`health-ocr/src/components.rs`), checked again on every load. `health component install ocr [--from DIR] [--no-matching]`; downloads go through `health-connect`.
+- **Parity.** Tests compare with the web version's own output on the owner's synthetic report pages (`tests/fixtures/*.web.json`, `web-ocr.json`, `web-match.json`; regenerate with `scripts/gen-ocr-data.ts`): same lines, boxes and scores; same tables and dates; same first candidate and preselection (decision 52).

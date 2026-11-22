@@ -18,6 +18,7 @@ pub mod import;
 pub mod keys;
 pub mod manual;
 pub mod merge;
+pub mod ocr;
 pub mod pack;
 pub mod profile;
 pub mod query;

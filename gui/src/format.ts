@@ -147,22 +147,41 @@ export function explain(code: string, message = ""): string {
     no_file: "The file can't be found. It may have been moved.",
     exists: "A file with that name already exists. Choose another name.",
     weak_password: "Use at least 8 characters.",
-    blob_dup: "This file was already imported.",
+    blob_dup: "This file was already imported: it is under Sources, or under Waiting for you if it hasn't been checked yet.",
     unit_required: "Choose the unit your device showed.",
     unit_unknown: "That unit doesn't fit this measure.",
     rejected: "The value doesn't fit this measure.",
     import_failed: "The file couldn't be read to the end. If it is in iCloud, download it first.",
     bad_passphrase: "That passphrase is not right.",
     unavailable: "The health core is restarting. Try again in a moment.",
+    no_ocr_component: "Reading lab reports needs the OCR component. Install it below.",
+    unsupported: "Health can't read this kind of file. Use a photo (JPEG, PNG) or a PDF; on iPhone, share HEIC photos as JPEG.",
+    unreadable: "The file couldn't be read. It may be damaged.",
+    password: "This PDF is protected by a password. Save a copy without it and try again.",
+    too_big: "The file is larger than 40 MB.",
+    empty: "No lab results were found in this file. Try a sharper, straight photo of the table.",
+    ocr_crashed: "The reader stopped unexpectedly. Your data is untouched; try again or use a smaller file.",
+    duplicate_target: "Two items point to the same measure. Change or skip one of them.",
+    nothing_to_save: "Choose a measure for at least one item.",
+    same_day_report: "Another report of the same day already has a value for some of these measures. Skip those items, or set a different date.",
+    date_required: "Set the day the sample was taken.",
+    ocr_component: "The recognition models on this computer are damaged. Install them again below.",
+    bad_tz: "The time zone isn't valid.",
+    network: "The download failed. Check the internet connection and try again.",
+    integrity: "A downloaded file wasn't the expected one and was discarded. Try again later.",
   };
   return known[code] ?? (message || code);
 }
 
-export type ImportKind = "apple" | "backup" | "whoop" | "rows";
+export type ImportKind = "apple" | "backup" | "whoop" | "rows" | "report";
+
+/** Photos and PDFs of lab reports (HEIC isn't read: the phone can share it as JPEG). */
+export const REPORT_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "tif", "tiff", "bmp", "gif", "pdf"];
 
 /** What a file is, by its name. */
 export function importKind(path: string): ImportKind | null {
   const p = path.toLowerCase();
+  if (REPORT_EXTENSIONS.some((e) => p.endsWith(`.${e}`))) return "report";
   if (p.endsWith(".zuhealth")) return "backup";
   if (p.endsWith(".zip")) return "apple";
   if (p.endsWith(".jsonl")) return "rows";
@@ -175,6 +194,7 @@ export const KIND_LABEL: Record<ImportKind, string> = {
   backup: "Health backup",
   whoop: "WHOOP data",
   rows: "Readings file (JSON lines)",
+  report: "Lab report (photo or PDF)",
 };
 
 export const fileName = (path: string) => path.split(/[\\/]/).pop() ?? path;

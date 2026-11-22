@@ -113,7 +113,7 @@ fn authorize(op: &OpDef, g: &Grant) -> Result<()> {
 }
 
 /// Not database writes (no transaction to roll back) but they change something: a dry run is refused.
-const EFFECTS_OUTSIDE_TX: &[&str] = &["grant.create", "grant.revoke", "export.csv"];
+const EFFECTS_OUTSIDE_TX: &[&str] = &["grant.create", "grant.revoke", "export.csv", "import.ocr"];
 
 /// Metric codes a request asks about: `metric`, `code`, or the metrics of its rows / inputs.
 fn metrics_of(req: &Json) -> Vec<String> {
@@ -185,8 +185,11 @@ fn execute(ctx: &mut Ctx, op: &OpDef, req: Json) -> Result<Json> {
     if op.write && !ctx.profile.is_writer() {
         return Err(Error::other("not_writer", "write op on a read-only profile"));
     }
+    if ctx.dry_run && EFFECTS_OUTSIDE_TX.contains(&op.name) {
+        return Err(Error::new(Kind::Usage, "no_dry_run", op.name.to_string()));
+    }
     if !op.write || op.manual_tx {
-        if ctx.dry_run && (op.manual_tx || EFFECTS_OUTSIDE_TX.contains(&op.name)) {
+        if ctx.dry_run && op.manual_tx {
             return Err(Error::new(Kind::Usage, "no_dry_run", op.name.to_string()));
         }
         return (op.run)(ctx, req);

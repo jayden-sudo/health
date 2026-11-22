@@ -119,3 +119,44 @@ test("closing the History sheet returns focus to the tile that opened it", async
   await page.keyboard.press("Escape");
   await expect(tile).toBeFocused();
 });
+
+test("a lab report photo is read, checked and saved", async ({ page }) => {
+  test.skip(!process.env.HEALTH_OCR_MODELS, "needs HEALTH_OCR_MODELS");
+  test.setTimeout(120_000);
+  const report = join(import.meta.dirname, "../../crates/health-ocr/tests/fixtures/cbc.png");
+  await page.goto("/");
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Add data" }).click();
+  await page.getByLabel("File path").fill(report);
+  await expect(page.getByText("Lab report (photo or PDF)")).toBeVisible();
+  await page.getByRole("button", { name: "Import" }).click();
+  await page.getByRole("button", { name: "Check them now" }).click({ timeout: 90_000 });
+  const review = page.locator(".ocr");
+  await expect(review.locator("tbody tr")).toHaveCount(14);
+  await expect(review.getByLabel("Test date")).toHaveValue("2026-09-27");
+  await expect(review.getByLabel("Measure for WBC")).not.toHaveValue("");
+  // nothing counts until saved
+  await review.getByLabel("Measure for Hemoglobin").selectOption("skip");
+  await review.getByRole("button", { name: "Save 13 results" }).click();
+  await expect(page.getByText(/Saved 13 results/)).toBeVisible();
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Readings" }).click();
+  await page.getByLabel("Find a measure").fill("platelet");
+  await expect(page.locator(".tile", { hasText: "Platelets" })).toContainText("325");
+});
+
+test("a lab report PDF is read into a batch waiting for review", async ({ page }) => {
+  test.skip(!process.env.HEALTH_OCR_MODELS, "needs HEALTH_OCR_MODELS");
+  test.setTimeout(120_000);
+  const report = join(import.meta.dirname, "../../crates/health-ocr/tests/fixtures/cbc.pdf");
+  await page.goto("/");
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Add data" }).click();
+  await page.getByLabel("File path").fill(report);
+  await expect(page.getByText("Lab report (photo or PDF)")).toBeVisible();
+  await page.getByRole("button", { name: "Import" }).click();
+  await page.getByRole("button", { name: "Check them now" }).click({ timeout: 90_000 });
+  const review = page.locator(".ocr");
+  await expect(review.locator("tbody tr")).toHaveCount(14);
+  await expect(review.getByLabel("Test date")).toHaveValue("2026-09-27");
+  // discarded: nothing from it is kept
+  await review.getByRole("button", { name: "Discard" }).click();
+  await expect(page.getByText("Nothing is waiting.")).toBeVisible();
+});

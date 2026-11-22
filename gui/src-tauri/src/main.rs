@@ -136,6 +136,38 @@ async fn connect_agent(id: String, token: String) -> Result<String, String> {
     clients::connect(&r, &id, &core_bin().to_string_lossy(), &token).map(|p| p.display().to_string())
 }
 
+/// Runs the core with `args` and `--json`: its reply, or its {code, message} error.
+fn core_json(args: &[&str]) -> Result<Value, Value> {
+    let out = core_command()
+        .arg("--json")
+        .args(args)
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|e| json!({ "code": "unavailable", "message": e.to_string() }))?;
+    let v: Value = serde_json::from_slice(&out.stdout).unwrap_or(Value::Null);
+    if out.status.success() {
+        Ok(v)
+    } else {
+        Err(v.get("error").cloned().unwrap_or_else(|| json!({ "code": "error", "message": "the core failed" })))
+    }
+}
+
+/** Is the OCR component (models) installed? */
+#[tauri::command(async)]
+fn ocr_status() -> Result<Value, Value> {
+    core_json(&["component", "list"])
+}
+
+/** Downloads and checks the OCR component (the core does it; only health-connect opens connections). */
+#[tauri::command(async)]
+fn ocr_install(matching: bool) -> Result<Value, Value> {
+    let mut args = vec!["component", "install", "ocr"];
+    if !matching {
+        args.push("--no-matching");
+    }
+    core_json(&args)
+}
+
 #[tauri::command]
 fn core_path() -> String {
     core_bin().display().to_string()
@@ -281,7 +313,16 @@ fn main() {
                 .build(),
         )
         .manage(shell.clone())
-        .invoke_handler(tauri::generate_handler![op, unlock, init_profile, core_path, agent_clients, connect_agent])
+        .invoke_handler(tauri::generate_handler![
+            op,
+            unlock,
+            init_profile,
+            core_path,
+            agent_clients,
+            connect_agent,
+            ocr_status,
+            ocr_install
+        ])
         // Health is an app you open and close, not a background service: no tray icon, and closing the window
         // quits (Tauri's default). Agents don't need it running: `health mcp` opens the store itself.
         .on_menu_event(|app, e| {

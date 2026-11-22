@@ -163,7 +163,7 @@ export interface BatchDetail extends Batch {
   rows: number;
   items: Point[];
   has_text: boolean;
-  candidates?: { kind?: string; rows?: unknown[]; note?: string; items?: unknown[]; by?: string };
+  candidates?: { kind?: string; rows?: unknown[]; note?: string; items?: unknown[]; by?: string; at?: number; dated?: boolean; tz?: number };
 }
 export interface Grant {
   /** The key the agent's proposals and results are recorded under */
@@ -206,7 +206,7 @@ export async function chooseImportFile(): Promise<string | null> {
     multiple: false,
     directory: false,
     title: "Import health data",
-    filters: [{ name: "Health data", extensions: ["zip", "zuhealth", "json", "jsonl"] }],
+    filters: [{ name: "Health data", extensions: ["zip", "zuhealth", "json", "jsonl", "jpg", "jpeg", "png", "webp", "tif", "tiff", "bmp", "gif", "pdf"] }],
   });
   return typeof r === "string" ? r : null;
 }
@@ -266,4 +266,33 @@ export async function connectAgent(id: string, token: string): Promise<string> {
 export function setBadge(n: number): void {
   if (!inTauri) return;
   import("@tauri-apps/api/window").then(({ getCurrentWindow }) => getCurrentWindow().setBadgeCount(n > 0 ? n : undefined)).catch(() => {});
+}
+
+/** One printed line of a lab report, as read (see health-core ocr.rs). */
+export interface OcrItem {
+  name: string;
+  panel?: string;
+  v: number | string;
+  cmp?: string;
+  unit: string;
+  ref?: string;
+  flag?: "H" | "L";
+  text: string;
+  code?: string;
+  suggest?: { code: string; score: number }[];
+}
+
+/** The OCR component (models) on this computer: desktop only. */
+export async function ocrComponent(): Promise<{ ready: boolean } | null> {
+  return inTauri ? invoke("ocr_status") : null;
+}
+
+/** Downloads and checks the OCR component (desktop only); `matching` adds the 135 MB matching model. */
+export async function installOcr(matching: boolean): Promise<void> {
+  try {
+    await invoke("ocr_install", { matching });
+  } catch (e) {
+    const err = e as ApiError;
+    throw new OpError(err.code ?? "error", err.message ?? String(e));
+  }
 }

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/health-core", "crates/health-api", "crates/health"]
+members = ["crates/health-core", "crates/health-api", "crates/health-ocr", "crates/health-connect", "crates/health"]
 exclude = ["gui/src-tauri"]
 
 [workspace.package]
@@ -12,3 +12,11 @@ rust-version = "1.89"
 [workspace.dependencies]
 health-core = { path = "crates/health-core" }
 health-api = { path = "crates/health-api" }
+health-ocr = { path = "crates/health-ocr" }
+health-connect = { path = "crates/health-connect" }
+
+# Dependencies optimised in dev builds too: tract runs the OCR models ~20× faster, and our crates stay debuggable.
+[profile.dev.package."*"]
+opt-level = 3
+[profile.dev.package.health-ocr]
+opt-level = 3

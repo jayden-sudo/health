@@ -7,6 +7,7 @@ import {
   type Grant,
   type Metric,
   type MetricInfo,
+  type OcrItem,
   OpError,
   type Point,
   type Source,
@@ -18,6 +19,7 @@ import {
   chooseSavePath,
   corePath,
   initProfile,
+  installOcr,
   isDesktop,
   menuOwnsKeys,
   onFileDrop,
@@ -556,12 +558,57 @@ function AddData({ file, onFile, go, done }: { file?: string; onFile: (p?: strin
   );
 }
 
+/** Installs the OCR models (desktop: downloaded and checked by the core; elsewhere: the command to run). */
+function OcrInstall({ done }: { done: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string>();
+  if (!isDesktop)
+    return (
+      <div className="group notice">
+        <p>Install it once from a terminal:</p>
+        <pre>health component install ocr</pre>
+      </div>
+    );
+  return (
+    <div className="group notice" aria-busy={busy}>
+      <h3>Read lab reports on this computer</h3>
+      <p className="fine">
+        Health downloads the text-recognition models once (about 21 MB, plus 135 MB that suggests which measure each result is). Every file is checked
+        before use, and your reports never leave this computer.
+      </p>
+      <Problem text={err} />
+      <div className="actions">
+        <button
+          type="button"
+          className="primary"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            setErr(undefined);
+            try {
+              await installOcr(true);
+              done();
+            } catch (e) {
+              setErr(errText(e));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {busy ? "Downloading…" : "Install"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Import({ file, onFile, go }: { file?: string; onFile: (p?: string) => void; go: (p: Page) => void }) {
   const [password, setPassword] = useState("");
   const [source, setSource] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string>();
   const [done, setDone] = useState<ReactNode>();
+  const [needsOcr, setNeedsOcr] = useState(false);
   const kind: ImportKind | null = file ? importKind(file) : null;
   useEffect(() => {
     setErr(undefined);
@@ -575,6 +622,23 @@ function Import({ file, onFile, go }: { file?: string; onFile: (p?: string) => v
     setErr(undefined);
     setDone(undefined);
     try {
+      if (kind === "report") {
+        // recognised in a separate process by the core, then kept as a batch you check before anything counts
+        const r = await op<{ import_id: number; items: number; matched: number }>("import.ocr", { path: file, tz_min: -new Date().getTimezoneOffset() });
+        setDone(
+          <>
+            <p>
+              Read {r.items} {r.items === 1 ? "result" : "results"}. Nothing is added to your readings until you check them.
+            </p>
+            <div className="actions">
+              <button type="button" className="primary" onClick={() => go("review")}>
+                Check them now
+              </button>
+            </div>
+          </>,
+        );
+        return;
+      }
       if (kind === "backup") {
         const r = await op<BackupResult>("backup.import", { path: file, password });
         const notes: string[] = [];
@@ -609,6 +673,7 @@ function Import({ file, onFile, go }: { file?: string; onFile: (p?: string) => v
       }
       setPassword("");
     } catch (e) {
+      if (e instanceof OpError && (e.code === "no_ocr_component" || e.code === "ocr_component")) setNeedsOcr(true);
       setErr(errText(e));
     } finally {
       setBusy(false);
@@ -617,9 +682,15 @@ function Import({ file, onFile, go }: { file?: string; onFile: (p?: string) => v
   return (
     <section className="page narrow">
       <h2>Import a file</h2>
-      <p className="lede">An Apple Health export, a Health backup (.zuhealth) or WHOOP data. Importing the same file again updates it; nothing is doubled.</p>
+      <p className="lede">
+        A photo or PDF of a lab report, an Apple Health export, a Health backup (.zuhealth) or WHOOP data. Importing the same file again updates it;
+        nothing is doubled.
+      </p>
       <FilePick path={file} onPath={onFile} />
-      {file && !kind && <Problem text="Health can't read this kind of file. Choose a .zip from Apple Health, a .zuhealth backup, or a WHOOP .json file." />}
+      {file && !kind && (
+        <Problem text="Health can't read this kind of file. Choose a lab report photo or PDF, a .zip from Apple Health, a .zuhealth backup, or a WHOOP .json file." />
+      )}
+      {needsOcr && <OcrInstall done={() => (setNeedsOcr(false), setErr(undefined))} />}
       {file && kind && (
         <form
           className="form"
@@ -641,7 +712,13 @@ function Import({ file, onFile, go }: { file?: string; onFile: (p?: string) => v
           <button type="submit" className="primary" disabled={busy}>
             {busy ? (kind === "backup" ? "Restoring…" : "Importing…") : kind === "backup" ? "Restore backup" : "Import"}
           </button>
-          {busy && <p className="fine">Large exports can take a few minutes. Health answers again when the import is done; keep this page open to see the result.</p>}
+          {busy && (
+            <p className="fine">
+              {kind === "report"
+                ? "Reading the report: a few seconds a page."
+                : "Large exports can take a few minutes. Health answers again when the import is done; keep this page open to see the result."}
+            </p>
+          )}
         </form>
       )}
       {done && (
@@ -1386,6 +1463,186 @@ function Sources({ go }: { go: (p: Page) => void }) {
   );
 }
 
+type OcrPick = { code?: string; new?: boolean; skip?: boolean; unit?: string };
+
+/** One lab report waiting for review: each printed result → a measure (suggested, searched, or new) and its
+ *  unit, or skipped; the test date for all of them. The core applies the rules (units, duplicates). */
+function OcrReview({ b, done, discard }: { b: BatchDetail; done: (text: string) => void; discard: () => void }) {
+  const c = b.candidates as { at: number; dated?: boolean; items: OcrItem[] };
+  // no date on the report: the person sets it (the import time isn't the test date)
+  const [date, setDate] = useState(c.dated === false ? "" : day(c.at));
+  const [picks, setPicks] = useState<OcrPick[]>(() => c.items.map((it) => (it.code ? { code: it.code } : {})));
+  const [other, setOther] = useState<number>();
+  const [info, setInfo] = useState<Record<string, MetricInfo>>({});
+  /** "<code> <printed unit>" → the measure's unit the printed one maps to ("" when none fits), from the core */
+  const [picked, setPicked] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string>();
+  // names and units of every measure on offer
+  useEffect(() => {
+    const codes = new Set<string>();
+    c.items.forEach((it, i) => {
+      if (it.code) codes.add(it.code);
+      for (const s of it.suggest ?? []) codes.add(s.code);
+      const p = picks[i]?.code;
+      if (p) codes.add(p);
+    });
+    const missing = [...codes].filter((x) => !info[x]);
+    if (missing.length)
+      Promise.all(missing.map((code) => op<MetricInfo>("metric.show", { code }).then((m) => [code, m] as const, () => null))).then((got) =>
+        setInfo((old) => ({ ...old, ...Object.fromEntries(got.filter((g): g is readonly [string, MetricInfo] => !!g)) })),
+      );
+    // which unit each chosen measure would take the printed one as
+    const want = c.items.flatMap((it, i) => {
+      const code = picks[i]?.code;
+      return code && picked[`${code} ${it.unit}`] === undefined ? [[code, it.unit] as const] : [];
+    });
+    if (want.length)
+      Promise.all(
+        want.map(([code, unit]) =>
+          op<MetricInfo & { picked_unit?: string }>("metric.show", { code, printed_unit: unit }).then(
+            (m): readonly [string, string] => [`${code} ${unit}`, m.picked_unit ?? ""],
+            () => null,
+          ),
+        ),
+      ).then((got) => setPicked((old) => ({ ...old, ...Object.fromEntries(got.filter((g): g is readonly [string, string] => !!g)) })));
+  }, [picks, c.items, info, picked]);
+  const set = (i: number, p: OcrPick) => setPicks((old) => old.map((x, k) => (k === i ? p : x)));
+  /** a numeric measure whose units don't include the printed one: the person must choose */
+  const needsUnit = (i: number) => {
+    const p = picks[i];
+    const m = p?.code ? info[p.code] : undefined;
+    if (!p?.code || !m || m.agg === "none" || m.agg === "interval" || !m.units.some((u) => u)) return false;
+    return !p.unit && picked[`${p.code} ${c.items[i]!.unit}`] === "";
+  };
+  const count = picks.filter((p, i) => !p.skip && (p.code || p.new) && !needsUnit(i)).length;
+  const save = async () => {
+    setBusy(true);
+    setErr(undefined);
+    try {
+      const choices = picks.map((p) => (p.skip ? { skip: true } : p.new ? { new: true } : p.code ? { code: p.code, ...(p.unit ? { unit: p.unit } : {}) } : {}));
+      const r = await op<{ saved: number; left: number; created: number }>("review.confirm_ocr", {
+        id: b.import_id,
+        choices,
+        date,
+        tz_min: -new Date(`${date}T12:00`).getTimezoneOffset(),
+      });
+      done(
+        `Saved ${r.saved} ${r.saved === 1 ? "result" : "results"}${r.created ? `, with ${r.created} new ${r.created === 1 ? "measure" : "measures"}` : ""}.` +
+          (r.left ? ` ${r.left} left out: no measure, or a unit that doesn't fit it.` : ""),
+      );
+    } catch (e) {
+      setErr(errText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const label = (code: string) => (info[code] ? nameOf(code, info[code]!.name) : code);
+  return (
+    <div className="group ocr">
+      <div className="ocr-head">
+        <h3>Lab report</h3>
+        <label className="inline">
+          Test date
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+        </label>
+      </div>
+      {c.dated === false && <p className="notice">The date wasn't found on the report. Set the day the sample was taken.</p>}
+      <table className="rows ocr-items">
+        <thead>
+          <tr>
+            <th>On the report</th>
+            <th>Result</th>
+            <th>Measure</th>
+            <th>Unit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {c.items.map((it, i) => {
+            const p = picks[i] ?? {};
+            const m = p.code ? info[p.code] : undefined;
+            const numeric = m && m.agg !== "none" && m.agg !== "interval";
+            const value = p.skip ? "skip" : p.new ? "new" : (p.code ?? "");
+            const offered = [...new Set([...(it.code ? [it.code] : []), ...(it.suggest ?? []).map((s) => s.code), ...(p.code ? [p.code] : [])])];
+            return (
+              <tr key={`${i}-${it.name}`} className={p.skip ? "stale" : ""}>
+                <td>
+                  {it.name}
+                  {it.panel && <span className="fine"> · {it.panel}</span>}
+                  {it.ref && <div className="fine">Reference {it.ref}</div>}
+                </td>
+                <td className="value">
+                  {it.cmp ?? ""}
+                  {String(it.v)} <span className="unit">{it.unit}</span>
+                  {it.flag && (
+                    <span className="flag" title={it.flag === "H" ? "Marked high" : "Marked low"}>
+                      {it.flag === "H" ? "↑" : "↓"}
+                    </span>
+                  )}
+                </td>
+                <td>
+                  <select
+                    aria-label={`Measure for ${it.name}`}
+                    value={value}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setOther(undefined);
+                      if (v === "skip") set(i, { skip: true });
+                      else if (v === "new") set(i, { new: true });
+                      else if (v === "other") setOther(i);
+                      else set(i, v ? { code: v } : {});
+                    }}
+                  >
+                    <option value="">Choose…</option>
+                    {offered.map((code) => (
+                      <option key={code} value={code}>
+                        {label(code)}
+                      </option>
+                    ))}
+                    <option value="other">Another measure…</option>
+                    <option value="new">New measure “{it.name}”</option>
+                    <option value="skip">Skip</option>
+                  </select>
+                  {other === i && (
+                    <MetricPicker
+                      placeholder="Search measures"
+                      onPick={(x) => {
+                        set(i, { code: x.code });
+                        setOther(undefined);
+                      }}
+                    />
+                  )}
+                </td>
+                <td>
+                  {numeric && m.units.some((u) => u) && (m.units.length > 1 || needsUnit(i)) && (
+                    <select aria-label={`Unit for ${it.name}`} value={p.unit ?? ""} onChange={(e) => set(i, { ...p, unit: e.target.value || undefined })}>
+                      <option value="">{picked[`${p.code} ${it.unit}`] ? `As printed (${it.unit})` : "Choose the unit…"}</option>
+                      {m.units.map((u) => (
+                        <option key={u} value={u}>
+                          {unitLabel(u) || u}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <Problem text={err} />
+      <div className="actions">
+        <button type="button" className="primary" disabled={busy || !count || !date} onClick={save}>
+          Save {count} {count === 1 ? "result" : "results"}
+        </button>
+        <button type="button" onClick={discard}>
+          Discard
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Review() {
   const [items, err, reload] = useOp(() => op<BatchDetail[]>("review.list"), []);
   const [grants] = useOp(() => op<Grant[]>("grant.list"), []);
@@ -1416,6 +1673,15 @@ function Review() {
         ))}
       {items && !items.length && <p className="empty">Nothing is waiting.</p>}
       {(items ?? []).map((b) => {
+        if (b.candidates?.kind === "ocr")
+          return (
+            <OcrReview
+              key={b.import_id}
+              b={b}
+              done={(text) => (setMsg({ ok: true, text }), reload())}
+              discard={() => act("review.discard", b.import_id, "Discarded.")}
+            />
+          );
         const proposal = b.candidates?.kind === "proposal";
         const rows = (b.candidates?.rows ?? []) as { metric: string; start_ms: number; tz_min?: number; value: unknown; unit?: string }[];
         const by = proposal ? agent(b.candidates?.by) : undefined;

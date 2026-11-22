@@ -20,6 +20,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      # OpenSSL (vendored for SQLCipher) is configured by Perl; Git for Windows' perl lacks modules it needs,
+      # so the build uses the runner's Strawberry Perl
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $perl = 'C:\Strawberry\perl\bin\perl.exe'
+          if (-not (Test-Path $perl)) { throw "Strawberry Perl not found at $perl" }
+          "OPENSSL_SRC_PERL=$perl" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       - run: cargo build --release -p health --locked
       - name: package
         shell: bash

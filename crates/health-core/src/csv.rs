@@ -1,4 +1,4 @@
-//! CSV for external analysis (backend repo's docs/外部分析導出方案.md), ported from the web `export-csv.ts`:
+//! CSV for external analysis (the backend repo's export plan), ported from the web `export-csv.ts`:
 //! UTF-8 with BOM, CRLF, RFC 4180; one row per observation in time order; 12 columns.
 //! Only confirmed imports; corrections applied; from `detail` only comparator, reference range and flag.
 //! Never identifiers (device ids, WHOOP ids, room entities, raw input, printed text). Formula-like text is defused.

@@ -10,6 +10,14 @@ pub fn now_ms() -> i64 {
     pinned.unwrap_or_else(|| chrono::Utc::now().timestamp_millis())
 }
 
+/// The calendar year at `ms` in the local zone (pinned in tests).
+pub fn year(ms: i64) -> i32 {
+    use chrono::Datelike;
+    let tz = pinned_tz()
+        .unwrap_or_else(|| Local.timestamp_millis_opt(ms).single().map_or(0, |d| d.offset().fix().local_minus_utc() as i64 / 60));
+    chrono::DateTime::from_timestamp_millis(ms + tz * 60_000).map_or(2026, |d| d.year())
+}
+
 fn pinned_tz() -> Option<i64> {
     std::env::var("HEALTH_TZ_MIN").ok().and_then(|s| s.parse().ok()).filter(|t: &i64| t.abs() <= 840)
 }
