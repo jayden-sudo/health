@@ -10,6 +10,7 @@ use health_core::derived::{Derive, Derived};
 use health_core::erase::EraseResult;
 use health_core::import::Imported as FileImported;
 use health_core::manual::{self, Entered, Entry};
+use health_core::ocr::{self, Choice, Ingested, OcrConfirmed, Recognized};
 use health_core::query::{self, Day, Metric, MetricInfo, Point, ReportHit, Source};
 use health_core::review::{self, Alias, Confirmed, Proposed};
 use health_core::write::ObsRow;
@@ -39,7 +40,7 @@ macro_rules! op {
 pub static OPS: &[OpDef] = &[
     op!("status", "Profile and database summary", write: false, delegate: Never, manual_tx: false, status, Empty, Status),
     op!("metric.search", "Search the metric catalog by code or name", write: false, delegate: Read, manual_tx: false, metric_search, MetricSearch, Vec<Metric>),
-    op!("metric.show", "One metric with its accepted units", write: false, delegate: Read, manual_tx: false, metric_show, CodeReq, MetricInfo),
+    op!("metric.show", "One metric with its accepted units", write: false, delegate: Read, manual_tx: false, metric_show, MetricShow, MetricShown),
     op!("manual.enter", "Enter values by hand (one import per call)", write: true, delegate: Never, manual_tx: false, manual_enter, ManualEnter, Entered),
     op!("manual.edit", "Replace a manual entry", write: true, delegate: Never, manual_tx: false, manual_edit, ManualEdit, Entered),
     op!("manual.remove", "Delete a manual entry", write: true, delegate: Never, manual_tx: false, manual_remove, PointReq, Done),
@@ -55,6 +56,9 @@ pub static OPS: &[OpDef] = &[
     op!("import.erase", "Delete a batch and everything it delivered", write: true, delegate: Never, manual_tx: false, import_erase, IdReq, EraseResult),
     op!("review.list", "Batches waiting for review (invisible until confirmed)", write: false, delegate: Never, manual_tx: false, review_list, Empty, Vec<BatchDetail>),
     op!("review.confirm", "Confirm a review batch with the rows to write", write: true, delegate: Never, manual_tx: false, review_confirm, ReviewConfirm, Confirmed),
+    op!("review.confirm_ocr", "Confirm a lab-report batch: a measure (or a new one) and unit per item, or skip", write: true, delegate: Never, manual_tx: false, review_confirm_ocr, OcrConfirm, OcrConfirmed),
+    op!("import.ocr", "Record a recognised lab report (image or PDF) as a batch waiting for review", write: true, delegate: Never, manual_tx: false, import_ocr, OcrImport, Ingested),
+    op!("import.seen", "Was this file (SHA-256) imported already?", write: false, delegate: Never, manual_tx: false, import_seen, ShaReq, Seen),
     op!("review.discard", "Discard a review batch", write: true, delegate: Never, manual_tx: false, review_discard, IdReq, Done),
     op!("report.search", "Full-text search of confirmed reports", write: false, delegate: Read, manual_tx: false, report_search, ReportSearch, Vec<ReportHit>),
     op!("report.show", "Full text of one report", write: false, delegate: Read, manual_tx: false, report_show, IdReq, ReportText),
@@ -85,13 +89,6 @@ pub struct Done {
     pub ok: bool,
 }
 const DONE: Done = Done { ok: true };
-
-#[derive(Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct CodeReq {
-    /// metric.code, e.g. "loinc:2345-7"
-    pub code: String,
-}
 
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -154,8 +151,29 @@ fn metric_search(ctx: &mut Ctx, r: MetricSearch) -> Result<Vec<Metric>> {
     query::metric_search(ctx.db(), &ctx.scope(), &r.q, r.limit)
 }
 
-fn metric_show(ctx: &mut Ctx, r: CodeReq) -> Result<MetricInfo> {
-    query::metric_show(ctx.db(), &ctx.scope(), &r.code)
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MetricShow {
+    /// metric.code, e.g. "loinc:2345-7"
+    pub code: String,
+    /// A unit as printed on a report: the reply then says which of the metric's units it is, if any
+    #[serde(default)]
+    pub printed_unit: Option<String>,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct MetricShown {
+    #[serde(flatten)]
+    pub info: MetricInfo,
+    /// The metric's unit the printed one maps to (absent: none fits, so the person picks one)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub picked_unit: Option<String>,
+}
+
+fn metric_show(ctx: &mut Ctx, r: MetricShow) -> Result<MetricShown> {
+    let info = query::metric_show(ctx.db(), &ctx.scope(), &r.code)?;
+    let picked_unit = r.printed_unit.as_deref().and_then(|p| ocr::pick_unit(&info.units, p));
+    Ok(MetricShown { info, picked_unit })
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -372,6 +390,116 @@ fn review_confirm(ctx: &mut Ctx, r: ReviewConfirm) -> Result<Confirmed> {
         None => review::proposal_rows(ctx.db(), r.id)?.ok_or_else(|| Error::invalid("bad_request", "rows are required for this review"))?,
     };
     review::confirm(ctx.db(), r.id, &rows, r.text.as_deref(), &r.aliases, ctx.now_ms)
+}
+
+/// Local noon of `date` (exactly YYYY-MM-DD, a real day) in the zone `tz_min` minutes east of UTC: a lab
+/// result is for a day.
+fn noon(date: &str, tz_min: i64) -> Result<i64> {
+    let d = (date.len() == 10 && date.as_bytes()[4] == b'-' && date.as_bytes()[7] == b'-')
+        .then(|| chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").ok())
+        .flatten()
+        .ok_or_else(|| Error::invalid("bad_date", date))?;
+    Ok(d.and_hms_opt(12, 0, 0).expect("noon").and_utc().timestamp_millis() - tz_min * 60_000)
+}
+
+/// UTC offsets run from −12:00 to +14:00.
+fn check_tz(tz_min: i64) -> Result<()> {
+    if (-840..=840).contains(&tz_min) { Ok(()) } else { Err(Error::invalid("bad_tz", tz_min.to_string())) }
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct OcrConfirm {
+    pub id: i64,
+    /// One per item, in order
+    pub choices: Vec<Choice>,
+    /// Test date (YYYY-MM-DD); the batch's own when omitted
+    #[serde(default)]
+    pub date: Option<String>,
+    /// The person's UTC offset on that date, in minutes
+    pub tz_min: i64,
+}
+
+fn review_confirm_ocr(ctx: &mut Ctx, r: OcrConfirm) -> Result<OcrConfirmed> {
+    check_tz(r.tz_min)?;
+    let cand = ocr::candidates(ctx.db(), r.id)?;
+    let at = match &r.date {
+        Some(d) => noon(d, r.tz_min)?,
+        // the date wasn't on the report: the person must give it (the import time is not the test date)
+        None if cand.dated == Some(false) => return Err(Error::invalid("date_required", "set the day the sample was taken")),
+        None => cand.at,
+    };
+    ocr::confirm(ctx.db(), r.id, &r.choices, at, r.tz_min, ctx.now_ms)
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct OcrImport {
+    /// The original file (kept, encrypted, with the batch)
+    pub path: String,
+    /// What the OCR worker read from it (the CLI and serve fill this in when it is missing)
+    #[serde(default)]
+    pub recognized: Option<Recognized>,
+    /// The person's UTC offset in minutes (for the report date)
+    pub tz_min: i64,
+}
+
+fn import_ocr(ctx: &mut Ctx, r: OcrImport) -> Result<Ingested> {
+    check_tz(r.tz_min)?;
+    let mut rec = r.recognized.ok_or_else(|| Error::invalid("needs_recognition", "run the OCR worker on the file first"))?;
+    let path = std::path::Path::new(&r.path);
+    if !path.is_file() {
+        return Err(Error::not_found("no_file", &r.path));
+    }
+    // a misread digit can make an impossible day ("2026-02-31"): then the date wasn't found
+    let at = match rec.date.as_deref().map(|d| noon(d, r.tz_min)) {
+        Some(Ok(at)) => at,
+        Some(Err(_)) => {
+            rec.date = None;
+            ctx.now_ms
+        }
+        None => ctx.now_ms,
+    };
+    // record the batch first: if that fails (a duplicate, say) no file is left behind; storing the file
+    // failing rolls the batch back
+    let sha = sha256_file(path)?;
+    let out = ocr::ingest(ctx.db(), &sha, &rec, at, r.tz_min, ctx.now_ms)?;
+    if ctx.profile.blobs.put_file(path)? != sha {
+        return Err(Error::conflict("file_changed", "the file changed while it was being imported"));
+    }
+    Ok(out)
+}
+
+fn sha256_file(path: &std::path::Path) -> Result<String> {
+    use sha2::Digest;
+    use std::io::Read;
+    let mut f = std::fs::File::open(path)?;
+    let mut h = sha2::Sha256::new();
+    let mut buf = vec![0u8; 1 << 16];
+    loop {
+        let n = f.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        h.update(&buf[..n]);
+    }
+    Ok(hex::encode(h.finalize()))
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ShaReq {
+    pub sha: String,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct Seen {
+    pub seen: bool,
+}
+
+fn import_seen(ctx: &mut Ctx, r: ShaReq) -> Result<Seen> {
+    let n: i64 = ctx.db().query_row("SELECT count(*) FROM import WHERE blob = ?", [&r.sha], |row| row.get(0))?;
+    Ok(Seen { seen: n > 0 })
 }
 
 fn review_discard(ctx: &mut Ctx, r: IdReq) -> Result<Done> {

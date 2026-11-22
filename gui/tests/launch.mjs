@@ -14,6 +14,8 @@ const rows = [];
 for (let d = 0; d < 40; d++) rows.push({ metric: "loinc:40443-4", start_ms: now - d * DAY - 3_600_000, tz_min: 0, value: 50 + (d % 7) });
 writeFileSync(join(dir, "rows.jsonl"), rows.map((r) => JSON.stringify(r)).join("\n"));
 execFileSync(bin, ["import", "rows", join(dir, "rows.jsonl"), "--source", "Test watch"], { env });
+// lab reports: the OCR models, when the test run has them (HEALTH_OCR_MODELS=<dir>)
+if (process.env.HEALTH_OCR_MODELS) execFileSync(bin, ["component", "install", "ocr", "--from", process.env.HEALTH_OCR_MODELS], { env });
 const serve = spawn(bin, ["serve"], { env, stdio: ["ignore", "pipe", "inherit"] });
 const line = await new Promise((ok) => serve.stdout.once("data", (b) => ok(b.toString())));
 writeFileSync(join(dir, "serve.json"), line);

@@ -154,10 +154,34 @@ impl State {
                 }
             }
             ("POST", p) if p.starts_with("/v1/op/") => {
-                let Some(profile) = guard.as_ref() else { return err(&Error::new(Kind::Locked, "locked", "serve is locked")) };
                 let name = &p["/v1/op/".len()..];
                 let req = if body.is_empty() { Ok(json!({})) } else { serde_json::from_slice::<Value>(body) };
-                let Ok(req) = req else { return err(&Error::new(Kind::Usage, "bad_json", "")) };
+                let Ok(mut req) = req else { return err(&Error::new(Kind::Usage, "bad_json", "")) };
+                // a lab report: recognise it in the worker without holding the profile, then record it
+                let guard = if owner && name == "import.ocr" && guard.is_some() && req.get("recognized").is_none_or(Value::is_null) {
+                    // nothing slow under the lock: check and hash the file without it
+                    drop(guard);
+                    let sha = match crate::ocr::file_sha(req["path"].as_str().unwrap_or_default()) {
+                        Ok(sha) => sha,
+                        Err(e) => return err(&e),
+                    };
+                    // already imported? say so before seconds of recognition
+                    {
+                        let guard = self.open.lock().unwrap();
+                        let Some(profile) = guard.as_ref() else { return err(&Error::new(Kind::Locked, "locked", "serve is locked")) };
+                        let mut ctx = Ctx::new(profile, now, caller.clone());
+                        if call(&mut ctx, "import.seen", json!({ "sha": sha })).is_ok_and(|o| o.value["seen"] == true) {
+                            return err(&Error::conflict("blob_dup", sha));
+                        }
+                    }
+                    if let Err(e) = crate::ocr::fill(&self.data_dir, &mut req, crate::time::year(now)) {
+                        return err(&e);
+                    }
+                    self.open.lock().unwrap()
+                } else {
+                    guard
+                };
+                let Some(profile) = guard.as_ref() else { return err(&Error::new(Kind::Locked, "locked", "serve is locked")) };
                 let mut ctx = Ctx::new(profile, now, caller);
                 ctx.dry_run = owner && get("X-Health-Dry-Run") == Some("1");
                 let res = call(&mut ctx, name, req);

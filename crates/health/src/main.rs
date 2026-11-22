@@ -3,6 +3,7 @@
 mod client;
 mod keys;
 mod mcp;
+mod ocr;
 mod render;
 mod serve;
 mod time;
@@ -106,6 +107,17 @@ enum Cmd {
     Report(ReportCmd),
     #[command(subcommand)]
     Backup(BackupCmd),
+    /// Read a lab report (photo or PDF) into a batch waiting for your review (needs the OCR component)
+    Ocr {
+        /// The image (JPEG, PNG, …) or PDF
+        file: PathBuf,
+    },
+    /// Optional parts that don't ship in the binary (the OCR models)
+    #[command(subcommand)]
+    Component(ComponentCmd),
+    /// Internal: the OCR process `health ocr` and serve start (one request on stdin)
+    #[command(hide = true)]
+    OcrWorker,
     /// Passphrase lock: keep the root key out of the keychain (plan §3.3)
     #[command(subcommand)]
     Passphrase(PassphraseCmd),
@@ -200,6 +212,22 @@ enum PassphraseCmd {
     Set,
     /// Move the root key back into the keychain
     Remove,
+}
+
+#[derive(Subcommand)]
+enum ComponentCmd {
+    /// What is installed
+    List,
+    /// Install a component: `ocr` (about 21 MB, plus 135 MB for measure matching)
+    Install {
+        name: String,
+        /// Install from a folder holding the files instead of downloading them
+        #[arg(long)]
+        from: Option<PathBuf>,
+        /// Skip the measure-matching model (you then pick each measure yourself)
+        #[arg(long)]
+        no_matching: bool,
+    },
 }
 
 #[derive(Args)]
@@ -396,7 +424,15 @@ fn password(from_stdin: bool, confirm: bool) -> Result<String> {
 fn request(cmd: &Cmd, now: i64) -> Result<(String, Value)> {
     let day = |s: &Option<String>| -> Result<Option<i64>> { s.as_deref().map(|s| time::parse(s).map(|w| w.ms)).transpose() };
     Ok(match cmd {
-        Cmd::Init | Cmd::Schema { .. } | Cmd::Passphrase(_) | Cmd::Serve { .. } | Cmd::Mcp | Cmd::Unlock | Cmd::Lock => {
+        Cmd::Init
+        | Cmd::Schema { .. }
+        | Cmd::Passphrase(_)
+        | Cmd::Serve { .. }
+        | Cmd::Mcp
+        | Cmd::Unlock
+        | Cmd::Lock
+        | Cmd::Component(_)
+        | Cmd::OcrWorker => {
             unreachable!("handled before")
         }
         Cmd::Grant(GrantCmd::Create { name, groups, detail, reports, days, write, expires_days }) => (
@@ -468,6 +504,10 @@ fn request(cmd: &Cmd, now: i64) -> Result<(String, Value)> {
             ("review.confirm".into(), json!({ "id": id, "rows": rows, "text": text }))
         }
         Cmd::Review(ReviewCmd::Discard { id }) => ("review.discard".into(), json!({ "id": id })),
+        // the OCR worker fills in `recognized` (see run)
+        Cmd::Ocr { file } => {
+            ("import.ocr".into(), json!({ "path": std::path::absolute(file)?, "tz_min": time::parse(&now.to_string())?.tz_min }))
+        }
         Cmd::Report(ReportCmd::Search { q, limit }) => ("report.search".into(), json!({ "q": q, "limit": limit })),
         Cmd::Report(ReportCmd::Show { id }) => ("report.show".into(), json!({ "id": id })),
         // absolute: a forwarded call runs in serve's working directory
@@ -603,6 +643,13 @@ fn run(cli: &Cli) -> Result<Value> {
     let pdir = health_core::profile::profile_dir(&dir, &cli.profile)?;
     match &cli.cmd {
         Cmd::Passphrase(cmd) => return passphrase_cmd(cli, &dir, cmd),
+        Cmd::Component(ComponentCmd::List) => return Ok(ocr::status(&dir)),
+        Cmd::Component(ComponentCmd::Install { name, from, no_matching }) => {
+            if name != "ocr" {
+                return Err(Error::not_found("no_component", name));
+            }
+            return ocr::install(&dir, from.as_deref(), !no_matching);
+        }
         Cmd::Serve { port, idle_lock, exit_with_parent } => {
             if *exit_with_parent {
                 // The shell holds our stdin pipe; when it exits (or crashes) the pipe closes. Works on every OS.
@@ -648,7 +695,10 @@ fn run(cli: &Cli) -> Result<Value> {
             if let Some(s) = client::probe(&pdir) {
                 // the passphrase first, as on the direct path, so stdin lines mean the same either way
                 let auth = owner_auth(cli, &pdir, &s)?;
-                let (name, req) = request(&cli.cmd, now)?;
+                let (name, mut req) = request(&cli.cmd, now)?;
+                if name == "import.ocr" {
+                    ocr::fill(&dir, &mut req, time::year(now))?;
+                }
                 return Ok(s.op(auth, &name, &req, cli.dry_run)?.0);
             }
         }
@@ -677,7 +727,10 @@ fn run(cli: &Cli) -> Result<Value> {
         }
         _ => {}
     }
-    let (name, req) = request(&cli.cmd, now)?;
+    let (name, mut req) = request(&cli.cmd, now)?;
+    if name == "import.ocr" {
+        ocr::fill(&dir, &mut req, time::year(now))?;
+    }
     let op = health_api::find(&name)?;
     let profile = Profile::open(&dir, &cli.profile, keys.as_ref(), op.write, now)?;
     let mut ctx = Ctx::new(&profile, now, Caller::Owner);
@@ -692,6 +745,9 @@ fn main() {
         libc::umask(0o077);
     }
     let cli = Cli::parse();
+    if matches!(cli.cmd, Cmd::OcrWorker) {
+        std::process::exit(ocr::worker_main());
+    }
     match run(&cli) {
         Ok(Value::Null) => {} // serve / mcp: stdout is theirs
         Ok(v) => {

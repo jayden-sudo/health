@@ -1,0 +1,664 @@
+{
+ "pages": {
+  "cbc": [
+   {
+    "name": "WBC",
+    "suggest": [
+     {
+      "code": "loinc:26464-8",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:26464-8"
+   },
+   {
+    "name": "% Neutrophil",
+    "suggest": [
+     {
+      "code": "loinc:770-8",
+      "score": 1
+     },
+     {
+      "code": "x:protein_percentage",
+      "score": 0.881
+     },
+     {
+      "code": "x:normal_rhythm_percentage",
+      "score": 0.876
+     }
+    ],
+    "pre": "loinc:770-8"
+   },
+   {
+    "name": "% Lymphocyte",
+    "suggest": [
+     {
+      "code": "loinc:736-9",
+      "score": 1
+     },
+     {
+      "code": "x:protein_percentage",
+      "score": 0.879
+     }
+    ],
+    "pre": "loinc:736-9"
+   },
+   {
+    "name": "% Monocyte",
+    "suggest": [
+     {
+      "code": "loinc:5905-5",
+      "score": 1
+     },
+     {
+      "code": "loinc:101686-4",
+      "score": 0.899
+     },
+     {
+      "code": "x:protein_percentage",
+      "score": 0.894
+     }
+    ],
+    "pre": "loinc:5905-5"
+   },
+   {
+    "name": "% Eosinophil",
+    "suggest": [
+     {
+      "code": "loinc:713-8",
+      "score": 1
+     },
+     {
+      "code": "x:normal_rhythm_percentage",
+      "score": 0.878
+     },
+     {
+      "code": "x:protein_percentage",
+      "score": 0.877
+     }
+    ],
+    "pre": "loinc:713-8"
+   },
+   {
+    "name": "% Basophil",
+    "suggest": [
+     {
+      "code": "loinc:706-2",
+      "score": 1
+     },
+     {
+      "code": "loinc:101686-4",
+      "score": 0.889
+     },
+     {
+      "code": "loinc:41982-0",
+      "score": 0.886
+     }
+    ],
+    "pre": "loinc:706-2"
+   },
+   {
+    "name": "RBC",
+    "suggest": [
+     {
+      "code": "loinc:789-8",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:789-8"
+   },
+   {
+    "name": "Hemoglobin",
+    "suggest": [
+     {
+      "code": "loinc:718-7",
+      "score": 1
+     },
+     {
+      "code": "loinc:4635-9",
+      "score": 0.904
+     },
+     {
+      "code": "loinc:721-1",
+      "score": 0.898
+     }
+    ],
+    "pre": "loinc:718-7"
+   },
+   {
+    "name": "Hematocrit",
+    "suggest": [
+     {
+      "code": "loinc:4544-3",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:4544-3"
+   },
+   {
+    "name": "MCV",
+    "suggest": [
+     {
+      "code": "loinc:787-2",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:787-2"
+   },
+   {
+    "name": "MCH",
+    "suggest": [
+     {
+      "code": "loinc:785-6",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:785-6"
+   },
+   {
+    "name": "MCHC",
+    "suggest": [
+     {
+      "code": "loinc:786-4",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:786-4"
+   },
+   {
+    "name": "Platelet",
+    "suggest": [
+     {
+      "code": "loinc:26515-7",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:26515-7"
+   },
+   {
+    "name": "RBC morphology",
+    "suggest": [
+     {
+      "code": "loinc:6742-1",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:6742-1"
+   }
+  ],
+  "chem-1": [
+   {
+    "name": "HbA1c (EDTA blood)",
+    "suggest": [
+     {
+      "code": "loinc:4548-4",
+      "score": 1
+     },
+     {
+      "code": "loinc:20570-8",
+      "score": 0.882
+     },
+     {
+      "code": "loinc:17856-6",
+      "score": 0.881
+     }
+    ],
+    "pre": "loinc:4548-4"
+   },
+   {
+    "name": "Cholesterol",
+    "suggest": [
+     {
+      "code": "loinc:2093-3",
+      "score": 1
+     },
+     {
+      "code": "loinc:2085-9",
+      "score": 0.921
+     },
+     {
+      "code": "loinc:13457-7",
+      "score": 0.906
+     }
+    ],
+    "pre": "loinc:2093-3"
+   },
+   {
+    "name": "Triglyceride",
+    "suggest": [
+     {
+      "code": "loinc:2571-8",
+      "score": 1
+     },
+     {
+      "code": "loinc:3043-7",
+      "score": 0.913
+     },
+     {
+      "code": "loinc:2085-9",
+      "score": 0.876
+     }
+    ],
+    "pre": "loinc:2571-8"
+   },
+   {
+    "name": "HDL",
+    "suggest": [
+     {
+      "code": "loinc:2085-9",
+      "score": 1
+     },
+     {
+      "code": "loinc:13457-7",
+      "score": 0.883
+     },
+     {
+      "code": "loinc:2093-3",
+      "score": 0.879
+     }
+    ],
+    "pre": "loinc:2085-9"
+   },
+   {
+    "name": "LDL (calculate)",
+    "suggest": [
+     {
+      "code": "loinc:13457-7",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:13457-7"
+   },
+   {
+    "name": "Chol /HDL",
+    "suggest": [
+     {
+      "code": "loinc:9830-1",
+      "score": 1
+     },
+     {
+      "code": "loinc:2085-9",
+      "score": 0.887
+     },
+     {
+      "code": "loinc:1990-1",
+      "score": 0.876
+     }
+    ],
+    "pre": "loinc:9830-1"
+   }
+  ],
+  "chem-2": [
+   {
+    "name": "BUN",
+    "suggest": [
+     {
+      "code": "loinc:3094-0",
+      "score": 1
+     },
+     {
+      "code": "loinc:11064-3",
+      "score": 0.898
+     },
+     {
+      "code": "loinc:11065-0",
+      "score": 0.896
+     }
+    ],
+    "pre": "loinc:3094-0"
+   },
+   {
+    "name": "Creatinine",
+    "suggest": [
+     {
+      "code": "loinc:2160-0",
+      "score": 1
+     },
+     {
+      "code": "loinc:12190-5",
+      "score": 0.913
+     },
+     {
+      "code": "loinc:38483-4",
+      "score": 0.911
+     }
+    ],
+    "pre": "loinc:2160-0"
+   },
+   {
+    "name": "GFR (CKD-EPI)",
+    "suggest": [
+     {
+      "code": "loinc:62238-1",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:62238-1"
+   },
+   {
+    "name": "Uric acid",
+    "suggest": [
+     {
+      "code": "loinc:3084-1",
+      "score": 1
+     },
+     {
+      "code": "loinc:3086-6",
+      "score": 0.894
+     },
+     {
+      "code": "loinc:3094-0",
+      "score": 0.889
+     }
+    ],
+    "pre": "loinc:3084-1"
+   },
+   {
+    "name": "Albumin",
+    "suggest": [
+     {
+      "code": "loinc:1751-7",
+      "score": 1
+     },
+     {
+      "code": "loinc:1746-7",
+      "score": 0.897
+     },
+     {
+      "code": "loinc:1747-5",
+      "score": 0.893
+     }
+    ],
+    "pre": "loinc:1751-7"
+   },
+   {
+    "name": "AST (SGOT)",
+    "suggest": [
+     {
+      "code": "loinc:1920-8",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:1920-8"
+   },
+   {
+    "name": "ALT (SGPT)",
+    "suggest": [
+     {
+      "code": "loinc:1742-6",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:1742-6"
+   },
+   {
+    "name": "ALP",
+    "suggest": [
+     {
+      "code": "loinc:6768-6",
+      "score": 1
+     },
+     {
+      "code": "loinc:1777-2",
+      "score": 0.927
+     },
+     {
+      "code": "loinc:1742-6",
+      "score": 0.878
+     }
+    ],
+    "pre": "loinc:6768-6"
+   }
+  ],
+  "chem-3": [
+   {
+    "name": "Vitamin B12",
+    "suggest": [
+     {
+      "code": "loinc:2132-9",
+      "score": 1
+     },
+     {
+      "code": "loinc:16695-9",
+      "score": 0.883
+     }
+    ],
+    "pre": "loinc:2132-9"
+   },
+   {
+    "name": "Vitamin D total",
+    "suggest": [
+     {
+      "code": "loinc:62292-8",
+      "score": 1
+     },
+     {
+      "code": "loinc:35365-6",
+      "score": 0.886
+     }
+    ],
+    "pre": "loinc:62292-8"
+   }
+  ],
+  "hbsab": [
+   {
+    "name": "Anti-HBs level (s可un)",
+    "suggest": [
+     {
+      "code": "loinc:16935-9",
+      "score": 1
+     },
+     {
+      "code": "loinc:57416-0",
+      "score": 0.881
+     }
+    ],
+    "pre": "loinc:16935-9"
+   },
+   {
+    "name": "Interpretation (nsuawa)",
+    "suggest": [
+     {
+      "code": "loinc:22322-2",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:22322-2"
+   }
+  ],
+  "urine-1": [
+   {
+    "name": "Color",
+    "suggest": [
+     {
+      "code": "loinc:5778-6",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:5778-6"
+   },
+   {
+    "name": "Turbidity",
+    "suggest": [
+     {
+      "code": "loinc:5767-9",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:5767-9"
+   },
+   {
+    "name": "Specific gravity",
+    "suggest": [
+     {
+      "code": "loinc:5811-5",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:5811-5"
+   },
+   {
+    "name": "pH",
+    "suggest": [
+     {
+      "code": "loinc:5803-2",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:5803-2"
+   },
+   {
+    "name": "Leukocyte esterase",
+    "suggest": [
+     {
+      "code": "loinc:5799-2",
+      "score": 1
+     },
+     {
+      "code": "loinc:5821-4",
+      "score": 0.892
+     }
+    ],
+    "pre": "loinc:5799-2"
+   },
+   {
+    "name": "Occult blood",
+    "suggest": [
+     {
+      "code": "loinc:5794-3",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:5794-3"
+   },
+   {
+    "name": "Protein (Albumin)",
+    "suggest": [
+     {
+      "code": "loinc:20454-5",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:20454-5"
+   },
+   {
+    "name": "Sugar (Glucose)",
+    "suggest": [
+     {
+      "code": "loinc:25428-4",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:25428-4"
+   }
+  ],
+  "urine-2": [
+   {
+    "name": "White blood cell (WBC)",
+    "suggest": [
+     {
+      "code": "loinc:5821-4",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:5821-4"
+   },
+   {
+    "name": "Red blood cell (RBC)",
+    "suggest": [
+     {
+      "code": "loinc:13945-1",
+      "score": 1
+     },
+     {
+      "code": "loinc:6742-1",
+      "score": 0.885
+     }
+    ],
+    "pre": "loinc:13945-1"
+   },
+   {
+    "name": "Squamous epithelial cell",
+    "suggest": [
+     {
+      "code": "loinc:11277-1",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:11277-1"
+   },
+   {
+    "name": "Bacteria",
+    "suggest": [
+     {
+      "code": "loinc:25145-4",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:25145-4"
+   },
+   {
+    "name": "Yeast / Fungus",
+    "suggest": [
+     {
+      "code": "loinc:32356-8",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:32356-8"
+   },
+   {
+    "name": "Mucous",
+    "suggest": [
+     {
+      "code": "loinc:8247-9",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:8247-9"
+   },
+   {
+    "name": "Crystal",
+    "suggest": [
+     {
+      "code": "loinc:49755-2",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:49755-2"
+   },
+   {
+    "name": "Cast",
+    "suggest": [
+     {
+      "code": "loinc:24124-0",
+      "score": 1
+     }
+    ],
+    "pre": "loinc:24124-0"
+   }
+  ]
+ },
+ "probe": [
+  [
+   0.06059472635388374,
+   -0.02992372028529644,
+   -0.03112868219614029,
+   -0.0994846448302269,
+   0.07368922233581543,
+   -0.025440635159611702,
+   0.0030495221726596355,
+   0.04392031207680702
+  ],
+  [
+   0.08572176098823547,
+   0.009617999196052551,
+   -0.028171224519610405,
+   -0.04261662811040878,
+   0.10304012894630432,
+   -0.021578706800937653,
+   -0.0015017943223938346,
+   0.10354983806610107
+  ]
+ ]
+}

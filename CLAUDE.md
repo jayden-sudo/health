@@ -17,6 +17,9 @@ scripts/stage-core.sh release && (cd gui && npx tauri build)   # desktop bundle 
 bun scripts/gen-catalog.ts                    # regenerate data/metrics.tsv from the web catalog
 bun scripts/web-fixture.ts                    # regenerate tests/fixtures from the web code (needs the W repo)
 bun scripts/web-import-check.ts <file> <pw>   # reverse parity: the web code restores a Rust-made backup (see the script header)
+bun scripts/gen-ocr-data.ts                   # OCR tables and fixtures from the web code (reads tests/fixtures/<page>.web.json)
+HEALTH_OCR_MODELS=<dir> cargo test --all      # also runs the OCR parity/pipeline tests (pinned model files in <dir>)
+scripts/demo-profile.sh /tmp/demo [<models>]  # a profile with synthetic data (screenshots, trying things)
 ```
 
 Serve and MCP tests spawn processes. To find a hanging test, run the test binary under a process-group timeout, one test at a time (`target/debug/deps/serve-*  <name>`).
@@ -42,6 +45,8 @@ cargo run -q -- init && cargo run -q -- add loinc:2345-7 5.5 --unit mmol/L --at 
 - `health-api` is the operation table (`ops.rs`). CLI, HTTP, MCP and FFI all call `health_api::call()`, which runs validate → authorize → execute → audit. Add a feature as an op there, never as logic in the bin.
 - Access (M2): `Caller::Owner | Caller::Delegate(grant)`. `OpDef.delegate` is the only list of what agents may call (deny by default), and the MCP tools are generated from it. Delegate reads go through `Scope` in SQL. Every delegate call is audited in `access.db`, and fails if the audit write fails. `health serve` (tiny_http, loopback) is the single writer; the CLI forwards to it when it is running.
 - GUI (M4, `gui/`): the React UI calls `op()` in `gui/src/api.ts` only. In Tauri that goes to the shell (`gui/src-tauri`), which runs `health serve --exit-with-parent`, holds the owner token and restarts the core. In the browser it goes through the Vite proxy. The UI never parses data rules. The design tokens are in `docs/gui.md`.
+- OCR (M5): `health-ocr` ports the web `ocr/` (tract for the models, hayro for PDFs; same output as the web engine, tested on `crates/health-ocr/tests/fixtures`). It runs only in the `health ocr-worker` process, outside serve's profile lock; `health-core::ocr` records a review batch (invisible until `review.confirm_ocr`). Model files are a component under `<data dir>/components/ocr`, pinned by SHA-256.
+- `health-connect` is the only crate that opens network connections (component downloads for now).
 - `health` (bin) only parses arguments and owns the OS edges: the clock (`HEALTH_NOW`), the timezone (`HEALTH_TZ_MIN`, otherwise DST-aware per date), and key stores (the OS keychain, or `HEALTH_ROOT_KEY_FILE` at mode 0600).
 - Key invariants that are easy to break:
   - Numbers enter storage only via `Value::number` (integral → INTEGER, as in JS).
@@ -63,6 +68,6 @@ CI never reads them. Commit whatever is derived from them: `data/metrics.tsv`, `
 
 - Synthetic test data only. Never read personal exports or lab reports from `~/Downloads/`.
 - Never send requests to the production backend. Use only the dev backend `https://api-dev-health.4seas.xyz`.
-- Only `health-connect` (not yet created) may open network connections, which `scripts/check-no-net.sh` enforces. Logs never contain values, report text or passwords. Passwords never go in argv.
+- Only `health-connect` may open network connections, which `scripts/check-no-net.sh` enforces. Logs never contain values, report text or passwords. Passwords never go in argv.
 - License is GPL-3.0. New dependencies must pass `cargo deny check licenses` (`deny.toml`).
 - Comments and docs are in English and concise. Don't over-engineer: create crates only when their milestone starts.

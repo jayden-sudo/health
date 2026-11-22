@@ -1104,3 +1104,32 @@ details.group > summary h3 {
     transition: none !important;
   }
 }
+
+/* Lab report review */
+.ocr-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.ocr-head h3 {
+  margin: 0;
+}
+label.inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+.ocr-items th {
+  font-size: 12px;
+  color: var(--graphite);
+  font-weight: 500;
+}
+.ocr-items select {
+  max-width: 17rem;
+}
+.ocr-items .picker {
+  margin-top: 0.4rem;
+}

@@ -1,0 +1,1197 @@
+{
+ "w": "36d6288b",
+ "tables": {
+  "cbc": {
+   "items": [
+    {
+     "name": "WBC",
+     "v": 6820,
+     "unit": "Cell/uL",
+     "ref": "4500-10000",
+     "text": "WBC  6,820  4,500- 10,000  Cell/uL"
+    },
+    {
+     "name": "% Neutrophil",
+     "v": 57.9,
+     "unit": "%",
+     "ref": "40-70",
+     "text": "% Neutrophil  57.9  40-70  %"
+    },
+    {
+     "name": "% Lymphocyte",
+     "v": 34.2,
+     "unit": "%",
+     "ref": "20-50",
+     "text": "% Lymphocyte  34.2  20-50  %"
+    },
+    {
+     "name": "% Monocyte",
+     "v": 3.4,
+     "unit": "%",
+     "ref": "2-10",
+     "text": "% Monocyte  3.4  2-10  %"
+    },
+    {
+     "name": "% Eosinophil",
+     "v": 4.2,
+     "unit": "%",
+     "ref": "1-6",
+     "text": "% Eosinophil  4.2  1-6  %"
+    },
+    {
+     "name": "% Basophil",
+     "v": 0.3,
+     "unit": "%",
+     "ref": "0-1",
+     "text": "% Basophil  0.3  0-1  %"
+    },
+    {
+     "name": "RBC",
+     "v": 4.48,
+     "unit": "10^6/uL",
+     "ref": "M:4.5-6.3F:4.2-5.5",
+     "text": "RBC (x10^6)  4.48  M: 4.5-6.3 F: 4.2-5.5  Cell/uL"
+    },
+    {
+     "name": "Hemoglobin",
+     "v": 13.2,
+     "unit": "g/dL",
+     "ref": "M:13-18F:12-16",
+     "text": "Hemoglobin  13.2  M: 13-18  F: 12-16  g/dL"
+    },
+    {
+     "name": "Hematocrit",
+     "v": 40,
+     "unit": "%",
+     "ref": "M:40-54F:37-47",
+     "text": "Hematocrit  40  M: 40-54  F:37-47  %"
+    },
+    {
+     "name": "MCV",
+     "v": 89,
+     "unit": "fL",
+     "ref": "83-97",
+     "text": "MCV  89  83-97  f"
+    },
+    {
+     "name": "MCH",
+     "v": 29,
+     "unit": "Pg",
+     "ref": "27-33",
+     "text": "MCH  29  27-33  Pg"
+    },
+    {
+     "name": "MCHC",
+     "v": 33,
+     "unit": "g/dL",
+     "ref": "31-35",
+     "text": "MCHC  33  31-35  g/dL"
+    },
+    {
+     "name": "Platelet",
+     "v": 325000,
+     "unit": "Cells/uL",
+     "ref": "150000-450000",
+     "text": "Platelet  325,000  150,000 - 450,000  Cells/uL"
+    },
+    {
+     "name": "RBC morphology",
+     "v": "Normal",
+     "unit": "",
+     "text": "RBC morphology  Normal"
+    }
+   ],
+   "header": true,
+   "date": {
+    "y": 2026,
+    "m": 9,
+    "d": 27
+   },
+   "skew": 0
+  },
+  "chem-1": {
+   "items": [
+    {
+     "name": "HbA1c (EDTA blood)",
+     "panel": "Blood sugar & Diabetes",
+     "v": 6.1,
+     "unit": "%",
+     "ref": "4.0-6.0",
+     "flag": "H",
+     "text": "HbA1c (EDTA blood)  6.1  H  4.0 -6.0  %"
+    },
+    {
+     "name": "Cholesterol",
+     "panel": "Lipid profile",
+     "v": 176,
+     "unit": "mg/dL",
+     "ref": "120-200",
+     "text": "*Cholesterol  176  120 -200  mg/dL"
+    },
+    {
+     "name": "Triglyceride",
+     "panel": "Lipid profile",
+     "v": 108,
+     "unit": "mg/dL",
+     "ref": "45-150",
+     "text": "*Triglyceride  108  45 -150  mg/dL"
+    },
+    {
+     "name": "HDL",
+     "panel": "Lipid profile",
+     "v": 60,
+     "unit": "mg/dL",
+     "ref": "M:30-60,F:35-75",
+     "text": "*HDL  60  M: 30 - 60, F: 35 - 75  mg/dL"
+    },
+    {
+     "name": "LDL (calculate)",
+     "panel": "Lipid profile",
+     "v": 94,
+     "unit": "mg/dL",
+     "ref": "60-130",
+     "text": "LDL (calculate)  94  60- 130  mg/dL"
+    },
+    {
+     "name": "Chol /HDL",
+     "panel": "Lipid profile",
+     "v": 2.9,
+     "unit": "mg/dL",
+     "ref": "<4.0",
+     "text": "Chol /HDL  2.9  < 4.0  mg/dL"
+    }
+   ],
+   "header": true,
+   "date": {
+    "y": 2026,
+    "m": 9,
+    "d": 27
+   },
+   "skew": 0
+  },
+  "chem-2": {
+   "items": [
+    {
+     "name": "BUN",
+     "v": 12,
+     "unit": "mg/dL",
+     "ref": "7-20",
+     "text": "*BUN  12  7-20  mg/dL"
+    },
+    {
+     "name": "Creatinine",
+     "v": 1.08,
+     "unit": "mg/dL",
+     "ref": "M:0.7-1.2,F:0.5-1.0",
+     "text": "*Creatinine  1.08  M: 0.7 - 1.2, F: 0.5 - 1.0  mg/dL"
+    },
+    {
+     "name": "GFR (CKD-EPI)",
+     "v": 96.5,
+     "unit": "mL/min/1.73m2",
+     "ref": ">60",
+     "text": "GFR (CKD-EPI)  96.5  >60  mL/min/1.73m2"
+    },
+    {
+     "name": "Uric acid",
+     "v": 5.5,
+     "unit": "mg/dL",
+     "ref": "M:3.5-7.0,F:2.5-6.0",
+     "text": "*Uric acid  5.5  M: 3.5 - 7.0, F: 2.5 - 6.0  mg/dL"
+    },
+    {
+     "name": "Albumin",
+     "panel": "Liver function test (LFT)",
+     "v": 4.5,
+     "unit": "g/dL",
+     "ref": "3.5-5.0",
+     "text": "*Albumin  4.5  3.5-5.0  g/dL"
+    },
+    {
+     "name": "AST (SGOT)",
+     "panel": "Liver function test (LFT)",
+     "v": 22,
+     "unit": "U/L",
+     "ref": "5-35",
+     "text": "*AST (SGOT)  22  5-35  U/L"
+    },
+    {
+     "name": "ALT (SGPT)",
+     "panel": "Liver function test (LFT)",
+     "v": 10,
+     "unit": "U/L",
+     "ref": "0-40",
+     "text": "*ALT (SGPT)  10  0-40  U/L"
+    },
+    {
+     "name": "ALP",
+     "panel": "Liver function test (LFT)",
+     "v": 85,
+     "unit": "U/L",
+     "ref": "40-120",
+     "text": "*ALP  85  40- 120  U/L"
+    }
+   ],
+   "header": true,
+   "date": {
+    "y": 2026,
+    "m": 9,
+    "d": 27
+   },
+   "skew": 0
+  },
+  "chem-3": {
+   "items": [
+    {
+     "name": "Vitamin B12",
+     "v": 365.7,
+     "unit": "pg/mL",
+     "ref": "200-1100",
+     "text": "Vitamin B12  365.7  200 -1100  pg/mL"
+    },
+    {
+     "name": "Vitamin D total",
+     "v": 27.9,
+     "unit": "ng/mL",
+     "ref": "30-100",
+     "flag": "L",
+     "text": "Vitamin D total  27.9L  30 - 100  ng/mL"
+    }
+   ],
+   "header": true,
+   "date": {
+    "y": 2026,
+    "m": 9,
+    "d": 27
+   },
+   "skew": 0
+  },
+  "hbsab": {
+   "items": [
+    {
+     "name": "Anti-HBs level (s可un)",
+     "panel": "Anti-HBs (nOn)",
+     "v": 3.5,
+     "unit": "mIU/mL",
+     "ref": "8-12=Borderline",
+     "text": "o Anti-HBs level (s可un)  3.5  8 -12 = Borderline  mIU/mL"
+    },
+    {
+     "name": "Interpretation (nsuawa)",
+     "panel": "Anti-HBs (nOn)",
+     "v": "Negative",
+     "unit": "",
+     "ref": ">12=Positive",
+     "text": "o Interpretation (nsuawa)  Negative  > 12 = Positive"
+    }
+   ],
+   "header": true,
+   "date": {
+    "y": 2026,
+    "m": 9,
+    "d": 27
+   },
+   "skew": 0
+  },
+  "urine-1": {
+   "items": [
+    {
+     "name": "Color",
+     "panel": "Physical & Chemical exam",
+     "specimen": "urine",
+     "v": "Dark yellow",
+     "unit": "",
+     "ref": "Yellow",
+     "text": "- Color  Dark yellow  Yellow"
+    },
+    {
+     "name": "Turbidity",
+     "panel": "Physical & Chemical exam",
+     "specimen": "urine",
+     "v": "Slightly turbid",
+     "unit": "",
+     "ref": "Clear",
+     "text": "- Turbidity  Slightly turbid  Clear"
+    },
+    {
+     "name": "Specific gravity",
+     "panel": "Physical & Chemical exam",
+     "specimen": "urine",
+     "v": 1.015,
+     "unit": "",
+     "ref": "1.003-1.030",
+     "text": "- Specific gravity  1.015  1.003 - 1.030"
+    },
+    {
+     "name": "pH",
+     "panel": "Physical & Chemical exam",
+     "specimen": "urine",
+     "v": 7,
+     "unit": "",
+     "ref": "5.0-8.0",
+     "text": "- pH  7.0  5.0 - 8.0"
+    },
+    {
+     "name": "Leukocyte esterase",
+     "panel": "Physical & Chemical exam",
+     "specimen": "urine",
+     "v": "1+",
+     "unit": "",
+     "ref": "Negative",
+     "text": "- Leukocyte esterase  1+  Negative"
+    },
+    {
+     "name": "Occult blood",
+     "panel": "Physical & Chemical exam",
+     "specimen": "urine",
+     "v": "Trace",
+     "unit": "",
+     "ref": "Negative",
+     "text": "- Occult blood  Trace  Negative"
+    },
+    {
+     "name": "Protein (Albumin)",
+     "panel": "Physical & Chemical exam",
+     "specimen": "urine",
+     "v": "Negative",
+     "unit": "",
+     "ref": "Negative",
+     "text": "- Protein (Albumin)  Negative  Negative"
+    },
+    {
+     "name": "Sugar (Glucose)",
+     "panel": "Physical & Chemical exam",
+     "specimen": "urine",
+     "v": "Negative",
+     "unit": "",
+     "ref": "Negative",
+     "text": "- Sugar (Glucose)  Negative  Negative"
+    }
+   ],
+   "header": true,
+   "date": null,
+   "skew": 0
+  },
+  "urine-2": {
+   "items": [
+    {
+     "name": "White blood cell (WBC)",
+     "panel": "Microscopic exam",
+     "specimen": "urine",
+     "v": "1-2",
+     "unit": "Cell/HPF",
+     "ref": "0-5",
+     "text": "- White blood cell (WBC)  1-2  0-5  Cell / HPF"
+    },
+    {
+     "name": "Red blood cell (RBC)",
+     "panel": "Microscopic exam",
+     "specimen": "urine",
+     "v": "0-1",
+     "unit": "Cell/HPF",
+     "ref": "0-2",
+     "text": "- Red blood cell (RBC)  0-1  0-2  Cell/HPF"
+    },
+    {
+     "name": "Squamous epithelial cell",
+     "panel": "Microscopic exam",
+     "specimen": "urine",
+     "v": "1-2",
+     "unit": "Cell/HPF",
+     "ref": "0-5",
+     "text": "- Squamous epithelial cell  1-2  0-5  Cell/HPF"
+    },
+    {
+     "name": "Bacteria",
+     "panel": "Microscopic exam",
+     "specimen": "urine",
+     "v": "Few",
+     "unit": "",
+     "ref": "Negative",
+     "text": "- Bacteria  Few  Negative"
+    },
+    {
+     "name": "Yeast / Fungus",
+     "panel": "Microscopic exam",
+     "specimen": "urine",
+     "v": "Negative",
+     "unit": "",
+     "ref": "Negative",
+     "text": "- Yeast / Fungus  Negative  Negative"
+    },
+    {
+     "name": "Mucous",
+     "panel": "Microscopic exam",
+     "specimen": "urine",
+     "v": "Negative",
+     "unit": "",
+     "ref": "Negative",
+     "text": "- Mucous  Negative  Negative"
+    },
+    {
+     "name": "Crystal",
+     "panel": "Microscopic exam",
+     "specimen": "urine",
+     "v": "Negative",
+     "unit": "/HPF",
+     "ref": "Negative",
+     "text": "- Crystal  Negative  Negative  /HPF"
+    },
+    {
+     "name": "Cast",
+     "panel": "Microscopic exam",
+     "specimen": "urine",
+     "v": "Negative",
+     "unit": "/LPF",
+     "ref": "Negative",
+     "text": "- Cast  Negative  Negative  /LPF"
+    }
+   ],
+   "header": true,
+   "date": null,
+   "skew": 0
+  }
+ },
+ "parseValue": [
+  {
+   "in": "6.52",
+   "col": false,
+   "out": {
+    "v": 6.52
+   }
+  },
+  {
+   "in": "6.52",
+   "col": true,
+   "out": {
+    "v": 6.52
+   }
+  },
+  {
+   "in": "<0.5",
+   "col": false,
+   "out": {
+    "v": 0.5,
+    "cmp": "<"
+   }
+  },
+  {
+   "in": "<0.5",
+   "col": true,
+   "out": {
+    "v": 0.5,
+    "cmp": "<"
+   }
+  },
+  {
+   "in": "≥ 10",
+   "col": false,
+   "out": {
+    "v": 10,
+    "cmp": ">="
+   }
+  },
+  {
+   "in": "≥ 10",
+   "col": true,
+   "out": {
+    "v": 10,
+    "cmp": ">="
+   }
+  },
+  {
+   "in": "4,260",
+   "col": false,
+   "out": {
+    "v": 4260
+   }
+  },
+  {
+   "in": "4,260",
+   "col": true,
+   "out": {
+    "v": 4260
+   }
+  },
+  {
+   "in": "4,260 L",
+   "col": false,
+   "out": {
+    "v": 4260,
+    "flag": "L"
+   }
+  },
+  {
+   "in": "4,260 L",
+   "col": true,
+   "out": {
+    "v": 4260,
+    "flag": "L"
+   }
+  },
+  {
+   "in": "1O.5",
+   "col": false,
+   "out": {
+    "v": 10.5
+   }
+  },
+  {
+   "in": "1O.5",
+   "col": true,
+   "out": {
+    "v": 10.5
+   }
+  },
+  {
+   "in": "128↑",
+   "col": false,
+   "out": {
+    "v": 128,
+    "flag": "H"
+   }
+  },
+  {
+   "in": "128↑",
+   "col": true,
+   "out": {
+    "v": 128,
+    "flag": "H"
+   }
+  },
+  {
+   "in": "阴性(-)",
+   "col": false,
+   "out": {
+    "v": "阴性"
+   }
+  },
+  {
+   "in": "阴性(-)",
+   "col": true,
+   "out": {
+    "v": "阴性"
+   }
+  },
+  {
+   "in": "(+)",
+   "col": false,
+   "out": {
+    "v": "+"
+   }
+  },
+  {
+   "in": "(+)",
+   "col": true,
+   "out": {
+    "v": "+"
+   }
+  },
+  {
+   "in": "Positive",
+   "col": false,
+   "out": {
+    "v": "Positive"
+   }
+  },
+  {
+   "in": "Positive",
+   "col": true,
+   "out": {
+    "v": "Positive"
+   }
+  },
+  {
+   "in": "Few",
+   "col": false,
+   "out": {
+    "v": "Few"
+   }
+  },
+  {
+   "in": "Few",
+   "col": true,
+   "out": {
+    "v": "Few"
+   }
+  },
+  {
+   "in": "Straw yellow",
+   "col": false,
+   "out": null
+  },
+  {
+   "in": "Straw yellow",
+   "col": true,
+   "out": {
+    "v": "Straw yellow"
+   }
+  },
+  {
+   "in": "0-1",
+   "col": false,
+   "out": null
+  },
+  {
+   "in": "0-1",
+   "col": true,
+   "out": {
+    "v": "0-1"
+   }
+  },
+  {
+   "in": "2-5",
+   "col": false,
+   "out": null
+  },
+  {
+   "in": "2-5",
+   "col": true,
+   "out": {
+    "v": "2-5"
+   }
+  },
+  {
+   "in": "5,6",
+   "col": false,
+   "out": null
+  },
+  {
+   "in": "5,6",
+   "col": true,
+   "out": null
+  },
+  {
+   "in": "abc def ghi jkl mno pqr stu",
+   "col": false,
+   "out": null
+  },
+  {
+   "in": "abc def ghi jkl mno pqr stu",
+   "col": true,
+   "out": null
+  },
+  {
+   "in": "12.0 H",
+   "col": false,
+   "out": {
+    "v": 12,
+    "flag": "H"
+   }
+  },
+  {
+   "in": "12.0 H",
+   "col": true,
+   "out": {
+    "v": 12,
+    "flag": "H"
+   }
+  },
+  {
+   "in": "-1.5",
+   "col": false,
+   "out": {
+    "v": -1.5
+   }
+  },
+  {
+   "in": "-1.5",
+   "col": true,
+   "out": {
+    "v": -1.5
+   }
+  },
+  {
+   "in": "1+",
+   "col": false,
+   "out": {
+    "v": "1+"
+   }
+  },
+  {
+   "in": "1+",
+   "col": true,
+   "out": {
+    "v": "1+"
+   }
+  }
+ ],
+ "isRef": [
+  {
+   "in": "3.5-9.5",
+   "out": true,
+   "text": "3.5-9.5"
+  },
+  {
+   "in": "<5.2",
+   "out": true,
+   "text": "<5.2"
+  },
+  {
+   "in": "(57-111)",
+   "out": true,
+   "text": "(57-111)"
+  },
+  {
+   "in": "130–175",
+   "out": true,
+   "text": "130-175"
+  },
+  {
+   "in": "4,260",
+   "out": false,
+   "text": "4260"
+  },
+  {
+   "in": "6.5",
+   "out": false,
+   "text": "6.5"
+  },
+  {
+   "in": "≥ 1.0",
+   "out": true,
+   "text": "≥1.0"
+  },
+  {
+   "in": "5至10",
+   "out": true,
+   "text": "5-10"
+  }
+ ],
+ "unitText": [
+  {
+   "in": "f",
+   "out": "fL"
+  },
+  {
+   "in": "μmol / L",
+   "out": "µmol/L"
+  },
+  {
+   "in": "—",
+   "out": ""
+  },
+  {
+   "in": "9/dL",
+   "out": "g/dL"
+  },
+  {
+   "in": "10^6/ uL",
+   "out": "10^6/uL"
+  }
+ ],
+ "unitKey": [
+  {
+   "in": "10^9/L",
+   "out": "10*3/ul"
+  },
+  {
+   "in": "x10^9/L",
+   "out": "10*3/ul"
+  },
+  {
+   "in": "10*9/l",
+   "out": "10*3/ul"
+  },
+  {
+   "in": "µmol/L",
+   "out": "umol/l"
+  },
+  {
+   "in": "μmol/L",
+   "out": "umol/l"
+  },
+  {
+   "in": "umol/L",
+   "out": "umol/l"
+  },
+  {
+   "in": "mlU/mL",
+   "out": "miu/ml"
+  },
+  {
+   "in": "cells/uL",
+   "out": "/ul"
+  },
+  {
+   "in": "g/100mL",
+   "out": "g/dl"
+  },
+  {
+   "in": "次/分",
+   "out": "/min"
+  },
+  {
+   "in": "mmHg",
+   "out": "mmhg"
+  },
+  {
+   "in": "[IU]/L",
+   "out": "iu/l"
+  },
+  {
+   "in": "10^3/uL",
+   "out": "10*3/ul"
+  }
+ ],
+ "pickUnit": [
+  {
+   "units": [
+    "mmol/L",
+    "mg/dL"
+   ],
+   "printed": "mmol/L",
+   "out": "mmol/L"
+  },
+  {
+   "units": [
+    "10*3/uL"
+   ],
+   "printed": "/µL",
+   "out": null
+  },
+  {
+   "units": [
+    "10*3/uL"
+   ],
+   "printed": "",
+   "out": "10*3/uL"
+  },
+  {
+   "units": [
+    "{ratio}"
+   ],
+   "printed": "mg/dL",
+   "out": "{ratio}"
+  },
+  {
+   "units": [
+    "mmol/L",
+    "mg/dL"
+   ],
+   "printed": "",
+   "out": null
+  },
+  {
+   "units": [
+    "umol/L"
+   ],
+   "printed": "µmol/L",
+   "out": "umol/L"
+  }
+ ],
+ "codeFor": [
+  {
+   "name": "白细胞计数 WBC",
+   "v": 6.5,
+   "out": null
+  },
+  {
+   "name": "WBC",
+   "v": 3,
+   "specimen": "urine",
+   "out": null
+  },
+  {
+   "name": "Glucose",
+   "v": "Negative",
+   "out": "loinc:25428-4"
+  },
+  {
+   "name": "AST (SGOT)",
+   "v": 20,
+   "out": "loinc:1920-8"
+  },
+  {
+   "name": "葡萄糖",
+   "v": 5.1,
+   "out": "loinc:2345-7"
+  },
+  {
+   "name": "HbA1c",
+   "v": 5.6,
+   "out": "loinc:4548-4"
+  },
+  {
+   "name": "Albumin (urine)",
+   "v": 12,
+   "out": null
+  },
+  {
+   "name": "Protein",
+   "v": "Negative",
+   "panel": "Urinalysis",
+   "out": "loinc:20454-5"
+  },
+  {
+   "name": "LDL (calculate)",
+   "v": 3.1,
+   "out": "loinc:13457-7"
+  },
+  {
+   "name": "Occult blood stool",
+   "v": "Negative",
+   "out": null
+  },
+  {
+   "name": "Unknown thing",
+   "v": 1,
+   "out": null
+  }
+ ],
+ "englishFor": [
+  {
+   "in": "葡萄糖",
+   "out": "Glucose in blood",
+   "queries": [
+    "Glucose in blood"
+   ]
+  },
+  {
+   "in": "空腹血糖",
+   "out": "Fasting glucose in blood",
+   "queries": [
+    "Fasting glucose in blood"
+   ]
+  },
+  {
+   "in": "ALT",
+   "out": "Alanine aminotransferase ALT",
+   "queries": [
+    "Alanine aminotransferase ALT",
+    "ALT"
+   ]
+  },
+  {
+   "in": "alt phosphatase",
+   "out": "alt phosphatase",
+   "queries": [
+    "alt phosphatase"
+   ]
+  },
+  {
+   "in": "白细胞计数 WBC",
+   "out": "White blood cell count Leukocytes",
+   "queries": [
+    "White blood cell count Leukocytes"
+   ]
+  },
+  {
+   "in": "hemoglobin",
+   "out": "Hemoglobin",
+   "queries": [
+    "Hemoglobin",
+    "hemoglobin"
+   ]
+  },
+  {
+   "in": "Something",
+   "out": "Something",
+   "queries": [
+    "Something"
+   ]
+  }
+ ],
+ "parseYmd": [
+  {
+   "in": "2021-11-07",
+   "out": {
+    "y": 2021,
+    "m": 11,
+    "d": 7
+   }
+  },
+  {
+   "in": "2021/11/7",
+   "out": {
+    "y": 2021,
+    "m": 11,
+    "d": 7
+   }
+  },
+  {
+   "in": "2021年11月7日",
+   "out": {
+    "y": 2021,
+    "m": 11,
+    "d": 7
+   }
+  },
+  {
+   "in": "07/11/2021",
+   "out": null
+  },
+  {
+   "in": "13/11/2021",
+   "out": {
+    "y": 2021,
+    "m": 11,
+    "d": 13
+   }
+  },
+  {
+   "in": "11/13/2021",
+   "out": {
+    "y": 2021,
+    "m": 11,
+    "d": 13
+   }
+  },
+  {
+   "in": "09/09/26",
+   "out": {
+    "y": 2026,
+    "m": 9,
+    "d": 9
+   }
+  },
+  {
+   "in": "01/02/69",
+   "out": null
+  },
+  {
+   "in": "1989-01-01",
+   "out": null
+  }
+ ],
+ "preselected": [
+  {
+   "in": [
+    {
+     "code": "a",
+     "score": 0.92
+    },
+    {
+     "code": "b",
+     "score": 0.9
+    }
+   ],
+   "out": {
+    "code": "a",
+    "score": 0.92
+   }
+  },
+  {
+   "in": [
+    {
+     "code": "a",
+     "score": 0.92
+    },
+    {
+     "code": "b",
+     "score": 0.915
+    }
+   ],
+   "out": null
+  },
+  {
+   "in": [
+    {
+     "code": "a",
+     "score": 0.88
+    }
+   ],
+   "out": null
+  },
+  {
+   "in": [],
+   "out": null
+  }
+ ],
+ "newMetric": [
+  {
+   "in": {
+    "name": "Ferritin",
+    "unit": "ng/mL",
+    "v": 12
+   },
+   "out": {
+    "code": "x:ocr/ferritin.ng-ml",
+    "name": "Ferritin",
+    "unit": "ng/mL",
+    "agg": "instant"
+   }
+  },
+  {
+   "in": {
+    "name": "尿胆原",
+    "unit": "",
+    "v": "Negative"
+   },
+   "out": {
+    "code": "x:ocr/尿胆原",
+    "name": "尿胆原",
+    "unit": "",
+    "agg": "none"
+   }
+  },
+  {
+   "in": {
+    "name": "Neutrophils %",
+    "unit": "%",
+    "v": 60
+   },
+   "out": {
+    "code": "x:ocr/neutrophils-pct.pct",
+    "name": "Neutrophils %",
+    "unit": "%",
+    "agg": "instant"
+   }
+  },
+  {
+   "in": {
+    "name": "B12",
+    "unit": "µg/L",
+    "v": 1
+   },
+   "out": {
+    "code": "x:ocr/b12.ug-l",
+    "name": "B12",
+    "unit": "µg/L",
+    "agg": "instant"
+   }
+  }
+ ],
+ "detSize": [
+  {
+   "in": [
+    4000,
+    3000
+   ],
+   "out": {
+    "w": 1920,
+    "h": 1440
+   }
+  },
+  {
+   "in": [
+    1000,
+    600
+   ],
+   "out": {
+    "w": 1920,
+    "h": 1152
+   }
+  },
+  {
+   "in": [
+    300,
+    100
+   ],
+   "out": {
+    "w": 608,
+    "h": 192
+   }
+  },
+  {
+   "in": [
+    10,
+    10
+   ],
+   "out": {
+    "w": 32,
+    "h": 32
+   }
+  }
+ ]
+}
