@@ -1,0 +1,186 @@
+{
+ "protocol": 1,
+ "note": "结果文件验证（协议 2.3）。ctx.att 是所连后端的附签公钥和域名；不给 ctx.att 时，staff: 的那份是 later（未配置，不丢、不推游标）。",
+ "ctx": {
+  "me": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "labKeys": [
+   {
+    "key": "did:key:z6MkixsGj3MVGKMug2VMC2JbtzX3UjaAcfRs7G1RjbSnZJaH",
+    "may": [
+     "lab"
+    ]
+   },
+   {
+    "key": "did:key:z6MkjkxcrsuBXGxVYAZFC1hPUViiRXLC5Kup4G9aBkFoPimV",
+    "may": [
+     "room"
+    ]
+   }
+  ],
+  "att": {
+   "pub": "7UkoxijRwsbq6QM4kFmVYSlZJzpcY_k2NsFGFKyHN9E",
+   "iss": "api-health.4seas.xyz"
+  }
+ },
+ "signers": {
+  "lab": "did:key:z6MkixsGj3MVGKMug2VMC2JbtzX3UjaAcfRs7G1RjbSnZJaH",
+  "room": "did:key:z6MkjkxcrsuBXGxVYAZFC1hPUViiRXLC5Kup4G9aBkFoPimV",
+  "rogue": "did:key:z6MkodJHzY8Bn6PycRu3pon7V3vzfk12nbndWcBz2mxMAsa2",
+  "staff": {
+   "key": "did:key:z6MkvDqGT54cXesYGvABpF1UapVNwjCqRcafi4Px6Thv5T3Z",
+   "by": "0e19312252559afaf776c9a6edb9122958a1a7e382f0b231656975846954a443"
+  },
+  "other": {
+   "key": "did:key:z6MkwVDfCg9LbbY6xjH3EZk8YSFQZujV5Y4y1ZWeER9tDiN3",
+   "by": "0a649f1ca2f2758f7939a38fa4f30b2836d03add9b4fe979719c3acedbd72e93"
+  },
+  "att": {
+   "seed": "0303030303030303030303030303030303030303030303030303030303030303",
+   "pub": "7UkoxijRwsbq6QM4kFmVYSlZJzpcY_k2NsFGFKyHN9E",
+   "staff": "34750f98bd59fcfc946da45aaabe933be154a4b5094e1c4abf42866505f3c97e"
+  }
+ },
+ "cases": [
+  {
+   "name": "lab：检测室钥匙签",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c90\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"lab:seca-mbca-01\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"loinc:29463-7\",\"v\":68.4,\"u\":\"kg\"}],\"sig\":{\"key\":\"did:key:z6MkixsGj3MVGKMug2VMC2JbtzX3UjaAcfRs7G1RjbSnZJaH\",\"s\":\"bcAAwKj4P9hkjryws_GnFgARMGScdJpQ2Sx3SF19fPWnAKsfL_06BXq54TPoUNgGtFa-aVU0JMg9_pwQjHFdCQ\"}}",
+   "expect": "ok"
+  },
+  {
+   "name": "room：含 v:null 和 s",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c90\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"room:bedroom-1\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"x:room_co2\",\"v\":712,\"u\":\"ppm\",\"t\":1762704060000,\"s\":\"ha-7f3/sensor.bedroom_co2\"},{\"code\":\"x:room_co2\",\"v\":null,\"t\":1762704120000,\"s\":\"ha-7f3/sensor.bedroom_co2\"}],\"sig\":{\"key\":\"did:key:z6MkjkxcrsuBXGxVYAZFC1hPUViiRXLC5Kup4G9aBkFoPimV\",\"s\":\"7Cuft1rsM8zXx0te_maeEhe9flpO48hQqYJRvvICoeXGFA0qH2ND6RTR8EvqTZ6PUF-nWQ1GLzoptx7k9MNpAw\"}}",
+   "expect": "ok"
+  },
+  {
+   "name": "数值写成 68.40 仍通过",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c90\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"lab:seca-mbca-01\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"loinc:29463-7\",\"v\":68.40,\"u\":\"kg\"}],\"sig\":{\"key\":\"did:key:z6MkixsGj3MVGKMug2VMC2JbtzX3UjaAcfRs7G1RjbSnZJaH\",\"s\":\"bcAAwKj4P9hkjryws_GnFgARMGScdJpQ2Sx3SF19fPWnAKsfL_06BXq54TPoUNgGtFa-aVU0JMg9_pwQjHFdCQ\"}}",
+   "expect": "ok"
+  },
+  {
+   "name": "不是 JSON",
+   "text": "{nope",
+   "expect": {
+    "drop": "parse"
+   }
+  },
+  {
+   "name": "uid 不是本人",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c90\",\"uid\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"src\":\"lab:seca-mbca-01\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"loinc:29463-7\",\"v\":68.4,\"u\":\"kg\"}],\"sig\":{\"key\":\"did:key:z6MkixsGj3MVGKMug2VMC2JbtzX3UjaAcfRs7G1RjbSnZJaH\",\"s\":\"zn966g6rU5DbMlBt__HwrhjTHM3c3yRo2YerXCJOUlIh2ufeFzlk5z0g3F75oKMbLv3Fl0J2QBzB0I_PseF8Dw\"}}",
+   "expect": {
+    "drop": "uid"
+   }
+  },
+  {
+   "name": "v 不是 1",
+   "text": "{\"v\":2,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c90\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"lab:seca-mbca-01\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"loinc:29463-7\",\"v\":68.4,\"u\":\"kg\"}],\"sig\":{\"key\":\"did:key:z6MkixsGj3MVGKMug2VMC2JbtzX3UjaAcfRs7G1RjbSnZJaH\",\"s\":\"os_3H6dEJ21iwVBOXzaZ5HOUDwMTN1U578NonNuKMRJxlDENl04UbqTAwuR5Q-3DYsn15_D6CzFatp1NZwSKBA\"}}",
+   "expect": {
+    "drop": "version"
+   }
+  },
+  {
+   "name": "src 的前缀不认得",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c90\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"x:seca\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"loinc:29463-7\",\"v\":68.4,\"u\":\"kg\"}],\"sig\":{\"key\":\"did:key:z6MkixsGj3MVGKMug2VMC2JbtzX3UjaAcfRs7G1RjbSnZJaH\",\"s\":\"BraXRu7sz5IMpxOyfNE7QvqbRSHpUBj9mCoCH6ar_aRNVaNBHVnf9SfF43lCYYibnWl2ZkWlVWTecJbJ165kCg\"}}",
+   "expect": {
+    "drop": "src"
+   }
+  },
+  {
+   "name": "lab: 配了 {rec}",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c90\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"lab:seca\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"loinc:29463-7\",\"v\":68.4,\"u\":\"kg\"}],\"sig\":{\"rec\":{\"e\":{\"v\":3,\"type\":\"health/result\",\"by\":\"0e19312252559afaf776c9a6edb9122958a1a7e382f0b231656975846954a443\",\"key\":\"did:key:z6MkvDqGT54cXesYGvABpF1UapVNwjCqRcafi4Px6Thv5T3Z\",\"deps\":[],\"links\":[],\"body\":{\"h\":\"0f395635ffb28376ca9ebaaa9a9addfb45068eaaaf5423ec3ee61f695116aecc\"},\"at\":1762704000000},\"proof\":[{\"type\":\"DataIntegrityProof\",\"cryptosuite\":\"eddsa-jcs-2022\",\"verificationMethod\":\"did:key:z6MkvDqGT54cXesYGvABpF1UapVNwjCqRcafi4Px6Thv5T3Z#z6MkvDqGT54cXesYGvABpF1UapVNwjCqRcafi4Px6Thv5T3Z\",\"created\":\"2025-11-09T16:00:00.000Z\",\"proofPurpose\":\"assertionMethod\",\"proofValue\":\"zNxUCe54xWLDgHcghkDRiMP7rgkRFYp6VgFXBEnFPUU6bZA59Vzs6GMHeFpdzGYHWAAKLNmqU2dSgNDarR8qty2P\"}]}}}",
+   "expect": {
+    "drop": "sig-kind"
+   }
+  },
+  {
+   "name": "staff: 配了 {key, s}",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c90\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"staff:endopat-01\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"loinc:29463-7\",\"v\":68.4,\"u\":\"kg\"}],\"sig\":{\"key\":\"did:key:z6MkixsGj3MVGKMug2VMC2JbtzX3UjaAcfRs7G1RjbSnZJaH\",\"s\":\"IJ9IBKqCeJ1Bd7jjcu2jvrxD9fMt01pkYRmbagy9rCk8fItxbC4DRVg93-ycPsKOpWT3QoXIAf_34mkmLlJADw\"}}",
+   "expect": {
+    "drop": "sig-kind"
+   }
+  },
+  {
+   "name": "公钥不在清单里",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c90\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"lab:seca-mbca-01\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"loinc:29463-7\",\"v\":68.4,\"u\":\"kg\"}],\"sig\":{\"key\":\"did:key:z6MkodJHzY8Bn6PycRu3pon7V3vzfk12nbndWcBz2mxMAsa2\",\"s\":\"TXVb4GKqqRm9NzaBJjqBEk7Zb3IV_ozL9NrHojNARyiR-d8BWQgvpZABj73BEQG9r0bEDOYV7n0h9lEl2kXOCA\"}}",
+   "expect": {
+    "drop": "key"
+   }
+  },
+  {
+   "name": "room 的钥匙签了 lab:",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c90\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"lab:seca-mbca-01\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"loinc:29463-7\",\"v\":68.4,\"u\":\"kg\"}],\"sig\":{\"key\":\"did:key:z6MkjkxcrsuBXGxVYAZFC1hPUViiRXLC5Kup4G9aBkFoPimV\",\"s\":\"e9vyhIwE2rQhykj1YYyPQ3_1mVfbDtcMXFMahpvZBc9a02aK5h1YqBLKxrqZc15nrRT9cYkQoTNnvZOQAnnvDA\"}}",
+   "expect": {
+    "drop": "key"
+   }
+  },
+  {
+   "name": "数值被改过",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c90\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"lab:seca-mbca-01\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"loinc:29463-7\",\"v\":99,\"u\":\"kg\"}],\"sig\":{\"key\":\"did:key:z6MkixsGj3MVGKMug2VMC2JbtzX3UjaAcfRs7G1RjbSnZJaH\",\"s\":\"bcAAwKj4P9hkjryws_GnFgARMGScdJpQ2Sx3SF19fPWnAKsfL_06BXq54TPoUNgGtFa-aVU0JMg9_pwQjHFdCQ\"}}",
+   "expect": {
+    "drop": "signature"
+   },
+   "note": "靠签名挡，不是因为别的规则"
+  },
+  {
+   "name": "(code, t, s) 重复",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c90\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"lab:seca-mbca-01\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"x:a\",\"v\":1,\"s\":\"e\"},{\"code\":\"x:a\",\"v\":2,\"s\":\"e\"}],\"sig\":{\"key\":\"did:key:z6MkixsGj3MVGKMug2VMC2JbtzX3UjaAcfRs7G1RjbSnZJaH\",\"s\":\"xNcQ0oGBRyMV2FbC9UqTLsJtIT2tMZRVgATdmnao-rvGIEyw_TsM0dKABmc1kxCnunProGYrtyv8x0AOnKtLDA\"}}",
+   "expect": {
+    "drop": "dup"
+   }
+  },
+  {
+   "name": "staff: 附签对得上",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c91\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"staff:endopat-01\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"x:endopat_rhi\",\"v\":2.1}],\"sig\":{\"att\":\"eyJhbGciOiJFZERTQSIsInR5cCI6ImhlYWx0aC1hdHQifQ.eyJoIjoiY2E5MDRlNzA0MDUwMDU2Yzg5ZmU2YzFkYjJhYTc2NzlkODRmMzFjMzIzZDJlYmI0ZTI5OWFkOWNlMTM3MGI3OCIsInN0YWZmIjoiMzQ3NTBmOThiZDU5ZmNmYzk0NmRhNDVhYWFiZTkzM2JlMTU0YTRiNTA5NGUxYzRhYmY0Mjg2NjUwNWYzYzk3ZSIsImlzcyI6ImFwaS1oZWFsdGguNHNlYXMueHl6IiwiYXQiOjE3NjM3MDAwMDAwMDB9.1z4NyBtR9Rg5yq_YPeig6Xj3FuJ_06rUpJB9IbFCBN9K1kRmF6CcwIJRZmnXd-Og4YuLx_rd80oV23H6K9kfBw\"}}",
+   "expect": "ok",
+   "by": "34750f98bd59fcfc946da45aaabe933be154a4b5094e1c4abf42866505f3c97e"
+  },
+  {
+   "name": "staff: 附签 header 带 jwk（自带公钥冒充）",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c91\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"staff:endopat-01\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"x:endopat_rhi\",\"v\":2.1}],\"sig\":{\"att\":\"eyJhbGciOiJFZERTQSIsInR5cCI6ImhlYWx0aC1hdHQiLCJqd2siOnsia3R5IjoiT0tQIiwiY3J2IjoiRWQyNTUxOSIsIngiOiI3VWtveGlqUndzYnE2UU00a0ZtVllTbFpKenBjWV9rMk5zRkdGS3lITjlFIn19.eyJoIjoiY2E5MDRlNzA0MDUwMDU2Yzg5ZmU2YzFkYjJhYTc2NzlkODRmMzFjMzIzZDJlYmI0ZTI5OWFkOWNlMTM3MGI3OCIsInN0YWZmIjoiMzQ3NTBmOThiZDU5ZmNmYzk0NmRhNDVhYWFiZTkzM2JlMTU0YTRiNTA5NGUxYzRhYmY0Mjg2NjUwNWYzYzk3ZSIsImlzcyI6ImFwaS1oZWFsdGguNHNlYXMueHl6IiwiYXQiOjE3NjM3MDAwMDAwMDB9.5Z-cWy9C6LtRR2RXEqBDH3o881nco30CIl_maXF5p-9ptRYFIb7WDF32psiCOYRh_Sq8m5xDekq_vECtLojeDA\"}}",
+   "expect": {
+    "drop": "signer"
+   }
+  },
+  {
+   "name": "staff: 附签用别的钥匙签、header 带它的 jwk",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c91\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"staff:endopat-01\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"x:endopat_rhi\",\"v\":2.1}],\"sig\":{\"att\":\"eyJhbGciOiJFZERTQSIsInR5cCI6ImhlYWx0aC1hdHQiLCJqd2siOnsia3R5IjoiT0tQIiwiY3J2IjoiRWQyNTUxOSIsIngiOiJ5cE9zRndVWWNISFdlNFBIX3c3LWdRam83RVV3VjExM0pvZVRNOXZhdm53In19.eyJoIjoiY2E5MDRlNzA0MDUwMDU2Yzg5ZmU2YzFkYjJhYTc2NzlkODRmMzFjMzIzZDJlYmI0ZTI5OWFkOWNlMTM3MGI3OCIsInN0YWZmIjoiMzQ3NTBmOThiZDU5ZmNmYzk0NmRhNDVhYWFiZTkzM2JlMTU0YTRiNTA5NGUxYzRhYmY0Mjg2NjUwNWYzYzk3ZSIsImlzcyI6ImFwaS1oZWFsdGguNHNlYXMueHl6IiwiYXQiOjE3NjM3MDAwMDAwMDB9.P0Gu_VsGMvzbPP4Jp7VyDb_K3Agw01GICP0aeCZE37sKp6thTksuJ8weAwcL-2sPO7_I21rzOUmERBlsK2q-AA\"}}",
+   "expect": {
+    "drop": "signer"
+   }
+  },
+  {
+   "name": "staff: 附签的 iss 是别的后端",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c91\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"staff:endopat-01\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"x:endopat_rhi\",\"v\":2.1}],\"sig\":{\"att\":\"eyJhbGciOiJFZERTQSIsInR5cCI6ImhlYWx0aC1hdHQifQ.eyJoIjoiY2E5MDRlNzA0MDUwMDU2Yzg5ZmU2YzFkYjJhYTc2NzlkODRmMzFjMzIzZDJlYmI0ZTI5OWFkOWNlMTM3MGI3OCIsInN0YWZmIjoiMzQ3NTBmOThiZDU5ZmNmYzk0NmRhNDVhYWFiZTkzM2JlMTU0YTRiNTA5NGUxYzRhYmY0Mjg2NjUwNWYzYzk3ZSIsImlzcyI6ImV2aWwuZXhhbXBsZSIsImF0IjoxNzYzNzAwMDAwMDAwfQ.wsOSnCbjpy_-QYo1dEZ_43eQdxSh2HsqyhHe0bHbffyBKqGWaAdwRNpYSFnnVd_9gNGcf9wi3nXWVmuVH37jCA\"}}",
+   "expect": {
+    "drop": "signer"
+   }
+  },
+  {
+   "name": "staff: 附签的 typ 不是 health-att",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c91\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"staff:endopat-01\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"x:endopat_rhi\",\"v\":2.1}],\"sig\":{\"att\":\"eyJhbGciOiJFZERTQSIsInR5cCI6ImhlYWx0aC1wYXNzIn0.eyJoIjoiY2E5MDRlNzA0MDUwMDU2Yzg5ZmU2YzFkYjJhYTc2NzlkODRmMzFjMzIzZDJlYmI0ZTI5OWFkOWNlMTM3MGI3OCIsInN0YWZmIjoiMzQ3NTBmOThiZDU5ZmNmYzk0NmRhNDVhYWFiZTkzM2JlMTU0YTRiNTA5NGUxYzRhYmY0Mjg2NjUwNWYzYzk3ZSIsImlzcyI6ImFwaS1oZWFsdGguNHNlYXMueHl6IiwiYXQiOjE3NjM3MDAwMDAwMDB9.sCN_kE0qOmolhA-OQn4wA83CViOez8DEQN1tZz7pABh-lz2u1YruhLROSS--9GFpR0-BbpNIrgoOEDq8Yd6BCA\"}}",
+   "expect": {
+    "drop": "signer"
+   }
+  },
+  {
+   "name": "staff: 附签对的是另一份文件",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c91\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"staff:endopat-01\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"x:endopat_rhi\",\"v\":2.2}],\"sig\":{\"att\":\"eyJhbGciOiJFZERTQSIsInR5cCI6ImhlYWx0aC1hdHQifQ.eyJoIjoiY2E5MDRlNzA0MDUwMDU2Yzg5ZmU2YzFkYjJhYTc2NzlkODRmMzFjMzIzZDJlYmI0ZTI5OWFkOWNlMTM3MGI3OCIsInN0YWZmIjoiMzQ3NTBmOThiZDU5ZmNmYzk0NmRhNDVhYWFiZTkzM2JlMTU0YTRiNTA5NGUxYzRhYmY0Mjg2NjUwNWYzYzk3ZSIsImlzcyI6ImFwaS1oZWFsdGguNHNlYXMueHl6IiwiYXQiOjE3NjM3MDAwMDAwMDB9.1z4NyBtR9Rg5yq_YPeig6Xj3FuJ_06rUpJB9IbFCBN9K1kRmF6CcwIJRZmnXd-Og4YuLx_rd80oV23H6K9kfBw\"}}",
+   "expect": {
+    "drop": "hash"
+   }
+  },
+  {
+   "name": "staff: 附签同时带 key",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c91\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"staff:endopat-01\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"x:endopat_rhi\",\"v\":2.1}],\"sig\":{\"att\":\"eyJhbGciOiJFZERTQSIsInR5cCI6ImhlYWx0aC1hdHQifQ.eyJoIjoiY2E5MDRlNzA0MDUwMDU2Yzg5ZmU2YzFkYjJhYTc2NzlkODRmMzFjMzIzZDJlYmI0ZTI5OWFkOWNlMTM3MGI3OCIsInN0YWZmIjoiMzQ3NTBmOThiZDU5ZmNmYzk0NmRhNDVhYWFiZTkzM2JlMTU0YTRiNTA5NGUxYzRhYmY0Mjg2NjUwNWYzYzk3ZSIsImlzcyI6ImFwaS1oZWFsdGguNHNlYXMueHl6IiwiYXQiOjE3NjM3MDAwMDAwMDB9.1z4NyBtR9Rg5yq_YPeig6Xj3FuJ_06rUpJB9IbFCBN9K1kRmF6CcwIJRZmnXd-Og4YuLx_rd80oV23H6K9kfBw\",\"key\":\"did:key:z6MkixsGj3MVGKMug2VMC2JbtzX3UjaAcfRs7G1RjbSnZJaH\"}}",
+   "expect": {
+    "drop": "sig-kind"
+   }
+  },
+  {
+   "name": "lab: 配了 {att}",
+   "text": "{\"v\":1,\"id\":\"0193a5c2-7e1f-7b3a-9c4d-2f6e8a1b5c91\",\"uid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"src\":\"lab:seca-mbca-01\",\"at\":1762704000000,\"tz\":480,\"obs\":[{\"code\":\"x:endopat_rhi\",\"v\":2.1}],\"sig\":{\"att\":\"eyJhbGciOiJFZERTQSIsInR5cCI6ImhlYWx0aC1hdHQifQ.eyJoIjoiY2E5MDRlNzA0MDUwMDU2Yzg5ZmU2YzFkYjJhYTc2NzlkODRmMzFjMzIzZDJlYmI0ZTI5OWFkOWNlMTM3MGI3OCIsInN0YWZmIjoiMzQ3NTBmOThiZDU5ZmNmYzk0NmRhNDVhYWFiZTkzM2JlMTU0YTRiNTA5NGUxYzRhYmY0Mjg2NjUwNWYzYzk3ZSIsImlzcyI6ImFwaS1oZWFsdGguNHNlYXMueHl6IiwiYXQiOjE3NjM3MDAwMDAwMDB9.1z4NyBtR9Rg5yq_YPeig6Xj3FuJ_06rUpJB9IbFCBN9K1kRmF6CcwIJRZmnXd-Og4YuLx_rd80oV23H6K9kfBw\"}}",
+   "expect": {
+    "drop": "sig-kind"
+   }
+  }
+ ]
+}

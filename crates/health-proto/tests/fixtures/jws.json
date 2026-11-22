@@ -1,0 +1,60 @@
+{
+ "protocol": 1,
+ "note": "签名请求、出示码、附签（协议 0.1、0.2、2.1、4）。Ed25519 是确定的：同一把种子、同一个 header 和 payload 的 JSON 文本，签出来一个字节都不差。header、payload 的 JSON 由 JSON.stringify 按这里的键顺序写出，不带空白。",
+ "account": {
+  "seed": "0101010101010101010101010101010101010101010101010101010101010101",
+  "x": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w",
+  "uid": "34750f98bd59fcfc946da45aaabe933be154a4b5094e1c4abf42866505f3c97e"
+ },
+ "request": {
+  "typ": "health-key",
+  "header": {
+   "alg": "EdDSA",
+   "typ": "health-key",
+   "jwk": {
+    "kty": "OKP",
+    "crv": "Ed25519",
+    "x": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w"
+   }
+  },
+  "payload": {
+   "aud": "api-health.4seas.xyz",
+   "at": 1763700000000,
+   "jti": "AgICAgICAgICAgICAgICAg",
+   "pk": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc"
+  },
+  "jws": "eyJhbGciOiJFZERTQSIsInR5cCI6ImhlYWx0aC1rZXkiLCJqd2siOnsia3R5IjoiT0tQIiwiY3J2IjoiRWQyNTUxOSIsIngiOiJpb2pqM1hRSjhaWDlVdHN0UExwZGNzcG5DYjhkbEJJYjgzU0lBYlFQYjF3In19.eyJhdWQiOiJhcGktaGVhbHRoLjRzZWFzLnh5eiIsImF0IjoxNzYzNzAwMDAwMDAwLCJqdGkiOiJBZ0lDQWdJQ0FnSUNBZ0lDQWdJQ0FnIiwicGsiOiJCd2NIQndjSEJ3Y0hCd2NIQndjSEJ3Y0hCd2NIQndjSEJ3Y0hCd2NIQndjIn0.XFIuTzyimVnTNwo2Cp3PxOFB9XLhWYcJ7aofidYw_x_qhpy3wx8DTiLLEc4tbuKTBjctd0QOHYe-4dKjZxVZAQ"
+ },
+ "pass": {
+  "header": {
+   "alg": "EdDSA",
+   "typ": "health-pass",
+   "jwk": {
+    "kty": "OKP",
+    "crv": "Ed25519",
+    "x": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w"
+   }
+  },
+  "payload": {
+   "aud": "api-health.4seas.xyz",
+   "at": 1763700000000,
+   "jti": "AgICAgICAgICAgICAgICAg"
+  },
+  "jws": "eyJhbGciOiJFZERTQSIsInR5cCI6ImhlYWx0aC1wYXNzIiwiandrIjp7Imt0eSI6Ik9LUCIsImNydiI6IkVkMjU1MTkiLCJ4IjoiaW9qajNYUUo4Wlg5VXRzdFBMcGRjc3BuQ2I4ZGxCSWI4M1NJQWJRUGIxdyJ9fQ.eyJhdWQiOiJhcGktaGVhbHRoLjRzZWFzLnh5eiIsImF0IjoxNzYzNzAwMDAwMDAwLCJqdGkiOiJBZ0lDQWdJQ0FnSUNBZ0lDQWdJQ0FnIn0.j0VZY3NiEH6W1clBZ5V-Uw1vJAscqcIUpLUuDceoEm8rAkoj6VsW10XYVIshNyUpjg9Nw_d1NioNcVgcQ0otAg"
+ },
+ "att": {
+  "seed": "0303030303030303030303030303030303030303030303030303030303030303",
+  "pub": "7UkoxijRwsbq6QM4kFmVYSlZJzpcY_k2NsFGFKyHN9E",
+  "header": {
+   "alg": "EdDSA",
+   "typ": "health-att"
+  },
+  "payload": {
+   "h": "0000000000000000000000000000000000000000000000000000000000000000",
+   "staff": "34750f98bd59fcfc946da45aaabe933be154a4b5094e1c4abf42866505f3c97e",
+   "iss": "api-health.4seas.xyz",
+   "at": 1763700000000
+  },
+  "jws": "eyJhbGciOiJFZERTQSIsInR5cCI6ImhlYWx0aC1hdHQifQ.eyJoIjoiMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCIsInN0YWZmIjoiMzQ3NTBmOThiZDU5ZmNmYzk0NmRhNDVhYWFiZTkzM2JlMTU0YTRiNTA5NGUxYzRhYmY0Mjg2NjUwNWYzYzk3ZSIsImlzcyI6ImFwaS1oZWFsdGguNHNlYXMueHl6IiwiYXQiOjE3NjM3MDAwMDAwMDB9.b3mcQBOpBVBFJMGBoUif4eSPseFsXi62yO5FqSTUV_LAKKpPNTgj23Y3VHEZzHWpBwlV2HARAePp5Le_hJlxCw"
+ }
+}

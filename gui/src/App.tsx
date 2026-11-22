@@ -57,13 +57,14 @@ import {
   when,
 } from "./format";
 
-type Page = "readings" | "add" | "sources" | "review" | "agents" | "backup";
+type Page = "readings" | "add" | "sources" | "review" | "agents" | "backup" | "account";
 const PAGES: { key: Page; label: string }[] = [
   { key: "readings", label: "Readings" },
   { key: "add", label: "Add data" },
   { key: "sources", label: "Sources" },
   { key: "backup", label: "Backup" },
   { key: "agents", label: "Agent access" },
+  { key: "account", label: "Health account" },
 ];
 const MAC = typeof navigator !== "undefined" && /Mac/.test(navigator.userAgent);
 const MOD = MAC ? "⌘" : "Ctrl+";
@@ -85,6 +86,12 @@ const ICON: Record<string, ReactNode> = {
     </>
   ),
   backup: <path d="M3 10v3h10v-3M8 2v8M5 7l3 3 3-3" />,
+  account: (
+    <>
+      <circle cx="8" cy="5.5" r="2.5" />
+      <path d="M3 13.5c.8-2.4 2.7-3.5 5-3.5s4.2 1.1 5 3.5" />
+    </>
+  ),
   review: (
     <>
       <circle cx="8" cy="8" r="5.5" />
@@ -203,6 +210,7 @@ export function App() {
     } catch {}
   }, [page]);
   const [metric, setMetric] = useState<string>();
+  useInbox();
   const [status, statusErr, reload] = useOp(() => op<Status>("status"), []);
   const [latest, latestErr] = useOp(() => op<Point[]>("obs.latest"), []);
   const [cats, setCats] = useState(true);
@@ -245,7 +253,7 @@ export function App() {
   useEffect(() => onMenu(command), [command]);
   useEffect(() => {
     if (menuOwnsKeys) return;
-    const keys: Record<string, string> = { "1": "readings", "2": "add", "3": "sources", "4": "backup", "5": "agents", f: "find", o: "import", "[": "back" };
+    const keys: Record<string, string> = { "1": "readings", "2": "add", "3": "sources", "4": "backup", "5": "agents", "6": "account", f: "find", o: "import", "[": "back" };
     const down = (e: KeyboardEvent) => {
       const id = (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey ? keys[e.key.toLowerCase()] : e.altKey && e.key === "ArrowLeft" ? "back" : undefined;
       if (id && !(id === "import" && !isDesktop)) {
@@ -363,7 +371,10 @@ export function App() {
         </div>
         <div className="rail-section">
           <p className="rail-head">Sharing</p>
-          <ul>{navItem(PAGES[4]!, hint("agents"))}</ul>
+          <ul>
+            {navItem(PAGES[5]!, hint("account"))}
+            {navItem(PAGES[4]!, hint("agents"))}
+          </ul>
         </div>
         {status && (
           <p className="fine rail-foot">
@@ -387,6 +398,7 @@ export function App() {
             </>
           )}
           {page === "backup" && <Backup go={setPage} />}
+          {page === "account" && <HealthAccount go={setPage} />}
         </div>
       </main>
       {metric && <Sheet label="History" close={() => setMetric(undefined)}>
@@ -734,6 +746,7 @@ function Import({ file, onFile, go }: { file?: string; onFile: (p?: string) => v
           </div>
         </div>
       )}
+      <WhoopConnect />
     </section>
   );
 }
@@ -1682,6 +1695,15 @@ function Review() {
               discard={() => act("review.discard", b.import_id, "Discarded.")}
             />
           );
+        if (b.candidates?.kind === "result")
+          return (
+            <ResultReview
+              key={b.import_id}
+              b={b}
+              done={(text) => (setMsg({ ok: true, text }), reload())}
+              discard={() => act("review.discard", b.import_id, "Discarded.")}
+            />
+          );
         const proposal = b.candidates?.kind === "proposal";
         const rows = (b.candidates?.rows ?? []) as { metric: string; start_ms: number; tz_min?: number; value: unknown; unit?: string }[];
         const by = proposal ? agent(b.candidates?.by) : undefined;
@@ -2116,5 +2138,542 @@ function Backup({ go }: { go: (p: Page) => void }) {
         </p>
       )}
     </section>
+  );
+}
+
+// ---- Health account (protocol 1, 3.1, 3.5): the identity code, linking, the inbox --------------------------
+
+type AccountInfo = { id: string; registered: boolean; identity?: string; drops: number };
+type LinkState =
+  | { state: "none" | "expired" }
+  | { state: "waiting"; channel: string; expires_ms: number }
+  | { state: "received"; channel: string; check: string; account: string; replaces: boolean }
+  | { state: "failed"; code: string };
+type Polled = { status: string; saved: number; review: number; seen: number; dropped: number };
+
+/** Fast inbox polling (every 30 s) for an hour after the identity code was shown (protocol 3.2). */
+let fastUntil = 0;
+export const pollFast = () => {
+  fastUntil = Date.now() + 3_600_000;
+};
+
+/** Fetches results while the app is open: at once, every 5 minutes, every 30 s in the fast hour. Sends
+ *  nothing while there is no registered account (the core answers `nokey` without a request). */
+function useInbox() {
+  useEffect(() => {
+    let last = 0;
+    let busy = false;
+    const tick = async () => {
+      const due = Date.now() - last >= (Date.now() < fastUntil ? 30_000 : 300_000);
+      if (!due || busy) return;
+      busy = true;
+      try {
+        await op<Polled>("inbox.poll");
+        last = Date.now();
+        // WHOOP, when connected: the core skips it if the last sync was under an hour ago
+        await op("whoop.sync").catch(() => {});
+      } catch {
+        // the core starting or locked, or the service down: try again in a minute
+        last = Date.now() - (Date.now() < fastUntil ? 0 : 240_000);
+      } finally {
+        busy = false;
+      }
+    };
+    tick();
+    const t = setInterval(tick, 10_000);
+    return () => clearInterval(t);
+  }, []);
+}
+
+function Qr({ text, label }: { text: string; label: string }) {
+  const [svg, setSvg] = useState<string>();
+  useEffect(() => {
+    op<{ svg: string }>("account.qr", { text }).then((r) => setSvg(r.svg), () => setSvg(undefined));
+  }, [text]);
+  return svg ? <div className="qr" role="img" aria-label={label} dangerouslySetInnerHTML={{ __html: svg }} /> : <div className="qr" />;
+}
+
+function HealthAccount({ go }: { go: (p: Page) => void }) {
+  const [acc, setAcc] = useState<AccountInfo | null>();
+  const [err, setErr] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const [linking, setLinking] = useState(false);
+  const [giving, setGiving] = useState(false);
+  const [polled, setPolled] = useState<string>();
+  const load = useCallback(() => {
+    op<{ account: AccountInfo | null }>("account.show").then((r) => setAcc(r.account), (e) => setErr(errText(e)));
+  }, []);
+  useEffect(load, [load]);
+  const show = async () => {
+    setErr(undefined);
+    setBusy(true);
+    try {
+      await op("account.register");
+      pollFast();
+      load();
+    } catch (e) {
+      setErr(errText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const check = async () => {
+    setErr(undefined);
+    setBusy(true);
+    try {
+      const r = await op<Polled>("inbox.poll");
+      const parts = [
+        r.saved && `${r.saved} new ${r.saved === 1 ? "result" : "results"} saved`,
+        r.review && `${r.review} waiting for you to check`,
+        r.dropped && `${r.dropped} discarded (failed a check)`,
+      ].filter(Boolean);
+      setPolled(parts.length ? `${parts.join(", ")}.` : "No new results.");
+      load();
+    } catch (e) {
+      setErr(errText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (acc === undefined) return <section className="page narrow" aria-busy="true"><h2>Health account</h2></section>;
+  if (linking) return <LinkThis done={() => { setLinking(false); load(); }} />;
+  if (giving) return <GiveAccount done={() => { setGiving(false); load(); }} />;
+  return (
+    <section className="page narrow">
+      <h2>Health account</h2>
+      <p className="lede">
+        Labs and service desks send results to your health account, sealed so only your devices can open them. Your account key stays on your
+        devices; Health sends no readings anywhere.
+      </p>
+      {acc?.identity ? (
+        <div className="group identity">
+          <Qr text={acc.identity} label="Your identity code" />
+          <div>
+            <h3>Your identity code</h3>
+            <p className="fine">Show it at a lab or service desk so they can send your results here.</p>
+            <p className="fine mono">Account {acc.id.slice(0, 8)}…</p>
+          </div>
+        </div>
+      ) : (
+        <div className="group form">
+          <p>{acc ? "This computer has an account, but its identity code hasn't been shown yet." : "There is no health account on this computer yet."}</p>
+          <div className="actions">
+            <button type="button" className="primary" disabled={busy} onClick={show}>
+              {busy ? "Contacting the service…" : acc ? "Show my identity code" : "Create my account"}
+            </button>
+            <button type="button" disabled={busy} onClick={() => setLinking(true)}>
+              Use my account from another device…
+            </button>
+          </div>
+        </div>
+      )}
+      <Problem text={err} />
+      {acc && (
+        <div className="group form">
+          <h3>Results</h3>
+          <p className="fine">Health checks for new results when it opens and every few minutes while it's open.</p>
+          {acc.drops > 0 && <p className="fine">{acc.drops} {acc.drops === 1 ? "result was" : "results were"} discarded because they failed a check.</p>}
+          <div className="actions">
+            <button type="button" disabled={busy || !acc.registered} onClick={check}>
+              Check for results now
+            </button>
+            {polled && polled.includes("waiting") && (
+              <button type="button" className="link" onClick={() => go("review")}>
+                Check them now
+              </button>
+            )}
+          </div>
+          {polled && <p role="status" className="fine">{polled}</p>}
+        </div>
+      )}
+      {acc && (
+        <div className="group form">
+          <h3>Devices</h3>
+          <div className="actions">
+            <button type="button" onClick={() => setLinking(true)}>
+              Use my account from another device…
+            </button>
+            <button type="button" onClick={() => setGiving(true)}>
+              Link a new device…
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** This computer joins an account on another device: the code to scan, then the check code (protocol 3.5). */
+function LinkThis({ done }: { done: () => void }) {
+  const [code, setCode] = useState<string>();
+  // the link this screen started: adopt only that one
+  const [channel, setChannel] = useState<string>();
+  const [st, setSt] = useState<LinkState>({ state: "none" });
+  const [err, setErr] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const start = useCallback(async () => {
+    setErr(undefined);
+    try {
+      const j = await op<{ code: string; channel: string; expires_ms: number }>("link.join");
+      setCode(j.code);
+      setChannel(j.channel);
+      setSt({ state: "waiting", channel: j.channel, expires_ms: j.expires_ms });
+    } catch (e) {
+      setErr(errText(e));
+    }
+  }, []);
+  useEffect(() => {
+    start();
+    return () => {
+      op("link.cancel").catch(() => {});
+    };
+  }, [start]);
+  useEffect(() => {
+    if (st.state !== "waiting") return;
+    const t = setTimeout(async () => {
+      try {
+        setSt(await op<LinkState>("link.poll"));
+      } catch (e) {
+        setErr(errText(e));
+      }
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [st]);
+  const adopt = async () => {
+    if (st.state !== "received") return;
+    setBusy(true);
+    try {
+      await op("link.adopt", { channel, check: st.check });
+      await op("account.register").catch(() => {});
+      pollFast();
+      done();
+    } catch (e) {
+      setErr(errText(e));
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="page narrow">
+      <h2>Use my account from another device</h2>
+      {st.state === "waiting" && code && (
+        <div className="group identity">
+          <Qr text={code} label="Link code" />
+          <div>
+            <p>On the device that has your account, open Health › Link a new device and scan this code.</p>
+            <p className="fine">From another computer, paste this code instead:</p>
+            <p className="fine mono link-code">{code}</p>
+            <p className="fine">Waiting… The code works for 10 minutes.</p>
+          </div>
+        </div>
+      )}
+      {st.state === "received" && (
+        <div className="group form">
+          <p>Check that your other device shows the same code:</p>
+          <p className="check-code" aria-label={`Check code ${st.check}`}>{st.check}</p>
+          {st.replaces && (
+            <p className="notice">This computer's identity code will change to the other device's. Results not yet received here won't arrive.</p>
+          )}
+          <div className="actions">
+            <button type="button" className="primary" disabled={busy} onClick={adopt}>
+              {busy ? "Linking…" : "They match"}
+            </button>
+            <button type="button" disabled={busy} onClick={done}>
+              They don't match
+            </button>
+          </div>
+        </div>
+      )}
+      {(st.state === "expired" || st.state === "failed") && (
+        <div className="group form">
+          <p>{st.state === "expired" ? "The code expired." : "The link failed."} Nothing was changed on this computer.</p>
+          <div className="actions">
+            <button type="button" className="primary" onClick={start}>
+              Start again
+            </button>
+          </div>
+        </div>
+      )}
+      <Problem text={err} />
+      <div className="actions">
+        <button type="button" className="link" disabled={busy} onClick={done}>
+          Cancel
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/** This computer hands its account to a new device showing a link code (protocol 3.5 rule 2). */
+function GiveAccount({ done }: { done: () => void }) {
+  const [code, setCode] = useState("");
+  const [sure, setSure] = useState(false);
+  const [check, setCheck] = useState<string>();
+  const [err, setErr] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const give = async () => {
+    setErr(undefined);
+    setBusy(true);
+    try {
+      const r = await op<{ check: string }>("link.give", { code: code.trim(), confirmed: true });
+      setCheck(r.check);
+    } catch (e) {
+      setErr(errText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="page narrow">
+      <h2>Link a new device</h2>
+      {check ? (
+        <div className="group form">
+          <p>The new device must show the same code:</p>
+          <p className="check-code" aria-label={`Check code ${check}`}>{check}</p>
+          <div className="actions">
+            <button type="button" className="primary" onClick={done}>
+              Done
+            </button>
+          </div>
+        </div>
+      ) : (
+        <form
+          className="group form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            give();
+          }}
+        >
+          <label>
+            Link code shown on the new device
+            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="SBHL1:…" spellCheck={false} autoComplete="off" />
+          </label>
+          <label className="check">
+            <input type="checkbox" checked={sure} onChange={(e) => setSure(e.target.checked)} />
+            This hands my health account to the device showing this code. It is my own device.
+          </label>
+          <Problem text={err} />
+          <div className="actions">
+            <button type="submit" className="primary" disabled={busy || !sure || !code.trim()}>
+              {busy ? "Sending…" : "Hand over my account"}
+            </button>
+            <button type="button" onClick={done}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
+type ResultLine = { code: string; v: unknown; u?: string; t?: number };
+type LineState = { metric?: MetricInfo; unit: string; skip: boolean };
+const numericAgg = (m: MetricInfo) => m.agg !== "none" && m.agg !== "interval";
+
+/** A result sent to the account whose measure or unit Health couldn't settle (protocol 2.3 step 4): a measure
+ *  and unit per line, or skip it (W review-form.ts). Known codes and fitting units come preselected. */
+function ResultReview({ b, done, discard }: { b: BatchDetail; done: (text: string) => void; discard: () => void }) {
+  const c = b.candidates as unknown as { src: string; at: number; tz: number; lines: ResultLine[] };
+  const [lines, setLines] = useState<LineState[]>(() => c.lines.map(() => ({ unit: "", skip: false })));
+  const [err, setErr] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const choose = useCallback(
+    async (i: number, code: string) => {
+      const l = c.lines[i]!;
+      const m = await op<MetricInfo & { picked_unit?: string }>("metric.show", { code, ...(l.u ? { printed_unit: l.u } : {}) });
+      setLines((ls) => ls.map((s, j) => (j === i ? { metric: m, unit: numericAgg(m) ? (m.picked_unit ?? "") : "", skip: false } : s)));
+    },
+    [c.lines],
+  );
+  // codes Health knows are preselected, once per batch: a reload of the list mustn't undo the person's choices
+  const preselected = useRef<number>(undefined);
+  useEffect(() => {
+    if (preselected.current === b.import_id) return;
+    preselected.current = b.import_id;
+    c.lines.forEach((l, i) => {
+      choose(i, l.code).catch(() => {});
+    });
+  }, [b.import_id, c.lines, choose]);
+  const ready = lines.every((s) => s.skip || (s.metric && (!numericAgg(s.metric) || s.metric.units.length === 0 || s.unit))) && lines.some((s) => !s.skip);
+  const save = async () => {
+    setErr(undefined);
+    setBusy(true);
+    try {
+      const choices = lines.map((s) => (s.skip ? { skip: true } : { code: s.metric?.code, ...(s.unit ? { unit: s.unit } : {}) }));
+      const r = await op<{ written: number }>("review.confirm_result", { id: b.import_id, choices });
+      done(`Saved ${r.written} ${r.written === 1 ? "reading" : "readings"}.`);
+    } catch (e) {
+      setErr(errText(e));
+      setBusy(false);
+    }
+  };
+  const from = c.src.replace(/^lab:/, "Lab device ").replace(/^staff:/, "Service desk ").replace(/^room:/, "Room ");
+  return (
+    <div className="group ocr">
+      <h3>A result from {from}</h3>
+      <p className="fine">{when(c.at, c.tz)}. Choose what each line is, or skip it.</p>
+      <table className="rows">
+        <tbody>
+          {c.lines.map((l, i) => {
+            const s = lines[i]!;
+            return (
+              <tr key={`${l.code}-${i}`} className={s.skip ? "skipped" : undefined}>
+                <td className="mono">{l.code}</td>
+                <td className="n">
+                  {String(l.v)} <span className="unit">{unitLabel(l.u ?? "")}</span>
+                </td>
+                <td>
+                  {s.metric ? (
+                    <span>
+                      {nameOf(s.metric.code, s.metric.name)}{" "}
+                      <button
+                        type="button"
+                        className="link"
+                        onClick={() => setLines((ls) => ls.map((x, j) => (j === i ? { unit: "", skip: false } : x)))}
+                      >
+                        Change
+                      </button>
+                    </span>
+                  ) : (
+                    <MetricPicker placeholder="Which measure is this?" onPick={(m) => choose(i, m.code)} />
+                  )}
+                </td>
+                <td>
+                  {s.metric && numericAgg(s.metric) && (s.metric.units.length > 1 || (s.metric.units.length === 1 && !s.unit)) && (
+                    <select
+                      aria-label={`Unit for ${l.code}`}
+                      value={s.unit}
+                      onChange={(e) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, unit: e.target.value } : x)))}
+                    >
+                      <option value="">Unit…</option>
+                      {s.metric.units.map((u) => (
+                        <option key={u} value={u}>
+                          {unitLabel(u)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </td>
+                <td>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={s.skip}
+                      onChange={(e) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, skip: e.target.checked } : x)))}
+                    />
+                    Skip
+                  </label>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <Problem text={err} />
+      <div className="actions">
+        <button type="button" className="primary" disabled={!ready || busy} onClick={save}>
+          {busy ? "Saving…" : "Save to my readings"}
+        </button>
+        <button type="button" onClick={discard}>
+          Discard
+        </button>
+      </div>
+    </div>
+  );
+}
+
+type WhoopStatus = { state: "none" | "pending" | "reauth" } | { state: "connected"; last_sync: number | null };
+
+/** WHOOP sync with the person's own WHOOP developer app (protocol 6, decision 67): sign-in in the browser,
+ *  back to this computer, then hourly while Health is open. */
+function WhoopConnect() {
+  const [st, setSt] = useState<WhoopStatus>();
+  const [id, setId] = useState("");
+  const [secret, setSecret] = useState("");
+  const [redirect, setRedirect] = useState("http://localhost:47630/whoop");
+  const [err, setErr] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string>();
+  const load = useCallback(() => op<WhoopStatus>("whoop.status").then(setSt, (e) => setErr(errText(e))), []);
+  useEffect(() => {
+    load();
+  }, [load]);
+  useEffect(() => {
+    if (st?.state !== "pending") return;
+    const t = setInterval(load, 3000);
+    return () => clearInterval(t);
+  }, [st, load]);
+  const run = async (f: () => Promise<void>) => {
+    setErr(undefined);
+    setNote(undefined);
+    setBusy(true);
+    try {
+      await f();
+    } catch (e) {
+      setErr(errText(e));
+    } finally {
+      setBusy(false);
+      load();
+    }
+  };
+  const connect = () =>
+    run(async () => {
+      const b = await op<{ url: string; redirect: string }>("whoop.begin", { client_id: id, client_secret: secret, open: true });
+      setRedirect(b.redirect);
+      setSecret("");
+      setNote("WHOOP's sign-in page opened in your browser. Health finishes when you come back.");
+    });
+  const sync = () =>
+    run(async () => {
+      const r = await op<{ written: number }>("whoop.sync", { force: true });
+      setNote(r.written ? `${r.written} new readings from WHOOP.` : "No new WHOOP data.");
+    });
+  if (!st) return null;
+  return (
+    <div className="group form">
+      <h3>WHOOP</h3>
+      {st.state === "connected" ? (
+        <>
+          <p className="fine">
+            Connected. Health fetches new WHOOP data every hour while it's open
+            {st.last_sync ? `; last time ${when(st.last_sync)}` : ""}.
+          </p>
+          <div className="actions">
+            <button type="button" disabled={busy} onClick={sync}>
+              {busy ? "Syncing…" : "Sync now"}
+            </button>
+            <button type="button" disabled={busy} onClick={() => run(async () => void (await op("whoop.disconnect")))}>
+              Disconnect
+            </button>
+          </div>
+        </>
+      ) : st.state === "pending" ? (
+        <p className="fine">Waiting for the WHOOP sign-in in your browser…</p>
+      ) : (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            connect();
+          }}
+        >
+          <p className="fine">
+            {st.state === "reauth" ? "WHOOP needs you to sign in again. " : ""}
+            Use your own WHOOP developer app (developer.whoop.com) and add this redirect URL to it: <span className="mono">{redirect}</span>
+          </p>
+          <label>
+            Client ID
+            <input value={id} onChange={(e) => setId(e.target.value)} autoComplete="off" spellCheck={false} />
+          </label>
+          <PasswordField label="Client Secret" value={secret} onChange={setSecret} auto="off" />
+          <div className="actions">
+            <button type="submit" className="primary" disabled={busy || !id.trim() || !secret.trim()}>
+              Connect WHOOP
+            </button>
+          </div>
+        </form>
+      )}
+      {note && <p className="fine" role="status">{note}</p>}
+      <Problem text={err} />
+    </div>
   );
 }

@@ -1,5 +1,6 @@
 //! `health` CLI: parses arguments into an operation request and calls health_api. No rules live here.
 
+mod account;
 mod client;
 mod keys;
 mod mcp;
@@ -34,6 +35,9 @@ struct Cli {
     /// Passphrase-locked profile: read the passphrase from stdin's first line
     #[arg(long, global = true)]
     passphrase_stdin: bool,
+    /// Never contact the health service or download anything (also HEALTH_OFFLINE=1)
+    #[arg(long, global = true, env = "HEALTH_OFFLINE")]
+    offline: bool,
     #[command(subcommand)]
     cmd: Cmd,
 }
@@ -115,6 +119,22 @@ enum Cmd {
     /// Optional parts that don't ship in the binary (the OCR models)
     #[command(subcommand)]
     Component(ComponentCmd),
+    /// Your health account on this computer: its id and identity code
+    Account {
+        #[command(subcommand)]
+        cmd: Option<AccountCmd>,
+    },
+    /// Link this computer to your health account on another device, or hand it to a new one
+    #[command(subcommand)]
+    Link(LinkCmd),
+    /// Fetch results sent to your account (labs, desks) and store them
+    Inbox,
+    /// A self-service code for a lab device (the id beside its QR)
+    #[command(name = "self")]
+    SelfService { device: String },
+    /// WHOOP sync with your own WHOOP developer app
+    #[command(subcommand)]
+    Whoop(WhoopCmd),
     /// Internal: the OCR process `health ocr` and serve start (one request on stdin)
     #[command(hide = true)]
     OcrWorker,
@@ -153,6 +173,35 @@ enum Cmd {
         #[arg(long, default_value_t = 50)]
         limit: i64,
     },
+}
+
+#[derive(Subcommand)]
+enum AccountCmd {
+    /// Make the account if there is none, register it, and show the identity code (contacts the service)
+    Register,
+}
+
+#[derive(Subcommand)]
+enum WhoopCmd {
+    /// Whether WHOOP is connected
+    Status,
+    /// Connect: asks for the Client Secret, opens WHOOP's sign-in, then syncs
+    Connect {
+        #[arg(long)]
+        client_id: String,
+    },
+    /// Fetch recent data now
+    Sync,
+    /// Forget the connection (readings stay)
+    Disconnect,
+}
+
+#[derive(Subcommand)]
+enum LinkCmd {
+    /// Show a code for your other device to scan, then confirm the check code
+    Join,
+    /// Hand this computer's account to the new device showing `code` (SBHL1:…)
+    Give { code: String },
 }
 
 #[derive(Subcommand)]
@@ -505,6 +554,15 @@ fn request(cmd: &Cmd, now: i64) -> Result<(String, Value)> {
         }
         Cmd::Review(ReviewCmd::Discard { id }) => ("review.discard".into(), json!({ "id": id })),
         // the OCR worker fills in `recognized` (see run)
+        Cmd::Account { cmd: None } => ("account.show".into(), json!({})),
+        Cmd::Account { cmd: Some(AccountCmd::Register) } => ("account.register".into(), json!({})),
+        Cmd::Inbox => ("inbox.poll".into(), json!({})),
+        Cmd::SelfService { device } => ("self.code".into(), json!({ "device": device })),
+        Cmd::Link(_) => return Err(usage("interactive", "link runs interactively")),
+        Cmd::Whoop(WhoopCmd::Status) => ("whoop.status".into(), json!({})),
+        Cmd::Whoop(WhoopCmd::Sync) => ("whoop.sync".into(), json!({ "force": true })),
+        Cmd::Whoop(WhoopCmd::Disconnect) => ("whoop.disconnect".into(), json!({})),
+        Cmd::Whoop(WhoopCmd::Connect { .. }) => return Err(usage("interactive", "whoop connect runs interactively")),
         Cmd::Ocr { file } => {
             ("import.ocr".into(), json!({ "path": std::path::absolute(file)?, "tz_min": time::parse(&now.to_string())?.tz_min }))
         }
@@ -648,6 +706,9 @@ fn run(cli: &Cli) -> Result<Value> {
             if name != "ocr" {
                 return Err(Error::not_found("no_component", name));
             }
+            if cli.offline && from.is_none() {
+                return Err(usage("offline", "offline: install from local files with --from"));
+            }
             return ocr::install(&dir, from.as_deref(), !no_matching);
         }
         Cmd::Serve { port, idle_lock, exit_with_parent } => {
@@ -663,6 +724,7 @@ fn run(cli: &Cli) -> Result<Value> {
                 profile: cli.profile.clone(),
                 port: *port,
                 idle_lock: std::time::Duration::from_secs((*idle_lock).max(1) * 60),
+                offline: cli.offline,
             })?;
             return Ok(Value::Null);
         }
@@ -691,6 +753,8 @@ fn run(cli: &Cli) -> Result<Value> {
             return Ok(v);
         }
         Cmd::Init | Cmd::Schema { .. } => {}
+        Cmd::Link(_) | Cmd::Account { cmd: Some(_) } | Cmd::Inbox | Cmd::SelfService { .. } => return net_cmd(cli, &dir, &pdir, now),
+        Cmd::Whoop(c) if !matches!(c, WhoopCmd::Status) => return net_cmd(cli, &dir, &pdir, now),
         _ => {
             if let Some(s) = client::probe(&pdir) {
                 // the passphrase first, as on the direct path, so stdin lines mean the same either way
@@ -714,12 +778,23 @@ fn run(cli: &Cli) -> Result<Value> {
             return Ok(json!({ "profile": p.name, "dir": p.dir, "key_store": p.key_store }));
         }
         Cmd::Schema { op: None } => {
-            return Ok(Value::Array(
-                health_api::ops()
+            let mut all: Vec<Value> = health_api::ops()
+                .iter()
+                .map(
+                    |o| json!({ "op": o.name, "write": o.write, "delegate": format!("{:?}", o.delegate).to_lowercase(), "about": o.about }),
+                )
+                .collect();
+            // the ops that contact the health service: owner only, never a tool
+            all.extend(
+                health_api::account::NET_OPS
                     .iter()
-                    .map(|o| json!({ "op": o.name, "write": o.write, "delegate": format!("{:?}", o.delegate).to_lowercase(), "about": o.about }))
-                    .collect(),
-            ));
+                    .map(|o| json!({ "op": o.name, "write": true, "delegate": "never", "network": true, "about": o.about })),
+            );
+            return Ok(Value::Array(all));
+        }
+        Cmd::Schema { op: Some(name) } if health_api::account::find_net(name).is_some() => {
+            let o = health_api::account::find_net(name).expect("found");
+            return Ok(json!({ "op": o.name, "about": o.about, "network": true, "request": (o.req)(), "response": (o.resp)() }));
         }
         Cmd::Schema { op: Some(name) } => {
             let o = health_api::find(name)?;
@@ -736,6 +811,50 @@ fn run(cli: &Cli) -> Result<Value> {
     let mut ctx = Ctx::new(&profile, now, Caller::Owner);
     ctx.dry_run = cli.dry_run;
     Ok(health_api::call(&mut ctx, &name, req)?.value)
+}
+
+/// The commands that talk to the health backend: through a running serve (its link session and its
+/// `--offline`), or on this process's own profile.
+fn net_cmd(cli: &Cli, dir: &std::path::Path, pdir: &std::path::Path, now: i64) -> Result<Value> {
+    if cli.dry_run {
+        return Err(usage("no_dry_run", "contacts the health service"));
+    }
+    // refused here, before a running serve (started without --offline) could send it
+    if cli.offline {
+        return Err(usage("offline", "offline: nothing is sent to the health service"));
+    }
+    let serve = client::probe(pdir);
+    let auth = match &serve {
+        Some(s) => Some(owner_auth(cli, pdir, s)?),
+        None => None,
+    };
+    let config = account::config();
+    let backend = account::backend(cli.offline, &config);
+    let session = std::sync::Mutex::new(health_api::account::Session::default());
+    let keys = if serve.is_none() { Some(keys::for_profile(pdir, cli.passphrase_stdin)?) } else { None };
+    // without serve, the profile is opened for each short step only: a link waiting 10 minutes doesn't hold
+    // the writer lock (the app or another command can still write meanwhile)
+    let open = || Profile::open(dir, &cli.profile, keys.as_deref().expect("direct"), true, time::now_ms());
+    let mut call = |name: &str, req: Value| -> Result<Value> {
+        if let (Some(s), Some(a)) = (&serve, &auth) {
+            return Ok(s.op(a.clone(), name, &req, false)?.0);
+        }
+        if health_api::account::find_net(name).is_some() {
+            return account::direct(&open, backend.as_ref(), &config, &session, name, req);
+        }
+        let p = open()?;
+        let mut ctx = Ctx::new(&p, now, Caller::Owner);
+        Ok(health_api::call(&mut ctx, name, req)?.value)
+    };
+    match &cli.cmd {
+        Cmd::Link(LinkCmd::Join) => account::join(&mut call),
+        Cmd::Link(LinkCmd::Give { code }) => account::give(code, &mut call),
+        Cmd::Whoop(WhoopCmd::Connect { client_id }) => account::whoop_connect(client_id, &mut call),
+        cmd => {
+            let (name, req) = request(cmd, now)?;
+            call(&name, req)
+        }
+    }
 }
 
 fn main() {

@@ -1,5 +1,7 @@
 // The UI against a real `health serve` (plan §6: Playwright, no Tauri needed).
 import { expect, test } from "@playwright/test";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -159,4 +161,38 @@ test("a lab report PDF is read into a batch waiting for review", async ({ page }
   // discarded: nothing from it is kept
   await review.getByRole("button", { name: "Discard" }).click();
   await expect(page.getByText("Nothing is waiting.")).toBeVisible();
+});
+
+// ---- Health account (against the stand-in backend that tests/launch.mjs starts) ----------------------------
+
+const relayInfo = () => JSON.parse(readFileSync(join(tmpdir(), "health-e2e-relay.json"), "utf8")) as { base: string; bin: string };
+const relayLog = async () => ((await (await fetch(`${relayInfo().base}/_log`)).json()) as { log: string[] }).log;
+
+test("the health account: nothing is sent until asked, then linking by check code gives the same identity", async ({ page }) => {
+  test.setTimeout(90_000);
+  // another computer that already has the account
+  const { base, bin } = relayInfo();
+  const other = mkdtempSync(join(tmpdir(), "health-e2e-other-"));
+  const env = { ...process.env, HEALTH_DATA_DIR: join(other, "data"), HEALTH_ROOT_KEY_FILE: join(other, "root.key"), HEALTH_BACKEND: base };
+  execFileSync(bin, ["init"], { env });
+  const theirs = JSON.parse(execFileSync(bin, ["--json", "account", "register"], { env }).toString()) as { identity: string };
+
+  const before = (await relayLog()).length;
+  await page.goto("/");
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Health account" }).click();
+  await expect(page.getByText("There is no health account on this computer yet.")).toBeVisible();
+  // the app is open and polling the inbox, yet without an account nothing went to the service
+  expect((await relayLog()).length).toBe(before);
+
+  await page.getByRole("button", { name: "Use my account from another device…" }).click();
+  const code = (await page.locator(".link-code").textContent())?.trim() ?? "";
+  expect(code).toMatch(/^SBHL1:/);
+  // the other computer hands it over (and answers yes to rule 2's question)
+  const given = execFileSync(bin, ["--json", "link", "give", code], { env, input: "y\n" }).toString();
+  const check = (JSON.parse(given) as { check: string }).check;
+  await expect(page.locator(".check-code")).toHaveText(check, { timeout: 15_000 });
+  await page.getByRole("button", { name: "They match" }).click();
+  await expect(page.getByRole("heading", { name: "Your identity code" })).toBeVisible();
+  const mine = await page.request.post("/v1/op/account.show", { data: {} });
+  expect(((await mine.json()) as { value: { account: { identity: string } } }).value.account.identity).toBe(theirs.identity);
 });

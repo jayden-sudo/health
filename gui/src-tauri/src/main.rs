@@ -347,6 +347,7 @@ fn main() {
                         &item("sources", "Sources", "CmdOrCtrl+3")?,
                         &item("backup", "Backup", "CmdOrCtrl+4")?,
                         &item("agents", "Agent access", "CmdOrCtrl+5")?,
+                        &item("account", "Health account", "CmdOrCtrl+6")?,
                         &tauri::menu::PredefinedMenuItem::separator(app)?,
                         &item("back", "Back", "CmdOrCtrl+[")?,
                         &item("find", "Find a measure", "CmdOrCtrl+F")?,

@@ -22,10 +22,12 @@ pub mod ocr;
 pub mod pack;
 pub mod profile;
 pub mod query;
+pub mod result;
 pub mod review;
 pub mod scope;
 pub mod units;
 pub mod value;
+pub mod vault;
 pub mod whoop;
 pub mod write;
 

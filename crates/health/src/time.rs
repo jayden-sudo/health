@@ -10,6 +10,11 @@ pub fn now_ms() -> i64 {
     pinned.unwrap_or_else(|| chrono::Utc::now().timestamp_millis())
 }
 
+/// The UTC offset (minutes) at `ms` here (HEALTH_TZ_MIN pins it).
+pub fn tz_at(ms: i64) -> i64 {
+    pinned_tz().unwrap_or_else(|| Local.timestamp_millis_opt(ms).single().map_or(0, |d| d.offset().fix().local_minus_utc() as i64 / 60))
+}
+
 /// The calendar year at `ms` in the local zone (pinned in tests).
 pub fn year(ms: i64) -> i32 {
     use chrono::Datelike;

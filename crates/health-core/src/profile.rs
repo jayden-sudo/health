@@ -17,6 +17,7 @@ pub struct Profile {
     pub blobs: Store,
     /// Grants and audit (plan §5), kept apart from the health data
     pub access: crate::access::AccessDb,
+    pub vault: crate::vault::Vault,
     pub key_store: &'static str,
     /// Held while this process is the writer.
     _lock: Option<File>,
@@ -119,7 +120,8 @@ impl Profile {
         let blobs = Store::new(dir.join("blobs"), dir.join("tmp"), *derive(&root, "health/blob"));
         let access = crate::access::AccessDb::open(&dir.join("access.db"), &derive(&root, "health/access"))?;
         chmod_private(&dir.join("access.db"));
-        let p = Profile { name: name.into(), dir, id, db, blobs, access, key_store: keys.kind(), _lock: lock };
+        let vault = crate::vault::Vault::new(dir.join("vault"), dir.join("tmp"), *derive(&root, "health/vault"));
+        let p = Profile { name: name.into(), dir, id, db, blobs, access, vault, key_store: keys.kind(), _lock: lock };
         if write {
             p.on_writer_open(now_ms)?;
         }

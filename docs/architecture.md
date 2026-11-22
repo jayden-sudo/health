@@ -253,3 +253,74 @@ Ops (all owner-only, `delegate: Never`):
 - **Process.** `health ocr <file>` (and serve, for `import.ocr` without a result) start `health ocr-worker`: one JSON request on stdin, one reply on stdout; no key, no database. serve checks `import.seen` first, drops the profile lock while the worker runs, then records the batch with `import.ocr`. A crash in the worker returns `ocr_crashed`; the writer is untouched.
 - **Component.** `<data dir>/components/ocr/`: three required files (21 MB) and two for matching (135 MB), each pinned by size and SHA-256 (`health-ocr/src/components.rs`), checked again on every load. `health component install ocr [--from DIR] [--no-matching]`; downloads go through `health-connect`.
 - **Parity.** Tests compare with the web version's own output on the owner's synthetic report pages (`tests/fixtures/*.web.json`, `web-ocr.json`, `web-match.json`; regenerate with `scripts/gen-ocr-data.ts`): same lines, boxes and scores; same tables and dates; same first candidate and preselection (decision 52).
+
+## M6: health account, linking, inbox (design)
+
+Specs: `B/docs/協議.md` §0.1–0.2, §1, §2, §3.1–3.3, §3.5 and §6. Web sources:
+- `app-kit/src/health-{account,backend}.ts`;
+- `W/src/client/{link-flow,account-keys,link.tsx,deps}.ts`, `lib/account.ts`, `lib/sig.ts`;
+- `lib/health/{inbox,config}.ts`, `lib/health/proto/*`, `lib/health/db/ingest.ts`, `review-form.ts`.
+
+An independent review (2026-11-22) shaped this revision.
+
+- **`health-proto` (done).** Pure: random bytes and the time are arguments.
+  - Contents: `b64`, `account` (AMK → id, Ed25519 key, inbox X25519 pair, JWS `sign`, payload in the web's key order), `sig` (JCS with ES number formatting and UTF-16 key order, did:key, Ed25519 with libsodium's rejection list then `verify_strict`), `hpke`, `codes` (SBH1, SBHL1, check code), `result` (§2.3 steps 1–3 → `Ok | Drop(code) | Later`).
+  - Tests: the protocol vectors, the 176 Ed25519 edge cases, and `web-account.json` (`scripts/gen-account-fixture.ts`: what W derives, signs and seals from one fixed AMK).
+- **`vault` (profile file, `health-core::vault`).**
+  - AES-256-GCM under `HKDF(root, "health/vault")`, rewritten via `tmp/` + rename.
+  - Holds `{amk, registered_pk, cursors: {pk: seq}, drops: {pk: n}}`, keyed per pk as the web does, so re-linking the same account keeps its cursor. WHOOP credentials join it in the WHOOP step.
+  - Not in `health.db` (frozen schema) and not in backups: identity moves only by linking.
+- **No account, no request** (§1, web `nokey`): `account.show` and `inbox.poll` never make an AMK and never call the backend while `registered_pk` is null. An account is made only by `account.register` (showing the identity code), `self.code` or `link.give`. Tests use a mock that fails on any request.
+- **Network outside the lock.**
+  - Ops that use the backend have `net: true` and receive `&dyn Backend` and `&dyn Locked`. `Locked::with(f)` runs `f` with a `Ctx` under the profile lock: serve takes and releases its mutex per step, and the CLI runs `f` directly.
+  - The op reads and writes the vault and DB in short locked steps and makes every HTTP call between them, as `import.ocr` does in M5.
+  - An inbox page is fetched unlocked, then each item is decrypted, checked and ingested under the lock in its own transaction, and the cursor advances after COMMIT. A replay is caught by `import.uid`.
+  - These ops are `write: true` (writer lock; dry run refused).
+- **`health-connect` HTTP.**
+  - JSON GET/POST to one allowed base, with no redirects, connect 15 s, request 60 s, and a body limit of 32 MiB (an inbox page is up to 16 MB of ciphertext, about 22 MB as JSON).
+  - Errors are reduced to codes (`network`, `server`, or the backend's `{err}`). ureq's messages carry URLs with the channel or pk, so they're never shown or logged.
+- **`--offline`** (decision 36): a global flag and `HEALTH_OFFLINE=1`; the `Backend` adapter then refuses every call with `offline`.
+- **Config** (`health-api::account`):
+  - The base is `https://api-dev-health.4seas.xyz` (the owner's rule: dev only), `aud` = host with port, the lab key `did:key:z6MkmpEv…` (`lab`), and the dev backend's attestation key.
+  - Debug builds also take `HEALTH_BACKEND`, `HEALTH_LAB_KEYS` and `HEALTH_ATT_KEY`, so tests run against a loopback mock relay that can issue verifiable results.
+- **Link session.**
+  - It lives in serve's `State` (or the CLI process) and is handed to link ops. It holds the one-time X25519 secret, the channel and, once received, the AMK with its check code.
+  - Never on disk, never in an op result (§3.5 rule 4). It is zeroized on `link.cancel`, adopt, expiry (10 min) and the passphrase lock.
+  - After `received`, `link.poll` returns the kept state and never GETs again (the relay deletes on read).
+- **Ops** (owner only; not in `OpDef.delegate`, so no MCP tool; a matrix test checks both):
+
+  | op | does |
+  |---|---|
+  | `account.show` | `{account: null \| {id, registered, drops}}`: no AMK, no request |
+  | `account.register` | makes the AMK if none, `POST /h/1/key` when `registered_pk` isn't this pk, returns the SBH1 text (§1: shown only once registered) |
+  | `account.qr {text}` | an SVG of an SBH1/SBHL1 text (on demand, not polled) |
+  | `link.join` | new session; returns `{code, channel, expires_ms}` |
+  | `link.poll` | one `GET /h/1/link/<ch>` → `waiting \| received {check, replaces} \| expired \| failed {code}` |
+  | `link.adopt {channel, check}` | must match the session. If another account is here: poll its inbox once (failure ignored, as the web does). Write the AMK, clear `registered_pk` (re-registered lazily by `account.register`). |
+  | `link.cancel` | forgets the session |
+  | `link.give {code, confirmed: true}` | §3.5 rule 2: the caller has asked "this hands your health account to the device showing this code; continue only if it's yours". Makes an account if none, seals `{v:1, amk}`, posts; `busy` → "start again"; returns the check code |
+  | `inbox.poll` | §3.2: cursor `after`; 8 MiB cap before HPKE; `check`; ingest; `bad_result` and failed opens are dropped and counted; any other ingest error stops without advancing; `unknown` re-registers once and resets the cursor; `later` stops (dropped after 24 h) |
+  | `self.code {device}` | §3.3 `POST /h/1/self` → `{code, until}` |
+  | `review.confirm_result {id, choices}` | the review form for `kind: "result"`: the app preselects measure and unit per line (`metric.show`, as `initLines`), the core applies the web's `lineReady`/`duplicateLines` rules |
+
+- **Ingest (`health-core::result`, done).** A port of `ingest.ts`:
+  - `seen` when the id is known;
+  - an unknown code or unit, or a refused line, sends the whole result to review;
+  - otherwise one import with `uid = id`, source `(lab|staff|room, device)`, parser `result@1`;
+  - a bad id, src, at or tz gives `bad_result`.
+  - As the web does, no plaintext blob is kept (§2.3 says to keep one; decision row). `meta.by` comes from `att.staff`.
+- **CLI.** `health account [register]`, `health link join` (prints the code as a terminal QR, polls every 2 s, shows the check code and asks y/N), `health inbox`, `health self <device>`, `health link give <code>` (asks the rule-2 question).
+- **GUI.**
+  - An Account page: the identity code and QR, "Link this computer" (SBHL1 QR, then the check code with Confirm/Cancel), and the drop count.
+  - The inbox is polled when the app opens, every 5 min while it's open, and every 30 s for an hour after the identity code or a self-service code was shown. Nothing polls once an account exists but the app is closed.
+- **WHOOP (§6, decision 67).** `health_api::whoop`, a port of W `whoop/sync.ts`.
+  - Ops: `whoop.status` (vault only), `whoop.begin {client_id, client_secret, open?}`, `whoop.complete {query}`, `whoop.sync {force?}` and `whoop.disconnect`.
+  - The client ID, secret and tokens live in the vault. A refresh token is saved before it is used.
+  - The first sync fetches 30 days, later ones 7 (at most 90 after a gap), and a sync is skipped if the last was under an hour ago.
+  - The sign-in returns to `http://localhost:47630/whoop`, caught by `health whoop connect` or, for the app, by serve (`open: true`), which then finishes and syncs and emits `whoop`.
+- **Status.** Everything above is built and tested against stand-in backends.
+- **Acceptance by hand** (the owner, dev backend):
+  1. On the web app, open the identity code once.
+  2. On the desktop, Account › Link this computer; scan the code with the web app's "link a new device"; compare the check codes; confirm.
+  3. Both show the same SBH1 text.
+  4. A result issued on dev to that account (the lab gateway holding `z6MkmpEv…`, or a desk entry with an attestation) appears on the desktop after "Check for results".

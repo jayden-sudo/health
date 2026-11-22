@@ -4,8 +4,9 @@ Your health data in one encrypted file on your own computer. Health brings toget
 
 ![Readings](docs/screenshots/readings.png)
 
-- **Local and encrypted.** One SQLCipher database per profile; the key is in your system keychain (or behind a passphrase). Nothing is uploaded. Only downloading the optional OCR models opens a network connection, and only when you ask.
+- **Local and encrypted.** One SQLCipher database per profile; the key is in your system keychain (or behind a passphrase). Your readings are never uploaded. Health goes online only to download the optional OCR models when you ask, for your health account once you use it, and for WHOOP once you connect it. `--offline` turns both off.
 - **Many sources, one view.** Apple Health exports, WHOOP data, Health backups from the web version (`.zuhealth`), photos and PDFs of lab reports, and readings you enter.
+- **Results from labs.** A health account lets labs and service desks send results to you, sealed so only your devices can open them. Link this computer to the account on your phone or the web version by comparing an 8-digit check code.
 - **Lab reports by photo.** Text recognition runs on your computer; each result is matched to a measure, and nothing counts until you check it.
 - **Agents with limits.** Claude, Codex, Cursor, Copilot, Gemini and other MCP apps get a grant: which kinds of data, how far back, daily summaries or every reading, read only or allowed to propose. Every call is logged.
 - **A desktop app and a CLI.** The app (macOS, Windows, Linux) and the `health` command share one core.
@@ -36,10 +37,21 @@ On first launch Health creates your encrypted store. On macOS the keychain may a
 Open **Add data** (⌘2 / Ctrl+2) and choose a file, or drop it anywhere on the window:
 
 - **Apple Health:** on iPhone, Health › your picture › *Export All Health Data*, then import the `.zip`.
-- **WHOOP:** the JSON saved from the WHOOP API.
+- **WHOOP:** connect it under Add data › WHOOP with your own WHOOP developer app (add the redirect URL Health shows); Health then syncs every hour while it's open. A JSON file saved from the WHOOP API imports too.
 - **A Health backup** (`.zuhealth`) from this app or the web version: enter its password. Importing merges; nothing is overwritten.
 - **A lab report:** a photo (JPEG, PNG; on iPhone share HEIC photos as JPEG) or a PDF. The first time, Health offers to install the recognition models (about 21 MB, plus 135 MB for matching measures). The results then wait under **Waiting for you**: check each measure and unit, set the test date if it wasn't found, and save.
 - **By hand:** search for a measure, or pick one of the common ones.
+
+### Your health account
+
+**Health account** (⌘6 / Ctrl+6):
+- **Show my identity code:** creates your account on first use and shows the code a lab or service desk scans.
+- **Use my account from another device:** shows a code to scan in the other device's Health app (Link a new device). Check that both show the same 8-digit code, then confirm.
+- **Link a new device:** hands this computer's account to another computer; paste the code it shows.
+
+![Health account](docs/screenshots/health-account.png)
+
+Health checks for new results while it's open. Results with a measure or unit it doesn't know wait under **Waiting for you**. Nothing is sent before you use the account, and your readings never leave the computer: the service only relays sealed results and your account's public key.
 
 ### Connect an AI app
 
@@ -63,6 +75,10 @@ health import apple export.zip
 health component install ocr                      # once, for lab reports
 health ocr report.pdf                             # then review in the app, or:
 health review list
+health account register                           # your identity code (contacts the health service)
+health link join                                  # use your account from another device
+health inbox                                      # fetch results now
+health whoop connect --client-id <id>             # WHOOP sync (asks for the secret)
 health grant create --name "My agent" --groups cardio,sleep --days 90
 health backup export ~/health.zuhealth            # asks for a password
 health --help                                     # everything else; --json for scripts

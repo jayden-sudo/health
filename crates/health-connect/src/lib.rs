@@ -86,3 +86,76 @@ pub fn download(url: &str, dest: &Path, sha256: &str, bytes: u64, progress: &mut
         }
     }
 }
+
+/// The health backend (protocol 0): JSON to one base URL, no redirects (a signed request never goes to another
+/// host). Failures are codes only: transport messages carry URLs with the channel or the inbox key, so they are
+/// never passed on.
+pub struct Backend {
+    base: String,
+    agent: ureq::Agent,
+}
+
+/// The backend's reply: its JSON object, or a code (the protocol's `{err}` codes, or `network` / `server`).
+pub type Reply = Result<serde_json::Value, String>;
+
+/// Largest reply read: an inbox page holds up to 16 MB of ciphertext, about 22 MB as base64 in JSON.
+const MAX_REPLY: u64 = 32 * 1024 * 1024;
+const CODES: [&str; 8] = ["bad", "auth", "unknown", "busy", "gone", "clock", "slow", "upstream"];
+
+impl Backend {
+    /// `base` without a trailing slash, e.g. `https://api-dev-health.4seas.xyz`.
+    pub fn new(base: &str) -> Backend {
+        let tls = ureq::tls::TlsConfig::builder().root_certs(ureq::tls::RootCerts::PlatformVerifier).build();
+        let agent = ureq::Agent::config_builder()
+            .tls_config(tls)
+            .user_agent("health-desktop")
+            .max_redirects(0)
+            .http_status_as_error(false)
+            .timeout_connect(Some(std::time::Duration::from_secs(15)))
+            .timeout_global(Some(std::time::Duration::from_secs(60)))
+            .build()
+            .into();
+        Backend { base: base.trim_end_matches('/').to_string(), agent }
+    }
+
+    pub fn get(&self, path: &str) -> Reply {
+        read(self.agent.get(format!("{}{path}", self.base)).call())
+    }
+
+    /// Any status back (the WHOOP relay passes WHOOP's replies through): `(status, JSON or null)`.
+    pub fn raw(&self, method: &str, path: &str, headers: &[(&str, &str)], body: &str) -> Result<(u16, serde_json::Value), String> {
+        let url = format!("{}{path}", self.base);
+        let res = if method == "POST" {
+            let mut rq = self.agent.post(&url);
+            for (k, v) in headers {
+                rq = rq.header(*k, *v);
+            }
+            rq.send(body)
+        } else {
+            let mut rq = self.agent.get(&url);
+            for (k, v) in headers {
+                rq = rq.header(*k, *v);
+            }
+            rq.call()
+        };
+        let mut res = res.map_err(|_| "network".to_string())?;
+        let status = res.status().as_u16();
+        let text = res.body_mut().with_config().limit(MAX_REPLY).read_to_string().map_err(|_| "network".to_string())?;
+        Ok((status, serde_json::from_str(&text).unwrap_or(serde_json::Value::Null)))
+    }
+
+    pub fn post(&self, path: &str, json: &str) -> Reply {
+        read(self.agent.post(format!("{}{path}", self.base)).header("content-type", "application/json").send(json))
+    }
+}
+
+fn read(res: Result<ureq::http::Response<ureq::Body>, ureq::Error>) -> Reply {
+    let mut res = res.map_err(|_| "network".to_string())?;
+    let ok = res.status().is_success();
+    let text = res.body_mut().with_config().limit(MAX_REPLY).read_to_string().map_err(|_| "network".to_string())?;
+    let v: serde_json::Value = serde_json::from_str(&text).map_err(|_| "server".to_string())?;
+    if let Some(e) = v.get("err").and_then(|e| e.as_str()) {
+        return Err(if CODES.contains(&e) { e.to_string() } else { "server".into() });
+    }
+    if ok && v.is_object() { Ok(v) } else { Err("server".into()) }
+}

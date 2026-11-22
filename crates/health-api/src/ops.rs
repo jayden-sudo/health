@@ -38,6 +38,9 @@ macro_rules! op {
 }
 
 pub static OPS: &[OpDef] = &[
+    op!("account.show", "This device's health account: id, identity code once registered (no request is sent)", write: false, delegate: Never, manual_tx: false, crate::account::account_show, crate::account::Empty, crate::account::AccountShown),
+    op!("account.qr", "An identity or link code drawn as a QR (SVG)", write: false, delegate: Never, manual_tx: false, crate::account::account_qr, crate::account::QrReq, crate::account::Qr),
+    op!("whoop.status", "Whether WHOOP is connected, and when it last synced (no request is sent)", write: false, delegate: Never, manual_tx: false, crate::whoop::status, crate::account::Empty, crate::whoop::Status),
     op!("status", "Profile and database summary", write: false, delegate: Never, manual_tx: false, status, Empty, Status),
     op!("metric.search", "Search the metric catalog by code or name", write: false, delegate: Read, manual_tx: false, metric_search, MetricSearch, Vec<Metric>),
     op!("metric.show", "One metric with its accepted units", write: false, delegate: Read, manual_tx: false, metric_show, MetricShow, MetricShown),
@@ -57,6 +60,7 @@ pub static OPS: &[OpDef] = &[
     op!("review.list", "Batches waiting for review (invisible until confirmed)", write: false, delegate: Never, manual_tx: false, review_list, Empty, Vec<BatchDetail>),
     op!("review.confirm", "Confirm a review batch with the rows to write", write: true, delegate: Never, manual_tx: false, review_confirm, ReviewConfirm, Confirmed),
     op!("review.confirm_ocr", "Confirm a lab-report batch: a measure (or a new one) and unit per item, or skip", write: true, delegate: Never, manual_tx: false, review_confirm_ocr, OcrConfirm, OcrConfirmed),
+    op!("review.confirm_result", "Confirm a received result waiting for review: a measure and unit per line, or skip", write: true, delegate: Never, manual_tx: false, review_confirm_result, ResultConfirm, Confirmed),
     op!("import.ocr", "Record a recognised lab report (image or PDF) as a batch waiting for review", write: true, delegate: Never, manual_tx: false, import_ocr, OcrImport, Ingested),
     op!("import.seen", "Was this file (SHA-256) imported already?", write: false, delegate: Never, manual_tx: false, import_seen, ShaReq, Seen),
     op!("review.discard", "Discard a review batch", write: true, delegate: Never, manual_tx: false, review_discard, IdReq, Done),
@@ -382,6 +386,18 @@ pub struct ReviewConfirm {
     /// Printed name + unit → metric mappings to remember
     #[serde(default)]
     pub aliases: Vec<Alias>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ResultConfirm {
+    pub id: i64,
+    /// One per line of the result, in order
+    pub choices: Vec<health_core::result::LineChoice>,
+}
+
+fn review_confirm_result(ctx: &mut Ctx, r: ResultConfirm) -> Result<Confirmed> {
+    health_core::result::confirm(ctx.db(), r.id, &r.choices, ctx.now_ms)
 }
 
 fn review_confirm(ctx: &mut Ctx, r: ReviewConfirm) -> Result<Confirmed> {

@@ -1,7 +1,9 @@
 //! The operation table (plan §2.3). Every entry point (CLI, HTTP, MCP, FFI) calls `call()`, which always runs
 //! validate → authorize → execute → audit, so the rules are written once.
 
+pub mod account;
 mod ops;
+pub mod whoop;
 
 use health_core::access::{Audit, Grant, WriteLevel};
 use health_core::profile::Profile;

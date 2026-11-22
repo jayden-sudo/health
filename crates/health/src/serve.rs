@@ -18,6 +18,7 @@ pub struct Opts {
     pub profile: String,
     pub port: u16,
     pub idle_lock: Duration,
+    pub offline: bool,
 }
 
 struct State {
@@ -32,6 +33,10 @@ struct State {
     events: Mutex<Vec<Sender<String>>>,
     last_owner: Mutex<Instant>,
     unlock_gate: Mutex<()>,
+    /// A link in progress (memory only; cleared on lock)
+    session: Mutex<health_api::account::Session>,
+    config: health_api::account::Config,
+    backend: Box<dyn health_api::account::Backend>,
 }
 
 fn ct_eq(a: &str, b: &str) -> bool {
@@ -112,7 +117,10 @@ impl State {
             Err(e) => return err(&e),
         };
         let owner = matches!(caller, Caller::Owner);
-        if owner {
+        // the app's background polls (inbox, WHOOP) aren't the person at the keyboard: they must not keep a
+        // passphrase-locked profile open
+        let background = matches!(path, "/v1/op/inbox.poll" | "/v1/op/whoop.sync");
+        if owner && !background {
             *self.last_owner.lock().unwrap() = Instant::now();
         }
         match (method, path) {
@@ -157,6 +165,32 @@ impl State {
                 let name = &p["/v1/op/".len()..];
                 let req = if body.is_empty() { Ok(json!({})) } else { serde_json::from_slice::<Value>(body) };
                 let Ok(mut req) = req else { return err(&Error::new(Kind::Usage, "bad_json", "")) };
+                if health_api::account::find_net(name).is_some() {
+                    if let Caller::Delegate(g) = &caller {
+                        // refused, and audited like every delegate call
+                        if let Some(p) = guard.as_ref() {
+                            let a = health_core::access::Audit {
+                                at: now,
+                                grant_id: g.id,
+                                op: name.into(),
+                                metrics: vec![],
+                                from_ms: None,
+                                to_ms: None,
+                                rows: 0,
+                                denied: true,
+                            };
+                            if let Err(e) = p.access.record(&a) {
+                                return err(&e);
+                            }
+                        }
+                        return err(&Error::new(Kind::Denied, "denied", "not available to delegates"));
+                    }
+                    drop(guard);
+                    if get("X-Health-Dry-Run") == Some("1") {
+                        return err(&Error::new(Kind::Usage, "no_dry_run", name.to_string()));
+                    }
+                    return self.net_op(name, req, now);
+                }
                 // a lab report: recognise it in the worker without holding the profile, then record it
                 let guard = if owner && name == "import.ocr" && guard.is_some() && req.get("recognized").is_none_or(Value::is_null) {
                     // nothing slow under the lock: check and hash the file without it
@@ -202,6 +236,78 @@ impl State {
             }
             _ => err(&Error::new(Kind::NotFound, "not_found", path.to_string())),
         }
+    }
+
+    /// A network op: the profile is locked only for its short steps, never across a request to the backend.
+    fn net_op(self: &Arc<Self>, name: &str, req: Value, now: i64) -> Reply {
+        let opens = name == "whoop.begin" && req["open"] == true;
+        let locked = |f: &mut dyn FnMut(&mut Ctx) -> Result<Value>| -> Result<Value> {
+            let guard = self.open.lock().unwrap();
+            let Some(profile) = guard.as_ref() else { return Err(Error::new(Kind::Locked, "locked", "serve is locked")) };
+            let mut ctx = Ctx::new(profile, now, Caller::Owner);
+            f(&mut ctx)
+        };
+        let net = health_api::account::Net {
+            backend: self.backend.as_ref(),
+            config: &self.config,
+            session: &self.session,
+            locked: &locked,
+            now_ms: now,
+            tz_min: crate::time::tz_at(now),
+        };
+        let res = health_api::account::call_net(&net, name, req);
+        if !matches!(name, "inbox.poll" | "whoop.sync") {
+            *self.last_owner.lock().unwrap() = Instant::now();
+        }
+        if let (true, Ok(v)) = (opens, &res) {
+            // the app's WHOOP sign-in: open the page, catch the redirect, finish and sync, then tell the app
+            crate::account::open_browser(v["url"].as_str().unwrap_or_default());
+            let s = self.clone();
+            std::thread::spawn(move || {
+                let done = crate::account::wait_redirect(health_api::whoop::REDIRECT_PORT, Duration::from_secs(600)).and_then(|q| {
+                    let now = crate::time::now_ms();
+                    s.run_net("whoop.complete", json!({ "query": q }), now)?;
+                    s.run_net("whoop.sync", json!({ "force": true }), now)
+                });
+                match done {
+                    Ok(v) => s.emit("whoop", json!({ "ok": true, "written": v["written"] })),
+                    Err(e) => s.emit("whoop", json!({ "ok": false, "code": e.code })),
+                }
+                s.emit("changed", json!({ "op": "whoop.sync" }));
+            });
+        }
+        match res {
+            Ok(v) => {
+                let changed = match name {
+                    "inbox.poll" => ["saved", "review"].iter().any(|k| v[*k].as_u64().unwrap_or(0) > 0),
+                    "link.adopt" | "account.register" => true,
+                    _ => false,
+                };
+                if changed {
+                    self.emit("changed", json!({ "op": name }));
+                }
+                (200, Body::Json(json!({ "value": v, "withheld": null })))
+            }
+            Err(e) => err(&e),
+        }
+    }
+
+    /// A network op from serve itself (no request to answer).
+    fn run_net(&self, name: &str, req: Value, now: i64) -> Result<Value> {
+        let locked = |f: &mut dyn FnMut(&mut Ctx) -> Result<Value>| -> Result<Value> {
+            let guard = self.open.lock().unwrap();
+            let Some(profile) = guard.as_ref() else { return Err(Error::new(Kind::Locked, "locked", "serve is locked")) };
+            f(&mut Ctx::new(profile, now, Caller::Owner))
+        };
+        let net = health_api::account::Net {
+            backend: self.backend.as_ref(),
+            config: &self.config,
+            session: &self.session,
+            locked: &locked,
+            now_ms: now,
+            tz_min: crate::time::tz_at(now),
+        };
+        health_api::account::call_net(&net, name, req)
     }
 
     fn unlock(&self, body: &[u8]) -> Reply {
@@ -255,6 +361,7 @@ impl State {
         if self.passphrase_mode {
             let mut open = self.open.lock().unwrap();
             *self.proof.lock().unwrap() = None;
+            self.session.lock().unwrap().clear(); // a received account key goes with the lock
             *open = None; // drops health.db, access.db and the key, with the proof, in one step
             drop(open);
             self.emit("locked", json!({}));
@@ -273,6 +380,7 @@ pub fn run(o: Opts) -> Result<()> {
     } else {
         Some(Profile::open(&o.data_dir, &o.profile, keys::from_env().as_ref(), true, crate::time::now_ms())?)
     };
+    let config = crate::account::config();
     let server = tiny_http::Server::http(("127.0.0.1", o.port)).map_err(|e| Error::other("listen", e.to_string()))?;
     let port = server.server_addr().to_ip().map(|a| a.port()).ok_or_else(|| Error::other("listen", "no port"))?;
     let state = Arc::new(State {
@@ -287,6 +395,9 @@ pub fn run(o: Opts) -> Result<()> {
         events: Mutex::new(Vec::new()),
         last_owner: Mutex::new(Instant::now()),
         unlock_gate: Mutex::new(()),
+        session: Mutex::new(Default::default()),
+        backend: crate::account::backend(o.offline, &config),
+        config,
     });
     // serve.json: how the CLI finds us. In passphrase mode it never holds the owner token (plan §3.3).
     let file = dir.join("serve.json");

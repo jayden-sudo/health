@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/health-core", "crates/health-api", "crates/health-ocr", "crates/health-connect", "crates/health"]
+members = ["crates/health-core", "crates/health-api", "crates/health-ocr", "crates/health-connect", "crates/health-proto", "crates/health"]
 exclude = ["gui/src-tauri"]
 
 [workspace.package]
@@ -14,6 +14,7 @@ health-core = { path = "crates/health-core" }
 health-api = { path = "crates/health-api" }
 health-ocr = { path = "crates/health-ocr" }
 health-connect = { path = "crates/health-connect" }
+health-proto = { path = "crates/health-proto" }
 
 # Dependencies optimised in dev builds too: tract runs the OCR models ~20× faster, and our crates stay debuggable.
 [profile.dev.package."*"]
