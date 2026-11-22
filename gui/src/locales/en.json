@@ -1,8 +1,4 @@
 {
- "{{obs}} readings from {{count}} sources, stored only on this computer_one": "{{obs}} readings from {{count}} source, stored only on this computer",
- "{{obs}} readings from {{count}} sources, stored only on this computer_other": "{{obs}} readings from {{count}} sources, stored only on this computer",
- "Read {{count}} results. Nothing is added to your readings until you check them._one": "Read {{count}} result. Nothing is added to your readings until you check it.",
- "Read {{count}} results. Nothing is added to your readings until you check them._other": "Read {{count}} results. Nothing is added to your readings until you check them.",
  "{{count}} entries were refused because their dates lie in the future, which means a damaged or altered file._one": "{{count}} entry was refused because its date lies in the future, which means a damaged or altered file.",
  "{{count}} entries were refused because their dates lie in the future, which means a damaged or altered file._other": "{{count}} entries were refused because their dates lie in the future, which means a damaged or altered file.",
  "{{count}} measures were skipped because their unit differs on this computer: {{list}}._one": "{{count}} measure was skipped because its unit differs on this computer: {{list}}.",
@@ -48,5 +44,9 @@
  "Saved {{file}}: {{count}} rows. It isn't encrypted: keep it somewhere safe._one": "Saved {{file}}: {{count}} row. It isn't encrypted: keep it somewhere safe.",
  "Saved {{file}}: {{count}} rows. It isn't encrypted: keep it somewhere safe._other": "Saved {{file}}: {{count}} rows. It isn't encrypted: keep it somewhere safe.",
  "{{count}} years old_one": "{{count}} year old",
- "{{count}} years old_other": "{{count}} years old"
+ "{{count}} years old_other": "{{count}} years old",
+ "{{obs}} entries from {{count}} sources_one": "{{obs}} entries from {{count}} source",
+ "{{obs}} entries from {{count}} sources_other": "{{obs}} entries from {{count}} sources",
+ "Read {{count}} results. Please check them._one": "Read {{count}} result. Please check it.",
+ "Read {{count}} results. Please check them._other": "Read {{count}} results. Please check them."
 }

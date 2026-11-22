@@ -18,7 +18,7 @@ bun scripts/gen-catalog.ts                    # regenerate data/metrics.tsv from
 bun scripts/web-fixture.ts                    # regenerate tests/fixtures from the web code (needs the W repo)
 bun scripts/web-import-check.ts <file> <pw>   # reverse parity: the web code restores a Rust-made backup (see the script header)
 bun scripts/gen-ocr-data.ts                   # OCR tables and fixtures from the web code (reads tests/fixtures/<page>.web.json)
-bun scripts/gen-zh-hant.ts                    # gui/src/locales/zh-Hant.json from zh-Hans.json (after editing zh-Hans)
+bun scripts/gen-zh-hant.ts                    # zh-Hant from zh-Hans (zh-Hant.json, names-desktop.json) after editing either
 bun scripts/gen-names-i18n.ts                 # Chinese measure names from the web code
 (cd gui && node scripts/i18n.mjs)             # every UI text translated (also in CI)
 HEALTH_OCR_MODELS=<dir> cargo test --all      # also runs the OCR parity/pipeline tests (pinned model files in <dir>)

@@ -1,5 +1,6 @@
-// The Traditional Chinese interface text from the Simplified (gui/src/locales/zh-Hans.json): OpenCC's s2t, characters
-// only, as the web version's Traditional pack is; then FIX: the character forms that pack uses, and s2t's wrong picks.
+// The Traditional Chinese interface text and measure names from the Simplified (gui/src/locales/zh-Hans.json and
+// names-desktop.json): OpenCC's s2t, characters only, as the web version's Traditional pack is; then FIX: the
+// character forms that pack uses, and s2t's wrong picks.
 // Run: bun scripts/gen-zh-hant.ts   (opencc-js from the pre-pol repo next to this one)
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -25,3 +26,9 @@ const out: Record<string, string> = {};
 for (const [k, v] of Object.entries(hans)) out[k] = FIX.reduce((s, [re, to]) => s.replace(re, to), s2t(v));
 writeFileSync(new URL("zh-Hant.json", dir), `${JSON.stringify(out, null, 1)}\n`);
 console.log(`${Object.keys(out).length} texts`);
+
+// the desktop's own measure names (names-desktop.json): fill in zh-Hant the same way
+const extra = JSON.parse(readFileSync(new URL("names-desktop.json", dir), "utf8")) as { names: Record<string, Record<string, string>> };
+for (const n of Object.values(extra.names)) n["zh-Hant"] = FIX.reduce((s, [re, to]) => s.replace(re, to), s2t(n["zh-Hans"]!));
+writeFileSync(new URL("names-desktop.json", dir), `${JSON.stringify(extra, null, 1)}\n`);
+console.log(`${Object.keys(extra.names).length} measure names`);

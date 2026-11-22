@@ -45,6 +45,56 @@ export function asDuration(v: number, unit: string, minuteUp = false): string | 
   return duration(v * per);
 }
 
+/** Qualitative results as labs print them in English (the web's names.ts) → the UI language; anything else
+ *  ("0-1", "+", Chinese) as printed. */
+const RESULTS: Record<string, string> = {
+  positive: tk("Positive"),
+  pos: tk("Positive"),
+  reactive: tk("Positive"),
+  negative: tk("Negative"),
+  neg: tk("Negative"),
+  "non-reactive": tk("Negative"),
+  nonreactive: tk("Negative"),
+  "weakly positive": tk("Weakly positive"),
+  normal: tk("Normal"),
+  abnormal: tk("Abnormal"),
+  trace: tk("Trace"),
+  detected: tk("Detected"),
+  "not detected": tk("Not detected"),
+  absent: tk("Not seen"),
+  none: tk("Not seen"),
+  nil: tk("Not seen"),
+  present: tk("Seen"),
+  few: tk("Few"),
+  rare: tk("Occasional"),
+  occasional: tk("Occasional"),
+  moderate: tk("Moderate"),
+  many: tk("Many"),
+  numerous: tk("Many"),
+  clear: tk("Clear"),
+  hazy: tk("Slightly cloudy"),
+  "slightly turbid": tk("Slightly cloudy"),
+  cloudy: tk("Cloudy"),
+  turbid: tk("Cloudy"),
+  yellow: tk("Yellow"),
+  "pale yellow": tk("Pale yellow"),
+  "light yellow": tk("Pale yellow"),
+  straw: tk("Pale yellow"),
+  "dark yellow": tk("Dark yellow"),
+  amber: tk("Amber"),
+  colorless: tk("Colourless"),
+  colourless: tk("Colourless"),
+  orange: tk("Orange"),
+  red: tk("Red"),
+  brown: tk("Brown"),
+};
+
+export function resultText(text: string): string {
+  const k = text.trim().toLowerCase().replace(/\s+/g, " ");
+  const label = Object.hasOwn(RESULTS, k) ? RESULTS[k] : undefined;
+  return label ? t(label) : text;
+}
+
 export interface Shown {
   value: string;
   unit: string;
@@ -53,7 +103,7 @@ export interface Shown {
 export function shown(p: Pick<import("./api").Point, "agg" | "value" | "unit" | "start_ms" | "end_ms" | "comparator"> & { group?: string }): Shown {
   if (p.agg === "interval") return { value: p.end_ms ? duration(p.end_ms - p.start_ms) : "", unit: "" };
   if (p.value === null) return { value: t("no reading"), unit: "" };
-  if (typeof p.value === "string") return { value: p.value, unit: "" };
+  if (typeof p.value === "string") return { value: resultText(p.value), unit: "" };
   const per = PER_MS[p.unit];
   if (per && !p.comparator && Math.abs(p.value * per) >= 60_000) return { value: duration(p.value * per), unit: "" };
   return { value: `${p.comparator ?? ""}${num(p.value, isLabGroup(p.group))}`, unit: unitLabel(p.unit) };

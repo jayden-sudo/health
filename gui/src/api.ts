@@ -289,6 +289,12 @@ export function setShellLanguage(lang: string): void {
   if (isDesktop) invoke("set_language", { lang }).catch(() => {});
 }
 
+/** Opens a web page in the default browser (desktop: only the links the shell allows). */
+export function openLink(url: string): void {
+  if (inTauri) invoke("open_link", { url }).catch(() => {});
+  else window.open(url, "_blank", "noopener");
+}
+
 export async function ocrComponent(): Promise<{ ready: boolean } | null> {
   return inTauri ? invoke("ocr_status") : null;
 }

@@ -33,11 +33,11 @@ test("agent access: the token is shown once and the grant can be revoked", async
   await page.getByRole("button", { name: "Connect an app…" }).click();
   await page.getByRole("group", { name: "Agent apps" }).getByRole("button", { name: "Another MCP app" }).click();
   await page.getByLabel("Name shown in the access log").fill("Test agent");
-  await page.getByRole("button", { name: "Create access" }).click();
+  await page.getByRole("button", { name: "Allow access" }).click();
   await expect(page.locator(".connect pre").nth(2)).toHaveText(/^hk_[0-9a-f]{64}$/);
   await page.locator(".connect").getByRole("button", { name: "Done" }).click();
   await expect(page.locator(".connect")).toHaveCount(0);
-  const row = page.getByRole("row", { name: /Test agent/ });
+  const row = page.getByRole("listitem", { name: /Test agent/ });
   await row.getByRole("button", { name: "Revoke" }).click();
   await row.getByRole("button", { name: "Revoke Test agent" }).click();
   await expect(row).toContainText("revoked");
@@ -88,7 +88,7 @@ test("connecting an agent shows that app's own setup with the token in it", asyn
   await page.getByRole("button", { name: "Connect an app…" }).click();
   await page.getByRole("group", { name: "Agent apps" }).getByRole("button", { name: "Codex" }).click();
   await expect(page.getByLabel("Name shown in the access log")).toHaveValue("Codex");
-  await page.getByRole("button", { name: "Create access" }).click();
+  await page.getByRole("button", { name: "Allow access" }).click();
   const steps = page.locator(".connect");
   await expect(steps.getByRole("heading", { name: "Connect Codex" })).toBeVisible();
   const cmd = await steps.locator("pre").first().textContent();
@@ -96,7 +96,7 @@ test("connecting an agent shows that app's own setup with the token in it", asyn
   const toml = await steps.locator("pre").nth(1).textContent();
   expect(toml).toContain('[mcp_servers.health.env]');
   await steps.getByRole("button", { name: "Done" }).click();
-  await expect(page.getByRole("row", { name: /Codex/ })).toContainText("not used yet");
+  await expect(page.getByRole("listitem", { name: /Codex/ })).toContainText("not used yet");
 });
 
 test("keyboard shortcuts switch sections and find focuses the search", async ({ page }) => {

@@ -4,11 +4,61 @@
 // scripts/gen-names-i18n.ts); measures it doesn't name keep the catalog's English, as the web does.
 
 import { lang } from "./i18n";
+import extra from "./locales/names-desktop.json";
 import zh from "./locales/names.json";
 
-const ZH = zh.names as Record<string, { "zh-Hans": string; "zh-Hant": string }>;
+// the web's names first; ours fill the measures it doesn't name
+const ZH = { ...extra.names, ...zh.names } as Record<string, { "zh-Hans": string; "zh-Hant": string }>;
 
 const NAMES: Record<string, string> = {
+  // body composition (seca and other bioimpedance scales)
+  "x:body_skeletal_muscle_mass": "Skeletal muscle mass",
+  "x:skeletal_muscle_mass_percentage": "Skeletal muscle %",
+  "x:skeletal_muscle_index": "Skeletal muscle index",
+  "x:skeletal_muscle_mass_left_arm": "Skeletal muscle, left arm",
+  "x:skeletal_muscle_mass_right_arm": "Skeletal muscle, right arm",
+  "x:skeletal_muscle_mass_left_leg": "Skeletal muscle, left leg",
+  "x:skeletal_muscle_mass_right_leg": "Skeletal muscle, right leg",
+  "x:skeletal_muscle_mass_torso": "Skeletal muscle, torso",
+  "x:appendicular_skeletal_muscle_mass": "Appendicular skeletal muscle",
+  "x:appendicular_skeletal_muscle_index": "Appendicular skeletal muscle index",
+  "x:appendicular_skeletal_muscle_percentage": "Appendicular skeletal muscle %",
+  "x:muscle_percentage": "Muscle %",
+  "x:fat_mass": "Fat mass",
+  "x:fat_mass_index": "Fat mass index",
+  "x:fat_free_mass": "Fat-free mass",
+  "x:fat_free_mass_index": "Fat-free mass index",
+  "x:fat_free_mass_percentage": "Fat-free mass %",
+  "x:visceral_adipose_tissue": "Visceral fat",
+  "x:total_body_water": "Total body water",
+  "x:total_body_water_percentage": "Total body water %",
+  "x:extracellular_water": "Extracellular water",
+  "x:extracellular_water_percentage": "Extracellular water %",
+  "x:ecw_tbw_ratio": "Extracellular / total body water",
+  "x:phase_angle": "Phase angle",
+  "x:bia_resistance": "Resistance (bioimpedance)",
+  "x:bia_reactance": "Reactance (bioimpedance)",
+  "x:resting_energy_expenditure": "Resting energy expenditure",
+  "x:total_energy_expenditure": "Total energy expenditure",
+  "x:daily_weight": "Weight (daily)",
+  "x:seca/bcc": "Body composition chart: class",
+  "x:seca/bcc_muscle": "Body composition chart: muscle level",
+  "x:seca/bcc_muscle_value": "Body composition chart: muscle value",
+  "x:seca/bcc_weight": "Body composition chart: weight level",
+  "x:seca/bcc_weight_value": "Body composition chart: weight value",
+  "x:seca/biva_z_r_h": "BIVA resistance Z-score (R/H)",
+  "x:seca/biva_z_xc_h": "BIVA reactance Z-score (Xc/H)",
+  "x:seca/smm_over_age": "Skeletal muscle for age",
+  "x:seca/smm_over_age_bmi_independent": "Skeletal muscle for age (BMI-independent)",
+  "x:seca/ssmm_left_arm_bmi_independent": "Skeletal muscle, left arm (BMI-independent)",
+  "x:seca/ssmm_right_arm_bmi_independent": "Skeletal muscle, right arm (BMI-independent)",
+  "x:seca/ssmm_left_leg_bmi_independent": "Skeletal muscle, left leg (BMI-independent)",
+  "x:seca/ssmm_right_leg_bmi_independent": "Skeletal muscle, right leg (BMI-independent)",
+  "x:seca/ssmm_torso_bmi_independent": "Skeletal muscle, torso (BMI-independent)",
+  "x:seca/tbs": "TRU body score",
+  "x:seca/tbs_fat": "TRU body fat score",
+  "x:seca/tbs_muscle": "TRU muscle score",
+  "x:seca/zsmi": "Skeletal muscle Z-score",
   // wearables
   "x:hrv_rmssd": "HRV (RMSSD)",
   "loinc:112429-6": "HRV (SDNN)",

@@ -20,6 +20,7 @@ import {
   corePath,
   initProfile,
   installOcr,
+  openLink,
   isDesktop,
   menuOwnsKeys,
   onFileDrop,
@@ -58,6 +59,7 @@ import {
   sourceKind,
   unitLabel,
   when,
+  resultText,
 } from "./format";
 
 type Page = "readings" | "data" | "backup" | "profile" | "account" | "agents" | "review";
@@ -402,7 +404,7 @@ export function App() {
         <div className="rail-foot">
           {status && (
             <p className="fine">
-              {t("{{obs}} readings from {{count}} sources, stored only on this computer", {
+              {t("{{obs}} entries from {{count}} sources", {
                 obs: status.observations.toLocaleString(i18n.language),
                 count: status.sources,
               })}
@@ -454,6 +456,25 @@ const Chevron = ({ open }: { open: boolean }) => (
     <path d="M6 4l4 4-4 4" />
   </svg>
 );
+
+const WEB_VERSION = "https://zuchiangmai.com/health";
+const WHOOP_DASHBOARD = "https://developer-dashboard.whoop.com/";
+
+/** A link to a web page, opened in the default browser (never inside the app window). */
+function WebLink({ url, label }: { url: string; label?: string }) {
+  return (
+    <a
+      className="link"
+      href={url}
+      onClick={(e) => {
+        e.preventDefault();
+        openLink(url);
+      }}
+    >
+      {label ?? url.replace(/^https:\/\//, "").replace(/\/$/, "")}
+    </a>
+  );
+}
 
 /** A layer over the window (native <dialog>: focus stays inside, Esc closes). */
 function Sheet({ label, close, children }: { label: string; close: () => void; children: ReactNode }) {
@@ -575,7 +596,7 @@ function FilePick({ path, onPath }: { path?: string; onPath: (p: string) => void
           <span className="fine">{path}</span>
         </p>
       ) : (
-        <p>{t("Drag a file here, or anywhere in this window.")}</p>
+        <p>{t("Drag a file here.")}</p>
       )}
       <button
         type="button"
@@ -608,6 +629,34 @@ interface BackupResult {
 }
 
 /** A row of an inset grouped list: icon, name with a line under it, a live status, a chevron. */
+/** A grouped row with a switch on the right (System Settings); the whole row toggles it. */
+/** A card's title, with one button that turns every switch in it on (or, when all are on, off). */
+function CardHead({ title, on, set }: { title: string; on: boolean; set: (on: boolean) => void }) {
+  return (
+    <div className="rows-head card-head">
+      <h4>{title}</h4>
+      <button type="button" className="link" onClick={() => set(!on)}>
+        {on ? t("Select none") : t("Select all")}
+      </button>
+    </div>
+  );
+}
+
+function SwitchRow({ icon, label, sub, on, set }: { icon?: ReactNode; label: string; sub?: string; on: boolean; set: (on: boolean) => void }) {
+  return (
+    <li>
+      <label className="row-static row-toggle">
+        {icon}
+        <span className="row-l">
+          <strong>{label}</strong>
+          {sub && <span className="fine">{sub}</span>}
+        </span>
+        <input type="checkbox" role="switch" className="switch" checked={on} onChange={(e) => set(e.target.checked)} />
+      </label>
+    </li>
+  );
+}
+
 function Row({ icon, label, sub, value, onClick }: { icon: ReactNode; label: string; sub?: string; value?: ReactNode; onClick: () => void }) {
   return (
     <li>
@@ -665,7 +714,7 @@ function DataSources({ file, onFile, go, done }: { file?: string; onFile: (p?: s
   return (
     <section className="page">
       <h2>{t("Data sources")}</h2>
-      <p className="lede">{t("Where your readings come from. Every source stays on this computer; you can drop a file anywhere on the window.")}</p>
+      <p className="lede">{t("Your data on this computer. Drop a file anywhere on the window to import it.")}</p>
       <ul className="rows-card">
         <Row
           icon={<Icon k="data" />}
@@ -776,7 +825,7 @@ function OcrInstall({ done }: { done: () => void }) {
     <div className="group notice" aria-busy={busy}>
       <h3>{t("Read lab reports on this computer")}</h3>
       <p className="fine">
-        {t("Health downloads the text-recognition models once (about 21 MB, plus 135 MB that suggests which measure each result is). Every file is checked before use, and your reports never leave this computer.")}
+        {t("Health downloads the text-recognition models once (about 156 MB) to read images on this computer.")}
       </p>
       <Problem text={err} />
       <div className="actions">
@@ -806,8 +855,8 @@ function OcrInstall({ done }: { done: () => void }) {
 
 const IMPORT_LEDE: Record<string, string> = {
   apple: tk("On your iPhone, open Health, tap your picture, then Export All Health Data; choose the .zip here."),
-  report: tk("A photo (JPEG, PNG) or PDF of a lab report. Nothing counts until you check it under Waiting for you."),
-  restore: tk("A Health backup (.zuhealth) from this app or the web version. Restoring merges; nothing is overwritten."),
+  report: tk("A photo (JPEG, PNG) or a PDF."),
+  restore: tk("A Health backup (.zuhealth) from this app or the web version."),
   file: tk("A photo or PDF of a lab report, an Apple Health export, a Health backup (.zuhealth) or WHOOP data. Importing the same file again updates it; nothing is doubled."),
 };
 
@@ -836,7 +885,7 @@ function Import({ file, onFile, go, kind: hint = "file", title }: { file?: strin
         const r = await op<{ import_id: number; items: number; matched: number }>("import.ocr", { path: file, tz_min: -new Date().getTimezoneOffset() });
         setDone(
           <>
-            <p>{t("Read {{count}} results. Nothing is added to your readings until you check them.", { count: r.items })}</p>
+            <p>{t("Read {{count}} results. Please check them.", { count: r.items })}</p>
             <div className="actions">
               <button type="button" className="primary" onClick={() => go("review")}>
                 {t("Check them now")}
@@ -891,6 +940,11 @@ function Import({ file, onFile, go, kind: hint = "file", title }: { file?: strin
     <section className="record">
       <h2>{title ?? t("Import a file")}</h2>
       <p className="lede">{t(IMPORT_LEDE[hint] ?? IMPORT_LEDE.file!)}</p>
+      {hint === "restore" && (
+        <p className="fine">
+          {t("Web version")} <WebLink url={WEB_VERSION} />
+        </p>
+      )}
       <FilePick path={file} onPath={onFile} />
       {file && !kind && (
         <Problem text={t("Health can't read this kind of file. Choose a lab report photo or PDF, a .zip from Apple Health, a .zuhealth backup, or a WHOOP .json file.")} />
@@ -1023,6 +1077,20 @@ const GROUP_ICON: Record<string, ReactNode> = {
     </>
   ),
   derived: <path d="M8 2v3M8 11v3M2 8h3M11 8h3M4 4l2 2M10 10l2 2M12 4l-2 2M6 10l-2 2" />,
+  custom: <path d="M3 13l1-3.5L10.5 3a1.4 1.4 0 0 1 2 2L6 11.5zM9.5 4l2 2" />,
+  lab_other: (
+    <>
+      <path d="M4 2.5h8v11H4z" />
+      <path d="M6 6h4M6 8.5h4M6 11h2.5" />
+    </>
+  ),
+  other: (
+    <>
+      <circle cx="4" cy="8" r="1" />
+      <circle cx="8" cy="8" r="1" />
+      <circle cx="12" cy="8" r="1" />
+    </>
+  ),
 };
 const GroupIcon = ({ k }: { k: string }) => (
   <svg className={`icon tint-${k}`} viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
@@ -1586,7 +1654,6 @@ function Sources(_: { go: (p: Page) => void }) {
   return (
     <section className="record">
       <h2>{t("Manage data")}</h2>
-      <p className="lede">{t("Where your readings came from. Open a kind to see each import, or delete one: its readings go with it.")}</p>
       {msg && (
         <p className="notice" role="status">
           {msg}
@@ -1620,7 +1687,7 @@ function Sources(_: { go: (p: Page) => void }) {
                     </span>
                     {confirm === b.import_id ? (
                       <span className="actions">
-                        <button type="button" className="danger" onClick={() => run(() => op("import.erase", { id: b.import_id }), t("Deleted, with its readings."))}>
+                        <button type="button" className="danger" onClick={() => run(() => op("import.erase", { id: b.import_id }), t("Deleted."))}>
                           {t("Delete import and its readings")}
                         </button>
                         <button type="button" onClick={() => setConfirm(undefined)}>
@@ -1641,9 +1708,9 @@ function Sources(_: { go: (p: Page) => void }) {
       </div>
       <details className="group">
         <summary>
-          <h3>{t("When two sources report the same day")}</h3>
+          <h3>{t("Source priority")}</h3>
         </summary>
-        <p className="fine">{t("The one higher in this list is used for daily summaries. Nothing is added up.")}</p>
+        <p className="fine">{t("Daily summaries follow the order of this list.")}</p>
         <ol className="order">
           {(sources ?? []).map((s, i) => (
             <li key={s.id}>
@@ -1906,7 +1973,7 @@ function Review() {
                       <td title={r.metric}>{nameOf(r.metric, r.metric)}</td>
                       <td>{when(r.start_ms, r.tz_min)}</td>
                       <td className="n">
-                        {String(r.value)} <span className="unit">{unitLabel(r.unit ?? "")}</span>
+                        {typeof r.value === "string" ? resultText(r.value) : String(r.value)} <span className="unit">{unitLabel(r.unit ?? "")}</span>
                       </td>
                     </tr>
                   ))}
@@ -1935,7 +2002,7 @@ function Review() {
 const windowText = (w: Grant["window"]) =>
   w === "all" ? t("all time") : "last_days" in w ? t("last {{n}} days", { n: w.last_days }) : t("a date range");
 const writeText = (w: "none" | "propose" | "derived") =>
-  ({ none: t("read only"), propose: t("may propose readings"), derived: t("may propose and write computed results") })[w];
+  ({ none: t("read only"), propose: t("read and write"), derived: t("full read and write") })[w];
 
 const EXPIRY: [number, string][] = [
   [30, tk("30 days")],
@@ -2090,6 +2157,9 @@ function Agents() {
     }
   };
   const toggle = (k: string) => setGroups((g) => (g.includes(k) ? g.filter((x) => x !== k) : [...g, k]));
+  const everyday = GROUPS.filter((g) => g.key !== "derived" && !g.sensitive).map((g) => g.key);
+  const sensitive = GROUPS.filter((g) => g.key !== "derived" && g.sensitive).map((g) => g.key);
+  const setAll = (keys: string[], on: boolean) => setGroups((g) => (on ? [...new Set([...g, ...keys])] : g.filter((k) => !keys.includes(k))));
   const ordered = [...CLIENTS].sort((a, b) => Number(found.includes(b.id)) - Number(found.includes(a.id)));
   return (
     <section className="page">
@@ -2102,140 +2172,183 @@ function Agents() {
         </div>
       </div>
       <p className="lede">
-        {t("Let an AI app (Claude, Codex, Cursor, Copilot, Gemini and others) read your data through MCP. It sees only what you allow here, can never delete anything or read your backups, and anything it writes waits for you or lands under its own computed measures.")}
+        {t("Let AI apps (Claude, Codex and others) use your data through MCP, with access settings built in.")}
       </p>
       {made && <ConnectSteps client={made.client} token={made.token} bin={bin} found={found.includes(made.client.id)} done={() => setMade(undefined)} />}
       {connecting && (
         <Sheet label={t("Connect an app")} close={() => (setConnecting(false), setClient(undefined))}>
-        <div className="group">
-          <h3>{t("Connect an app")}</h3>
-          <div className="clients" role="group" aria-label={t("Agent apps")}>
-            {ordered.map((c) => (
-              <button key={c.id} type="button" className="client" aria-pressed={client?.id === c.id} onClick={() => pick(c)}>
-                {c.name}
-                {found.includes(c.id) && <span className="fine">{t("On this computer")}</span>}
+          {!client ? (
+            <div className="group">
+              <h3>{t("Connect an app")}</h3>
+              <p className="fine">{t("Choose the AI app that should use your health data.")}</p>
+              <div className="clients" role="group" aria-label={t("Agent apps")}>
+                {ordered.map((c) => (
+                  <button key={c.id} type="button" className="client" onClick={() => pick(c)}>
+                    {c.name}
+                    {found.includes(c.id) && <span className="fine">{t("On this computer")}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <form
+              className="grant-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                create();
+              }}
+            >
+              <button type="button" className="link back" onClick={() => setClient(undefined)}>
+                ‹ {t("All apps")}
               </button>
-            ))}
-          </div>
-        </div>
-          {client && (
+              <h3 className="grant-title">{client.id === "other" ? t("What the app may use") : t("What {{name}} may use", { name: client.name })}</h3>
+              <p className="fine">{t("It sees only what you turn on here. It can never delete anything or open your backups.")}</p>
 
-        <form
-          className="group form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            create();
-          }}
-        >
-          <h3>{client.id === "other" ? t("What the app may see") : t("What {{name}} may see", { name: client.name })}</h3>
-          <label>
-            {t("Name shown in the access log")}
-            <input placeholder={t("My agent")} value={name} onChange={(e) => setName(e.target.value)} required />
-          </label>
-          {[false, true].map((sensitive) => (
-            <fieldset key={String(sensitive)}>
-              <legend>{sensitive ? t("Sensitive: tick only what the agent needs") : t("What it may read")}</legend>
-              {GROUPS.filter((g) => g.key !== "derived" && g.sensitive === sensitive).map((g) => (
-                <label key={g.key} className="check">
-                  <input type="checkbox" checked={groups.includes(g.key)} onChange={() => toggle(g.key)} />
-                  {t(g.label)}
-                </label>
-              ))}
-            </fieldset>
-          ))}
-          <label className="check">
-            <input type="checkbox" checked={detail} onChange={(e) => setDetail(e.target.checked)} />
-            {t("Every reading (otherwise daily summaries only)")}
-          </label>
-          <label className="check">
-            <input type="checkbox" checked={reports} onChange={(e) => setReports(e.target.checked)} />
-            {t("Full text of lab reports (shows every item on the sheet, whatever is ticked above)")}
-          </label>
-          <label className="check">
-            <input type="checkbox" checked={profile} onChange={(e) => setProfile(e.target.checked)} />
-            {t("Age and sex from your profile (not your birth month)")}
-          </label>
-          <label>
-            {t("How far back")}
-            <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
-              <option value={30}>{t("30 days")}</option>
-              <option value={90}>{t("90 days")}</option>
-              <option value={365}>{t("1 year")}</option>
-              <option value={0}>{t("Everything")}</option>
-            </select>
-          </label>
-          <label>
-            {t("Writing")}
-            <select value={write} onChange={(e) => setWrite(e.target.value as Grant["write"])}>
-              <option value="none">{t("Read only")}</option>
-              <option value="propose">{t("May propose readings for me to confirm")}</option>
-              <option value="derived">{t("May also write computed results")}</option>
-            </select>
-          </label>
-          <label>
-            {t("Access ends after")}
-            <select value={expiry} onChange={(e) => setExpiry(Number(e.target.value))}>
-              {EXPIRY.map(([d, l]) => (
-                <option key={d} value={d}>
-                  {t(l)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Problem text={msg} />
-          <div className="actions">
-            <button type="submit" className="primary" disabled={!groups.length}>
-              {t("Create access")}
-            </button>
-            <button type="button" onClick={() => setClient(undefined)}>
-              {t("Cancel")}
-            </button>
-          </div>
-        </form>
+              <CardHead title={t("Health data")} on={everyday.every((k) => groups.includes(k))} set={(on) => setAll(everyday, on)} />
+              <ul className="rows-card">
+                {GROUPS.filter((g) => g.key !== "derived" && !g.sensitive).map((g) => (
+                  <SwitchRow key={g.key} icon={<GroupIcon k={g.key} />} label={t(g.label)} on={groups.includes(g.key)} set={() => toggle(g.key)} />
+                ))}
+              </ul>
+
+              <CardHead title={t("Sensitive data")} on={sensitive.every((k) => groups.includes(k))} set={(on) => setAll(sensitive, on)} />
+              <ul className="rows-card">
+                {GROUPS.filter((g) => g.key !== "derived" && g.sensitive).map((g) => (
+                  <SwitchRow key={g.key} icon={<GroupIcon k={g.key} />} label={t(g.label)} on={groups.includes(g.key)} set={() => toggle(g.key)} />
+                ))}
+              </ul>
+              <p className="rows-foot">{t("Off unless you turn them on. Turn on only what the app needs.")}</p>
+
+              <CardHead title={t("Detail")} on={detail && reports && profile} set={(on) => (setDetail(on), setReports(on), setProfile(on))} />
+              <ul className="rows-card">
+                <SwitchRow label={t("Individual entries")} sub={t("Otherwise one summary per day")} on={detail} set={setDetail} />
+                <SwitchRow label={t("Full lab report text")} sub={t("Every item on the report, including categories that are off")} on={reports} set={setReports} />
+                <SwitchRow label={t("Age and sex")} sub={t("From your profile; never your birth month")} on={profile} set={setProfile} />
+              </ul>
+
+              <h4 className="rows-head">{t("What it may do")}</h4>
+              <ul className="rows-card" role="radiogroup" aria-label={t("What it may do")}>
+                {(
+                  [
+                    ["none", t("Read only"), t("The agent can only look at your data")],
+                    ["propose", t("Read and write"), t("You confirm each entry the agent saves")],
+                    ["derived", t("Full read and write"), t("The agent can write data without asking you")],
+                  ] as const
+                ).map(([k, label, sub]) => (
+                  <li key={k}>
+                    <label className="row-static row-pick">
+                      <input type="radio" name="write" checked={write === k} onChange={() => setWrite(k)} />
+                      <span className="row-l">
+                        <strong>{label}</strong>
+                        <span className="fine">{sub}</span>
+                      </span>
+                      <span className="row-check" aria-hidden="true">
+                        {write === k ? "✓" : ""}
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+
+              <h4 className="rows-head">{t("Time")}</h4>
+              <ul className="rows-card">
+                <li className="row-static">
+                  <span className="row-l" id="grant-back">
+                    <strong>{t("Data from the last")}</strong>
+                  </span>
+                  <span className="segmented" role="group" aria-labelledby="grant-back">
+                    {(
+                      [
+                        [30, t("30 days")],
+                        [90, t("90 days")],
+                        [365, t("1 year")],
+                        [0, t("All")],
+                      ] as const
+                    ).map(([d, l]) => (
+                      <button key={d} type="button" aria-pressed={days === d} onClick={() => setDays(d)}>
+                        {l}
+                      </button>
+                    ))}
+                  </span>
+                </li>
+                <li className="row-static">
+                  <label className="row-l" htmlFor="grant-expiry">
+                    <strong>{t("Agent access ends after")}</strong>
+                  </label>
+                  <select id="grant-expiry" className="row-select" value={expiry} onChange={(e) => setExpiry(Number(e.target.value))}>
+                    {EXPIRY.map(([d, l]) => (
+                      <option key={d} value={d}>
+                        {t(l)}
+                      </option>
+                    ))}
+                  </select>
+                </li>
+              </ul>
+
+              <h4 className="rows-head">{t("Name")}</h4>
+              <ul className="rows-card">
+                <li className="row-static">
+                  <label className="row-l" htmlFor="grant-name">
+                    <strong>{t("Name shown in the access log")}</strong>
+                  </label>
+                  <input id="grant-name" className="row-input" placeholder={t("My agent")} value={name} onChange={(e) => setName(e.target.value)} required />
+                </li>
+              </ul>
+
+              <Problem text={msg} />
+              <div className="actions grant-actions">
+                <button type="button" onClick={() => setClient(undefined)}>
+                  {t("Cancel")}
+                </button>
+                <button type="submit" className="primary" disabled={!groups.length || !name.trim()}>
+                  {t("Allow access")}
+                </button>
+              </div>
+            </form>
           )}
         </Sheet>
       )}
-      <div className="group">
-        <h3>{t("Current access")}</h3>
-        <Problem text={err} />
-        {grants && !grants.length && <p className="empty">{t("No app has access yet.")}</p>}
-        <table className="rows">
-          <tbody>
-            {(grants ?? [])
-              .slice()
-              .reverse()
-              .map((g) => {
-                const live = !g.revoked_ms && g.expires_ms > Date.now();
-                return (
-                  <tr key={g.id} className={live ? "" : "stale"}>
-                    <th scope="row">
-                      {g.name}
-                      <br />
-                      <LastUsed id={g.id} />
-                    </th>
-                    <td>
-                      {g.groups.map(groupLabel).join(t(", "))}; {g.detail ? t("every reading") : t("daily summaries")}
+      <h3 className="rows-head">{t("Current access")}</h3>
+      <Problem text={err} />
+      {grants && !grants.length ? (
+        <p className="empty">{t("No app has access yet.")}</p>
+      ) : (
+        <ul className="rows-card grants">
+          {(grants ?? [])
+            .slice()
+            .reverse()
+            .map((g) => {
+              const live = !g.revoked_ms && g.expires_ms > Date.now();
+              return (
+                <li key={g.id} className={live ? "row-static" : "row-static stale"} aria-label={g.name}>
+                  <span className="row-l">
+                    <strong>{g.name}</strong>
+                    <span className="fine">
+                      {g.groups.map(groupLabel).join(t(", "))}
+                      {t(", ")}
+                      {g.detail ? t("individual entries") : t("daily summaries")}
                       {t(", ")}
                       {windowText(g.window)}
                       {t(", ")}
                       {writeText(g.write)}
-                    </td>
-                    <td>
+                    </span>
+                    {live && <LastUsed id={g.id} />}
+                  </span>
+                  <span className="grant-end">
+                    <span className="tag">
                       {live
                         ? t("until {{date}}", { date: new Date(g.expires_ms).toLocaleDateString(i18nLocale()) })
                         : g.revoked_ms
                           ? t("revoked")
                           : t("expired")}
-                    </td>
-                    <td className="n">
-                      {live && <Revoke id={g.id} name={g.name} done={reload} />}
-                    </td>
-                  </tr>
-                );
-              })}
-          </tbody>
-        </table>
-      </div>
+                    </span>
+                    {live && <Revoke id={g.id} name={g.name} done={reload} />}
+                  </span>
+                </li>
+              );
+            })}
+        </ul>
+      )}
       <AuditLog />
     </section>
   );
@@ -2257,7 +2370,6 @@ function AuditLog() {
   return (
     <div className="group">
       <h3>{t("Access log")}</h3>
-      <p className="fine">{t("Every call an agent made: what it asked for and how many rows it got back. Values are never logged.")}</p>
       <Problem text={err} />
       {log && !log.length && <p className="empty">{t("No agent has read anything yet.")}</p>}
       <table className="rows">
@@ -2285,7 +2397,7 @@ function Backup() {
   return (
     <section className="page">
       <h2>{t("Backup")}</h2>
-      <p className="lede">{t("A backup is one encrypted file with everything in Health. It also opens in the web version.")}</p>
+      <p className="lede">{t("Save or restore a backup file to move your data to another device.")}</p>
       <ul className="rows-card">
         <Row icon={<Icon k="backup" />} label={titles.save} sub={t("Encrypted with a password you choose")} onClick={() => setSheet("save")} />
         <Row icon={<Icon k="data" />} label={titles.restore} sub={t("Merges; nothing is overwritten")} onClick={() => setSheet("restore")} />
@@ -2333,7 +2445,7 @@ function CsvExport() {
   return (
     <section className="record">
       <h2>{t("Export a table (CSV)")}</h2>
-      <p className="lede">{t("One row per reading, for spreadsheets and other tools. The file isn't encrypted.")}</p>
+      <p className="lede">{t("Export unencrypted data for use in other software.")}</p>
       <form
         className="form"
         aria-busy={busy}
@@ -2979,7 +3091,11 @@ function WhoopConnect() {
         >
           <p className="fine">
             {st.state === "reauth" ? `${t("WHOOP needs you to sign in again.")} ` : ""}
-            {t("Use your own WHOOP developer app (developer.whoop.com) and add this redirect URL to it:")} <span className="mono">{redirect}</span>{" "}
+            {t("Create your own app in the WHOOP developer dashboard, then copy its Client ID and Client Secret here.")}{" "}
+            <WebLink url={WHOOP_DASHBOARD} label={t("Open the WHOOP developer dashboard")} />
+          </p>
+          <p className="fine">
+            {t("Add this redirect URL to the app:")} <span className="mono">{redirect}</span>{" "}
             <Copy text={redirect} label={t("Copy")} />
           </p>
           <label>
@@ -3034,7 +3150,6 @@ function ProfilePage() {
   return (
     <section className="page">
       <h2>{t("Profile")}</h2>
-      <p className="lede">{t("Kept on this computer only. Height and weight are your latest readings; changing them here records a new one.")}</p>
       <ul className="rows-card">
         {rows.map((x) => (
           <li key={x.k}>
@@ -3225,15 +3340,12 @@ function LinkHistoryList() {
               <span className="row-l">
                 <strong>{x.dir === "gave" ? t("Handed over from this device") : t("Received from another device")}</strong>
                 <span className="fine">{t("{{date}} · Check code {{code}}", { date: when(x.at), code: x.check })}</span>
-                {x.dir === "gave" && <span className="fine">{t("Whether the other device confirmed, this one can't know")}</span>}
+                {x.dir === "gave" && <span className="fine">{t("The other device may not have confirmed it")}</span>}
               </span>
             </li>
           ))
         )}
       </ul>
-      <p className="fine">
-        {t("This is this device's own record, kept from this version on. If the other device erases its data or hands the account on, this one won't know. A device can't yet be stopped from using your health identity.")}
-      </p>
     </>
   );
 }

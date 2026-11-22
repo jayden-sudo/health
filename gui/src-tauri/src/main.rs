@@ -414,6 +414,24 @@ fn menu(app: &AppHandle, lang: &str) -> tauri::Result<tauri::menu::Menu<tauri::W
     Menu::with_items(app, &[&health, &edit, &view, &go, &window])
 }
 
+/// Web pages the UI links to; nothing else is opened.
+const LINKS: &[&str] = &["https://zuchiangmai.com/health", "https://developer-dashboard.whoop.com/"];
+
+/// Opens one of `LINKS` in the default browser.
+#[tauri::command]
+fn open_link(url: String) -> Result<(), String> {
+    if !LINKS.contains(&url.as_str()) {
+        return Err("not an allowed link".into());
+    }
+    #[cfg(target_os = "macos")]
+    let r = std::process::Command::new("open").arg(&url).status();
+    #[cfg(target_os = "windows")]
+    let r = std::process::Command::new("rundll32").args(["url.dll,FileProtocolHandler", &url]).status();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let r = std::process::Command::new("xdg-open").arg(&url).status();
+    r.map(|_| ()).map_err(|e| e.to_string())
+}
+
 /// The UI's language changed (or the page loaded): the menu bar and the window title follow it.
 #[tauri::command]
 fn set_language(app: AppHandle, lang: String) -> Result<(), String> {
@@ -449,7 +467,8 @@ fn main() {
             connect_agent,
             ocr_status,
             ocr_install,
-            set_language
+            set_language,
+            open_link
         ])
         // Health is an app you open and close, not a background service: no tray icon, and closing the window
         // quits (Tauri's default). Agents don't need it running: `health mcp` opens the store itself.

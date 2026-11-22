@@ -4,8 +4,8 @@
 import { expect, test } from "@playwright/test";
 
 const SECTIONS: Record<string, string[]> = {
-  "zh-Hans": ["读数", "数据来源", "备份", "个人资料", "健康账户", "Agent 访问"],
-  "zh-Hant": ["讀數", "數據來源", "備份", "個人資料", "健康賬戶", "Agent 訪問"],
+  "zh-Hans": ["指标", "数据来源", "备份", "个人资料", "健康账户", "Agent 访问"],
+  "zh-Hant": ["指標", "數據來源", "備份", "個人資料", "健康賬戶", "Agent 訪問"],
 };
 
 /** Runs of three or more English words: an untranslated sentence. Product and file names are allowed. */
@@ -42,12 +42,12 @@ test.describe("the language picker", () => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Readings" })).toBeVisible();
     await page.getByLabel("Language").selectOption("zh-Hant");
-    await expect(page.getByRole("heading", { name: "讀數" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "指標" })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("lang", "zh-Hant");
     await page.reload();
-    await expect(page.getByRole("heading", { name: "讀數" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "指標" })).toBeVisible();
     await page.getByLabel("語言").selectOption("zh-Hans");
-    await expect(page.getByRole("heading", { name: "读数" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "指标" })).toBeVisible();
     // back to the system's language
     await page.getByLabel("语言").selectOption("system");
     await expect(page.getByRole("heading", { name: "Readings" })).toBeVisible();
