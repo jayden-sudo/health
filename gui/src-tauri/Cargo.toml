@@ -9,7 +9,7 @@ description = "Desktop shell: starts and watches the bundled `health serve`, rel
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon"] }
+tauri = { version = "2", features = [] }
 serde_json = { version = "1", features = ["preserve_order"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-window-state = "2"

@@ -1517,7 +1517,8 @@ function ConnectSteps({ client, token, bin, found, done }: { client: Client; tok
         ))}
       </ol>
       <p className="fine">
-        The token is shown only this once. If you move the Health app, or the access expires, connect again. Apps that run in a web browser (such as
+        The token is shown only this once. The app works with your data even when Health is closed (with a passphrase lock, keep Health open and
+        unlocked). If you move the Health app, or the access expires, connect again. Apps that run in a web browser (such as
         ChatGPT or claude.ai) can't reach Health: it only answers on this computer.
       </p>
       <button type="button" className="link" onClick={done}>

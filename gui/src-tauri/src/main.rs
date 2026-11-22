@@ -12,8 +12,6 @@ use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tauri::menu::{Menu, MenuItem};
-use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, RunEvent};
 
 #[derive(Clone)]
@@ -284,18 +282,9 @@ fn main() {
         )
         .manage(shell.clone())
         .invoke_handler(tauri::generate_handler![op, unlock, init_profile, core_path, agent_clients, connect_agent])
-        // closing the window keeps Health running so agents can still reach it, where it can be brought back: the
-        // dock on macOS, the tray on Windows. Linux desktops may have no tray host, so closing quits there.
-        .on_window_event(|w, e| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = e
-                && cfg!(any(target_os = "macos", windows))
-            {
-                api.prevent_close();
-                let _ = w.hide();
-            }
-        })
+        // Health is an app you open and close, not a background service: no tray icon, and closing the window
+        // quits (Tauri's default). Agents don't need it running: `health mcp` opens the store itself.
         .on_menu_event(|app, e| {
-            // the app menu's own items; the tray menu handles its own
             if let Some(id) = e.id().as_ref().strip_prefix("ui:") {
                 let _ = app.emit("menu", id);
             }
@@ -305,7 +294,8 @@ fn main() {
             // bar and the UI handles the same keys itself.
             #[cfg(target_os = "macos")]
             {
-                let item = |id: &str, label: &str, key: &str| MenuItem::with_id(app, format!("ui:{id}"), label, true, Some(key));
+                let item =
+                    |id: &str, label: &str, key: &str| tauri::menu::MenuItem::with_id(app, format!("ui:{id}"), label, true, Some(key));
                 let go = tauri::menu::Submenu::with_items(
                     app,
                     "Go",
@@ -325,45 +315,18 @@ fn main() {
                 if let Some(w) = app.get_webview_window("main") {
                     native_toolbar(&w);
                 }
-                let menu = Menu::default(app.handle())?;
+                let menu = tauri::menu::Menu::default(app.handle())?;
                 let at = menu.items()?.len().saturating_sub(2); // before Window and Help
                 menu.insert(&go, at)?;
                 app.set_menu(menu)?;
             }
-            let show = MenuItem::with_id(app, "show", "Open Health", true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show, &quit])?;
-            TrayIconBuilder::new()
-                .icon(app.default_window_icon().cloned().expect("bundled icon"))
-                .tooltip("Health")
-                .menu(&menu)
-                .on_menu_event(|app, e| match e.id().as_ref() {
-                    "show" => {
-                        if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.show();
-                            let _ = w.set_focus();
-                        }
-                    }
-                    "quit" => app.exit(0),
-                    _ => {}
-                })
-                .build(app)?;
             let (handle, s) = (app.handle().clone(), app.state::<Arc<Shell>>().inner().clone());
             std::thread::spawn(move || supervise(handle, s));
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("tauri app");
-    app.run(move |app, e| {
-        #[cfg(target_os = "macos")]
-        if let RunEvent::Reopen { .. } = e
-            && let Some(w) = app.get_webview_window("main")
-        {
-            let _ = w.show();
-            let _ = w.set_focus();
-        }
-        #[cfg(not(target_os = "macos"))]
-        let _ = app;
+    app.run(move |_, e| {
         if let RunEvent::Exit = e {
             shell.quitting.store(true, Ordering::SeqCst);
             if let Some(mut c) = shell.child.lock().unwrap().take() {

@@ -13,7 +13,7 @@ Tauri 2 shell plus a React + TypeScript UI. The shell starts the bundled `health
   - If serve exits, the shell restarts it with a backoff (1 s, doubling to 30 s) and the UI shows a starting state. Serve runs with `--exit-with-parent`, so it never outlives the shell.
   - The handshake checks `GET /v1/meta` for `api == 1`.
   - Passphrase mode: the UI shows an unlock screen and calls the shell's `unlock`.
-- The tray menu offers "Open Health" and "Quit". Notifications and auto-update are M7.
+- No tray or menu-bar icon: Health is opened and closed like any app, and closing the window quits it (decision 48). Agents reach the data without it. Notifications and auto-update are M7.
 - Pages:
   - New-built rather than copied from the web, because the web pages depend on the monorepo's internal UI kit (decision 31).
   - Same set: readings, history, manual entry, sources and imports, review queue, backup.
