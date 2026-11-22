@@ -131,6 +131,14 @@ test("closing the History sheet returns focus to the tile that opened it", async
   await expect(tile).toBeFocused();
 });
 
+test("a sheet opens with focus on itself, not on its close button", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".tile", { hasText: "Resting heart rate" }).click();
+  const sheet = page.getByRole("dialog", { name: "History" });
+  await expect(sheet).toBeFocused();
+  await expect(sheet.getByRole("button", { name: "Close" })).not.toBeFocused();
+});
+
 test("a lab report photo is read, checked and saved", async ({ page }) => {
   test.skip(!process.env.HEALTH_OCR_MODELS, "needs HEALTH_OCR_MODELS");
   test.setTimeout(120_000);

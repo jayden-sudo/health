@@ -461,19 +461,28 @@ function Sheet({ label, close, children }: { label: string; close: () => void; c
   const pressedOutside = useRef(false);
   // a layout effect: its cleanup runs before React removes the <dialog>, so close() can hand focus back to
   // whatever had it when the sheet opened (removing an open modal leaves focus on <body>)
+  // read during the first render, before an autoFocus field inside takes focus
+  const [back] = useState(() => document.activeElement as HTMLElement | null);
   useLayoutEffect(() => {
-    const back = document.activeElement as HTMLElement | null;
     const d = ref.current;
-    if (d && !d.open) d.showModal();
+    if (d && !d.open) {
+      // showModal() focuses the close button, which WebKit rings as if tabbed to; focus the sheet itself,
+      // unless a field inside already took focus (autoFocus runs before this effect)
+      const now = document.activeElement as HTMLElement | null;
+      const field = now && d.contains(now) ? now : null;
+      d.showModal();
+      (field ?? d).focus();
+    }
     return () => {
       d?.close();
       back?.focus?.();
     };
-  }, []);
+  }, [back]);
   return (
     <dialog
       ref={ref}
       className="sheet"
+      tabIndex={-1}
       aria-label={label}
       onCancel={(e) => {
         e.preventDefault();

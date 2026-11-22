@@ -572,6 +572,9 @@ h3 {
   overflow: visible;
   animation: sheet-in var(--t-med) var(--ease-spring);
 }
+.sheet:focus {
+  outline: none;
+}
 .sheet::backdrop {
   background: var(--scrim);
   -webkit-backdrop-filter: blur(4px);
