@@ -60,6 +60,10 @@ pub struct GrantSpec {
     pub reports: bool,
     pub write: WriteLevel,
     pub expires_ms: i64,
+    /// Age (whole years) and sex from the personal profile, never the birth month (owner, 2026-11-22: a tick of
+    /// its own, off unless chosen)
+    #[serde(default)]
+    pub profile: bool,
 }
 
 #[derive(Debug, Clone, Serialize, schemars::JsonSchema)]

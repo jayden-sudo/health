@@ -472,3 +472,66 @@ fn a_result_with_a_malformed_line_can_still_be_confirmed() {
         call(&mut ctx, "review.confirm_result", json!({ "id": b["import_id"], "choices": [{ "code": "loinc:29463-7", "unit": "kg" }] }));
     assert_eq!(r.unwrap().value["written"], 1);
 }
+
+/// The link history (owner, 2026-11-22: a local record only, list only): what each device records, and when not.
+#[test]
+fn each_device_records_the_links_it_completed_and_nothing_else() {
+    let (mock, lab) = (Mock::default(), Lab::new());
+    let c = config(&lab);
+    let devices = |d: &Device| call(&mut Ctx::new(&d.p, NOW, Caller::Owner), "link.devices", json!({})).unwrap().value;
+    let (old, new, third) = (Device::new(), Device::new(), Device::new());
+    assert_eq!(devices(&new), json!({ "state": "ok", "entries": [] }));
+    let reg = old.op(&mock, &c, "account.register", json!({})).unwrap();
+
+    // a link that never completes (no confirmation) records nothing on either side
+    let j = new.op(&mock, &c, "link.join", json!({})).unwrap();
+    let given = old.op(&mock, &c, "link.give", json!({ "code": j["code"], "confirmed": true })).unwrap();
+    // the giving side records at once, with the check code it returned
+    assert_eq!(given["entry"]["dir"], "gave");
+    assert_eq!(given["entry"]["check"], given["check"]);
+    assert_eq!(devices(&old)["entries"].as_array().unwrap().len(), 1);
+    // a busy relay (someone was first) records nothing
+    let e = third.op(&mock, &c, "link.give", json!({ "code": j["code"], "confirmed": true })).err().unwrap();
+    assert_eq!(e.code, "link_busy");
+    assert_eq!(devices(&third)["entries"], json!([]));
+    let got = new.op(&mock, &c, "link.poll", json!({})).unwrap();
+    assert_eq!(devices(&new)["entries"], json!([]), "received but not confirmed");
+
+    let adopted = new.op(&mock, &c, "link.adopt", json!({ "channel": j["channel"], "check": got["check"] })).unwrap();
+    assert_eq!(adopted["entry"]["dir"], "got");
+    let mine = devices(&new)["entries"].clone();
+    assert_eq!(mine.as_array().unwrap().len(), 1);
+    // both devices recorded the same check code for the same link
+    assert_eq!(mine[0]["check"], devices(&old)["entries"][0]["check"]);
+    assert_eq!(adopted["id"], reg["id"]);
+
+    // the new device takes yet another account: the first account's entries are no longer shown
+    let other = Device::new();
+    other.op(&mock, &c, "account.register", json!({})).unwrap();
+    let j2 = new.op(&mock, &c, "link.join", json!({})).unwrap();
+    other.op(&mock, &c, "link.give", json!({ "code": j2["code"], "confirmed": true })).unwrap();
+    let got2 = new.op(&mock, &c, "link.poll", json!({})).unwrap();
+    new.op(&mock, &c, "link.adopt", json!({ "channel": j2["channel"], "check": got2["check"] })).unwrap();
+    let now_shown = devices(&new)["entries"].clone();
+    assert_eq!(now_shown.as_array().unwrap().len(), 1);
+    assert_eq!(now_shown[0]["check"], got2["check"]);
+}
+
+#[test]
+fn an_unreadable_history_is_said_so_and_never_overwritten() {
+    let (mock, lab) = (Mock::default(), Lab::new());
+    let c = config(&lab);
+    let d = Device::new();
+    d.op(&mock, &c, "account.register", json!({})).unwrap();
+    let path = d.p.dir.join("vault");
+    std::fs::write(&path, b"not a sealed vault, but long enough to be read").unwrap();
+    let before = std::fs::read(&path).unwrap();
+    let v = call(&mut Ctx::new(&d.p, NOW, Caller::Owner), "link.devices", json!({})).unwrap().value;
+    assert_eq!(v, json!({ "state": "unreadable" }));
+    // a give can't read its account either: it fails before sending, and the file is as it was
+    let other = Device::new();
+    let j = other.op(&mock, &c, "link.join", json!({})).unwrap();
+    assert!(d.op(&mock, &c, "link.give", json!({ "code": j["code"], "confirmed": true })).is_err());
+    assert_eq!(std::fs::read(&path).unwrap(), before);
+    assert!(!mock.0.lock().unwrap().log.iter().any(|l| l.starts_with("POST /h/1/link")));
+}

@@ -34,19 +34,19 @@ On first launch Health creates your encrypted store. On macOS the keychain may a
 
 ### Get your data in
 
-Open **Add data** (⌘2 / Ctrl+2) and choose a file, or drop it anywhere on the window:
+Open **Data sources** (⌘2 / Ctrl+2): one row per way data comes in, each with its status; or drop a file anywhere on the window. **Manage data** there lists every import and deletes one with its readings.
 
 - **Apple Health:** on iPhone, Health › your picture › *Export All Health Data*, then import the `.zip`.
-- **WHOOP:** connect it under Add data › WHOOP with your own WHOOP developer app (add the redirect URL Health shows); Health then syncs every hour while it's open. A JSON file saved from the WHOOP API imports too.
+- **WHOOP:** connect it under Data sources › WHOOP with your own WHOOP developer app (add the redirect URL Health shows); Health then syncs every hour while it's open. A JSON file saved from the WHOOP API imports too.
 - **A Health backup** (`.zuhealth`) from this app or the web version: enter its password. Importing merges; nothing is overwritten.
 - **A lab report:** a photo (JPEG, PNG; on iPhone share HEIC photos as JPEG) or a PDF. The first time, Health offers to install the recognition models (about 21 MB, plus 135 MB for matching measures). The results then wait under **Waiting for you**: check each measure and unit, set the test date if it wasn't found, and save.
 - **By hand:** search for a measure, or pick one of the common ones.
 
 ### Your health account
 
-**Health account** (⌘6 / Ctrl+6):
+**Health account** (⌘5 / Ctrl+5):
 - **Show my identity code:** creates your account on first use and shows the code a lab or service desk scans.
-- **Use my account from another device:** shows a code to scan in the other device's Health app (Link a new device). Check that both show the same 8-digit code, then confirm.
+- **Link an existing device:** shows a code to scan in the other device's Health app (Link a new device). Check that both show the same 8-digit code, then confirm.
 - **Link a new device:** hands this computer's account to another computer; paste the code it shows.
 
 ![Health account](docs/screenshots/health-account.png)
@@ -55,13 +55,15 @@ Health checks for new results while it's open. Results with a measure or unit it
 
 ### Connect an AI app
 
-**Agent access** (⌘5 / Ctrl+5) › choose the app › choose what it may see › **Create access**. Health then either adds itself to the app's settings (Claude Desktop, Cursor, VS Code Copilot, Gemini CLI, Kiro), shows the command to run (Claude Code, Codex, OpenCode), or shows the settings to paste (Windsurf/Devin, Zed, Cline, Continue, LM Studio, any other MCP app). Restart the app afterwards.
+**Agent access** (⌘6 / Ctrl+6) › **Connect an app…** › choose the app › choose what it may see (age and sex from your profile only if you tick them) › **Create access**. Health then either adds itself to the app's settings (Claude Desktop, Cursor, VS Code Copilot, Gemini CLI, Kiro), shows the command to run (Claude Code, Codex, OpenCode), or shows the settings to paste (Windsurf/Devin, Zed, Cline, Continue, LM Studio, any other MCP app). Restart the app afterwards.
 
 Agents reach your data even when Health is closed. With a passphrase lock, keep Health open and unlocked. Apps that run in a web browser (ChatGPT, claude.ai) can't reach a program on your computer.
 
 ### Back up
 
-**Backup** (⌘4 / Ctrl+4) saves one encrypted file with everything, including lab report photos. There is no way to recover a forgotten backup password.
+**Backup** (⌘3 / Ctrl+3) saves one encrypted file with everything, including lab report photos, restores one, or exports a CSV table for other tools. There is no way to recover a forgotten backup password.
+
+**Profile** (⌘4 / Ctrl+4): sex and birth month, kept on this computer only; height and weight are your latest readings.
 
 ### The command line
 

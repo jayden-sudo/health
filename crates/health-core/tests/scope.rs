@@ -42,6 +42,7 @@ fn cardio_90_days() -> GrantSpec {
         reports: false,
         write: WriteLevel::None,
         expires_ms: NOW + DAY,
+        profile: false,
     }
 }
 

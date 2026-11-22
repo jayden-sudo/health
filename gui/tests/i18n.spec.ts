@@ -4,8 +4,8 @@
 import { expect, test } from "@playwright/test";
 
 const SECTIONS: Record<string, string[]> = {
-  "zh-Hans": ["读数", "添加数据", "来源", "备份", "健康账户", "Agent 访问"],
-  "zh-Hant": ["讀數", "添加數據", "來源", "備份", "健康賬戶", "Agent 訪問"],
+  "zh-Hans": ["读数", "数据来源", "备份", "个人资料", "健康账户", "Agent 访问"],
+  "zh-Hant": ["讀數", "數據來源", "備份", "個人資料", "健康賬戶", "Agent 訪問"],
 };
 
 /** Runs of three or more English words: an untranslated sentence. Product and file names are allowed. */
@@ -57,6 +57,7 @@ test.describe("the language picker", () => {
     await page.goto("/");
     await page.getByLabel("Language").selectOption("zh-Hans");
     await page.getByRole("navigation").getByRole("button", { name: "备份", exact: true }).click();
+    await page.getByRole("button", { name: /^导出备份/ }).click();
     await page.getByLabel("密码", { exact: true }).fill("short");
     await page.getByLabel("再次输入密码", { exact: true }).fill("short");
     await page.getByRole("button", { name: /保存备份/ }).click();

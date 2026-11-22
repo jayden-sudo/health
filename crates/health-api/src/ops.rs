@@ -39,8 +39,11 @@ macro_rules! op {
 
 pub static OPS: &[OpDef] = &[
     op!("account.show", "This device's health account: id, identity code once registered (no request is sent)", write: false, delegate: Never, manual_tx: false, crate::account::account_show, crate::account::Empty, crate::account::AccountShown),
+    op!("link.devices", "This device's link history for the current account (a local record only)", write: false, delegate: Never, manual_tx: false, crate::account::link_devices, crate::account::Empty, crate::account::LinkHistory),
     op!("account.qr", "An identity or link code drawn as a QR (SVG)", write: false, delegate: Never, manual_tx: false, crate::account::account_qr, crate::account::QrReq, crate::account::Qr),
     op!("whoop.status", "Whether WHOOP is connected, and when it last synced (no request is sent)", write: false, delegate: Never, manual_tx: false, crate::whoop::status, crate::account::Empty, crate::whoop::Status),
+    op!("profile.get", "Age (whole years) and sex; the owner also sees the birth month", write: false, delegate: Read, manual_tx: false, profile_get, Empty, ProfileShown),
+    op!("profile.set", "Set the birth month (YYYY-MM) and sex; null clears one", write: true, delegate: Never, manual_tx: true, profile_set, ProfileSet, ProfileShown),
     op!("status", "Profile and database summary", write: false, delegate: Never, manual_tx: false, status, Empty, Status),
     op!("metric.search", "Search the metric catalog by code or name", write: false, delegate: Read, manual_tx: false, metric_search, MetricSearch, Vec<Metric>),
     op!("metric.show", "One metric with its accepted units", write: false, delegate: Read, manual_tx: false, metric_show, MetricShow, MetricShown),
@@ -398,6 +401,87 @@ pub struct ResultConfirm {
 
 fn review_confirm_result(ctx: &mut Ctx, r: ResultConfirm) -> Result<Confirmed> {
     health_core::result::confirm(ctx.db(), r.id, &r.choices, ctx.now_ms)
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct ProfileShown {
+    /// "Male" | "Female"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sex: Option<String>,
+    /// Whole years, counted by month (from the birth month)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub age: Option<i64>,
+    /// YYYY-MM; the owner only
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub birth: Option<String>,
+}
+
+/// Whole years at `now_ms`, the birthday counted from its month (web `profile.ts` ageOf).
+fn age_of(birth: &str, now_ms: i64) -> Option<i64> {
+    use chrono::Datelike;
+    let (y, m) = (birth.get(..4)?.parse::<i32>().ok()?, birth.get(5..7)?.parse::<u32>().ok()?);
+    let d = chrono::DateTime::from_timestamp_millis(now_ms)?;
+    Some((d.year() - y - i32::from(d.month() < m)).max(0) as i64)
+}
+
+fn shown(p: &health_core::vault::Personal, ctx: &Ctx) -> ProfileShown {
+    ProfileShown {
+        sex: p.gender.clone(),
+        age: p.birth.as_deref().and_then(|b| age_of(b, ctx.now_ms)),
+        birth: if ctx.grant().is_none() { p.birth.clone() } else { None },
+    }
+}
+
+fn profile_get(ctx: &mut Ctx, _: Empty) -> Result<ProfileShown> {
+    Ok(shown(&ctx.profile.vault.load()?.profile.unwrap_or_default(), ctx))
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ProfileSet {
+    /// YYYY-MM (1900–2099, not in the future); null clears it; absent keeps it
+    #[serde(default, deserialize_with = "some")]
+    pub birth: Option<Option<String>>,
+    /// "Male" | "Female"; null clears it; absent keeps it
+    #[serde(default, deserialize_with = "some")]
+    pub sex: Option<Option<String>>,
+}
+
+fn some<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(d: D) -> std::result::Result<Option<T>, D::Error> {
+    T::deserialize(d).map(Some)
+}
+
+fn profile_set(ctx: &mut Ctx, r: ProfileSet) -> Result<ProfileShown> {
+    if let Some(Some(b)) = &r.birth {
+        let ok = b.len() == 7
+            && b.as_bytes()[4] == b'-'
+            && b[..4].parse::<i32>().is_ok_and(|y| (1900..=2099).contains(&y))
+            && b[5..].parse::<u32>().is_ok_and(|m| (1..=12).contains(&m))
+            && age_of(b, ctx.now_ms).is_some_and(|_| {
+                let now = chrono::DateTime::from_timestamp_millis(ctx.now_ms).map(|d| d.format("%Y-%m").to_string()).unwrap_or_default();
+                b.as_str() <= now.as_str()
+            });
+        if !ok {
+            return Err(Error::invalid("bad_birth", "the birth month is YYYY-MM, not in the future"));
+        }
+    }
+    if let Some(Some(s)) = &r.sex
+        && s != "Male"
+        && s != "Female"
+    {
+        return Err(Error::invalid("bad_sex", "Male or Female"));
+    }
+    let p = ctx.profile.vault.update(|st| {
+        let p = st.profile.get_or_insert_with(Default::default);
+        if let Some(b) = r.birth.clone() {
+            p.birth = b;
+        }
+        if let Some(s) = r.sex.clone() {
+            p.gender = s;
+        }
+        Ok(p.clone())
+    })?;
+    Ok(shown(&p, ctx))
 }
 
 fn review_confirm(ctx: &mut Ctx, r: ReviewConfirm) -> Result<Confirmed> {

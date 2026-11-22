@@ -24,7 +24,8 @@ function scale(pts: Pt[], w: number, h: number, pad: number, left = pad) {
   return { x, y, min, max };
 }
 
-export function Spark({ pts, label }: { pts: Pt[]; label: string }) {
+/** `latest`: the newest value as the page shows it (formatted, with its unit), for the accessible name. */
+export function Spark({ pts, label, latest }: { pts: Pt[]; label: string; latest?: string }) {
   const w = 120;
   const h = 28;
   if (pts.length < 2) return <svg className="spark" width={w} height={h} role="img" aria-label={t("{{name}}: not enough days for a trend", { name: label })} />;
@@ -32,7 +33,7 @@ export function Spark({ pts, label }: { pts: Pt[]; label: string }) {
   const d = pts.map((p, i) => `${i ? "L" : "M"}${x(p.day).toFixed(1)},${y(p.v).toFixed(1)}`).join("");
   const last = pts[pts.length - 1]!;
   return (
-    <svg className="spark" width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={t("{{name}}: {{count}} days, latest {{v}}", { name: label, count: pts.length, v: last.v })}>
+    <svg className="spark" width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={t("{{name}}: {{count}} days, latest {{v}}", { name: label, count: pts.length, v: latest ?? last.v })}>
       <path d={d} className="trace" />
       <circle cx={x(last.day)} cy={y(last.v)} r={4} className="dot" />
     </svg>

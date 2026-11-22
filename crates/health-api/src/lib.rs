@@ -111,11 +111,14 @@ fn authorize(op: &OpDef, g: &Grant) -> Result<()> {
     if op.name.starts_with("report.") && !g.spec.reports {
         return Err(denied("the grant does not include report text"));
     }
+    if op.name == "profile.get" && !g.spec.profile {
+        return Err(denied("the grant does not include age and sex"));
+    }
     Ok(())
 }
 
 /// Not database writes (no transaction to roll back) but they change something: a dry run is refused.
-const EFFECTS_OUTSIDE_TX: &[&str] = &["grant.create", "grant.revoke", "export.csv", "import.ocr"];
+const EFFECTS_OUTSIDE_TX: &[&str] = &["grant.create", "grant.revoke", "export.csv", "import.ocr", "profile.set"];
 
 /// Metric codes a request asks about: `metric`, `code`, or the metrics of its rows / inputs.
 fn metrics_of(req: &Json) -> Vec<String> {

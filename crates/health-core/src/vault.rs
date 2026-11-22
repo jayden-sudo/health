@@ -27,9 +27,44 @@ pub struct State {
     /// Per inbox key: results discarded (shown to the person, protocol 2.3)
     #[serde(default)]
     pub drops: BTreeMap<String, i64>,
+    /// The personal profile (web `profile.ts`): kept here, on this device only, as the web keeps it outside its
+    /// export. Height and weight aren't here: they are the latest readings.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile: Option<Personal>,
+    /// Link history (owner, 2026-11-22: a local record only, as the web's link-log): per account id, every link
+    /// this device completed. After an adopt replaces the account, the old account's entries stay here, not
+    /// shown and not deletable: on purpose (the record is of this device, not of the current account).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub links: BTreeMap<String, Vec<LinkEntry>>,
     /// The WHOOP connection (the person's own developer app and its tokens)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub whoop: Option<Whoop>,
+}
+
+/// One completed link (web `link-log.ts` LinkEntry).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, schemars::JsonSchema)]
+pub struct LinkEntry {
+    /// 8 random bytes, base64url
+    pub id: String,
+    /// "gave" (this device handed the account over) | "got" (this device took it)
+    pub dir: String,
+    /// When (ms)
+    pub at: i64,
+    /// The check code both devices showed ("1234 5678")
+    pub check: String,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, schemars::JsonSchema)]
+pub struct Personal {
+    /// YYYY-MM
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub birth: Option<String>,
+    /// "Male" | "Female"
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gender: Option<String>,
+    /// For seca self-service only (asked there, not in the profile page)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ethnicity: Option<String>,
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, PartialEq)]

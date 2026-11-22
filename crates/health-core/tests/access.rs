@@ -14,6 +14,7 @@ fn spec(name: &str) -> GrantSpec {
         reports: false,
         write: WriteLevel::Derived,
         expires_ms: NOW + 30 * DAY,
+        profile: false,
     }
 }
 
@@ -85,6 +86,7 @@ fn agent_rows_far_in_the_future_are_refused() {
         reports: false,
         write: health_core::access::WriteLevel::Derived,
         expires_ms: NOW + 1,
+        profile: false,
     };
     let scope = health_core::scope::Scope::of(&grant, NOW);
     let e = write_derived(&c, &scope, "g1", &d, NOW).unwrap_err();

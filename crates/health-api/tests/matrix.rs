@@ -44,6 +44,7 @@ fn grant(p: &Profile, detail: bool, write: WriteLevel, groups: &[&str]) -> Calle
         reports: false,
         write,
         expires_ms: NOW + DAY,
+        profile: false,
     };
     let (_, token) = p.access.create(&spec, NOW).unwrap();
     Caller::Delegate(p.access.resolve(&token, NOW).unwrap())
@@ -75,6 +76,8 @@ fn delegates_reach_exactly_the_listed_ops() {
     assert_eq!(
         open,
         [
+            // only with the grant's own tick (owner, 2026-11-22): see tests/profile.rs
+            "profile.get",
             "metric.search",
             "metric.show",
             "obs.query",
@@ -225,6 +228,7 @@ fn revoked_and_expired_tokens_resolve_to_nothing() {
         reports: false,
         write: WriteLevel::None,
         expires_ms: NOW + DAY,
+        profile: false,
     };
     let (g, t) = p.access.create(&spec, NOW).unwrap();
     assert_eq!(p.access.resolve(&t, NOW + 2 * DAY).unwrap_err().code, "denied");

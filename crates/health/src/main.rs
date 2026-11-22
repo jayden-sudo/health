@@ -36,7 +36,7 @@ struct Cli {
     #[arg(long, global = true)]
     passphrase_stdin: bool,
     /// Never contact the health service or download anything (also HEALTH_OFFLINE=1)
-    #[arg(long, global = true, env = "HEALTH_OFFLINE")]
+    #[arg(long, global = true, env = "HEALTH_OFFLINE", value_parser = clap::builder::FalseyValueParser::new())]
     offline: bool,
     #[command(subcommand)]
     cmd: Cmd,
@@ -129,6 +129,15 @@ enum Cmd {
     Link(LinkCmd),
     /// Fetch results sent to your account (labs, desks) and store them
     Inbox,
+    /// Your profile: birth month and sex (height and weight are your latest readings)
+    Profile {
+        /// YYYY-MM
+        #[arg(long)]
+        birth: Option<String>,
+        /// male | female
+        #[arg(long)]
+        sex: Option<String>,
+    },
     /// A self-service code for a lab device (the id beside its QR)
     #[command(name = "self")]
     SelfService { device: String },
@@ -202,6 +211,8 @@ enum LinkCmd {
     Join,
     /// Hand this computer's account to the new device showing `code` (SBHL1:…)
     Give { code: String },
+    /// The links this computer completed, newest first (a local record only)
+    List,
 }
 
 #[derive(Subcommand)]
@@ -248,6 +259,9 @@ enum GrantCmd {
         /// Expires after N days
         #[arg(long, default_value_t = 30)]
         expires_days: i64,
+        /// Allow age (whole years) and sex from your profile (never the birth month)
+        #[arg(long)]
+        age_sex: bool,
     },
     List,
     Revoke {
@@ -484,10 +498,10 @@ fn request(cmd: &Cmd, now: i64) -> Result<(String, Value)> {
         | Cmd::OcrWorker => {
             unreachable!("handled before")
         }
-        Cmd::Grant(GrantCmd::Create { name, groups, detail, reports, days, write, expires_days }) => (
+        Cmd::Grant(GrantCmd::Create { name, groups, detail, reports, days, write, expires_days, age_sex }) => (
             "grant.create".into(),
             json!({
-                "name": name, "groups": groups, "detail": detail, "reports": reports,
+                "name": name, "groups": groups, "detail": detail, "reports": reports, "profile": age_sex,
                 "window": days.map_or(json!("all"), |d| json!({ "last_days": d })),
                 "write": write,
                 "expires_ms": expires_days.checked_mul(86_400_000).and_then(|d| now.checked_add(d)).ok_or_else(|| usage("bad_expiry", "too far ahead"))?,
@@ -557,7 +571,23 @@ fn request(cmd: &Cmd, now: i64) -> Result<(String, Value)> {
         Cmd::Account { cmd: None } => ("account.show".into(), json!({})),
         Cmd::Account { cmd: Some(AccountCmd::Register) } => ("account.register".into(), json!({})),
         Cmd::Inbox => ("inbox.poll".into(), json!({})),
+        Cmd::Profile { birth: None, sex: None } => ("profile.get".into(), json!({})),
+        Cmd::Profile { birth, sex } => {
+            let mut req = json!({});
+            if let Some(b) = birth {
+                req["birth"] = json!(b);
+            }
+            if let Some(s) = sex {
+                req["sex"] = json!(match s.to_ascii_lowercase().as_str() {
+                    "male" | "m" => "Male",
+                    "female" | "f" => "Female",
+                    _ => return Err(usage("bad_sex", "male or female")),
+                });
+            }
+            ("profile.set".into(), req)
+        }
         Cmd::SelfService { device } => ("self.code".into(), json!({ "device": device })),
+        Cmd::Link(LinkCmd::List) => ("link.devices".into(), json!({})),
         Cmd::Link(_) => return Err(usage("interactive", "link runs interactively")),
         Cmd::Whoop(WhoopCmd::Status) => ("whoop.status".into(), json!({})),
         Cmd::Whoop(WhoopCmd::Sync) => ("whoop.sync".into(), json!({ "force": true })),
@@ -753,7 +783,9 @@ fn run(cli: &Cli) -> Result<Value> {
             return Ok(v);
         }
         Cmd::Init | Cmd::Schema { .. } => {}
-        Cmd::Link(_) | Cmd::Account { cmd: Some(_) } | Cmd::Inbox | Cmd::SelfService { .. } => return net_cmd(cli, &dir, &pdir, now),
+        Cmd::Link(LinkCmd::Join | LinkCmd::Give { .. }) | Cmd::Account { cmd: Some(_) } | Cmd::Inbox | Cmd::SelfService { .. } => {
+            return net_cmd(cli, &dir, &pdir, now);
+        }
         Cmd::Whoop(c) if !matches!(c, WhoopCmd::Status) => return net_cmd(cli, &dir, &pdir, now),
         _ => {
             if let Some(s) = client::probe(&pdir) {

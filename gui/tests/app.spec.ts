@@ -9,12 +9,14 @@ test("readings show the latest value with its trend", async ({ page }) => {
   await page.goto("/");
   const hero = page.locator(".tile", { hasText: "Resting heart rate" });
   await expect(hero).toContainText("/min");
-  await expect(hero.getByRole("img")).toHaveAttribute("aria-label", /latest/);
+  // the trend reads the value as the tile shows it, unit included
+  await expect(hero.getByRole("img")).toHaveAttribute("aria-label", /latest \d+ \/min$/);
 });
 
 test("a reading entered by hand shows up in its history", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Add data" }).click();
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Data sources" }).click();
+  await page.getByRole("button", { name: /^Enter by hand/ }).click();
   await page.getByPlaceholder("What did you measure?").fill("weight");
   await page.getByRole("button", { name: /^Weight/ }).first().click();
   await page.getByLabel("Value").fill("71.4");
@@ -28,6 +30,7 @@ test("a reading entered by hand shows up in its history", async ({ page }) => {
 test("agent access: the token is shown once and the grant can be revoked", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Agent access" }).click();
+  await page.getByRole("button", { name: "Connect an app…" }).click();
   await page.getByRole("group", { name: "Agent apps" }).getByRole("button", { name: "Another MCP app" }).click();
   await page.getByLabel("Name shown in the access log").fill("Test agent");
   await page.getByRole("button", { name: "Create access" }).click();
@@ -44,12 +47,14 @@ test("a backup saves, and restoring it through Import changes nothing", async ({
   const file = join(tmpdir(), `e2e-${Date.now()}.zuhealth`);
   await page.goto("/");
   await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Backup" }).click();
+  await page.getByRole("button", { name: /^Save a backup/ }).click();
   await page.getByLabel("Password", { exact: true }).fill("correct horse");
   await page.getByLabel("Repeat password", { exact: true }).fill("correct horse");
   await page.getByLabel("Save to").fill(file);
   await page.getByRole("button", { name: "Save backup" }).click();
   await expect(page.getByRole("status")).toContainText("Saved");
-  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Add data" }).click();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: /^Restore a backup/ }).click();
   await page.getByLabel("File path").fill(file);
   await expect(page.getByText("Health backup", { exact: true })).toBeVisible();
   await page.getByLabel("Backup password", { exact: true }).fill("wrong password");
@@ -62,7 +67,8 @@ test("a backup saves, and restoring it through Import changes nothing", async ({
 
 test("import explains a file it can't read", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Add data" }).click();
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Data sources" }).click();
+  await page.getByRole("button", { name: /^Lab report/ }).click();
   await page.getByLabel("File path").fill("/tmp/notes.txt");
   await expect(page.getByRole("alert")).toContainText("can't read this kind of file");
 });
@@ -79,6 +85,7 @@ test("search narrows the cards to matching measures", async ({ page }) => {
 test("connecting an agent shows that app's own setup with the token in it", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Agent access" }).click();
+  await page.getByRole("button", { name: "Connect an app…" }).click();
   await page.getByRole("group", { name: "Agent apps" }).getByRole("button", { name: "Codex" }).click();
   await expect(page.getByLabel("Name shown in the access log")).toHaveValue("Codex");
   await page.getByRole("button", { name: "Create access" }).click();
@@ -96,8 +103,10 @@ test("keyboard shortcuts switch sections and find focuses the search", async ({ 
   await page.goto("/");
   await expect(page.locator(".tiles").first()).toBeVisible();
   const mod = "Control"; // the UI takes Ctrl or ⌘ (Chromium keeps ⌘-digits for itself)
-  await page.keyboard.press(`${mod}+4`);
+  await page.keyboard.press(`${mod}+3`);
   await expect(page.getByRole("heading", { name: "Backup", level: 2 })).toBeVisible();
+  await page.keyboard.press(`${mod}+4`);
+  await expect(page.getByRole("heading", { name: "Profile", level: 2 })).toBeVisible();
   await page.keyboard.press(`${mod}+f`);
   await expect(page.getByLabel("Find a measure")).toBeFocused();
 });
@@ -127,10 +136,11 @@ test("a lab report photo is read, checked and saved", async ({ page }) => {
   test.setTimeout(120_000);
   const report = join(import.meta.dirname, "../../crates/health-ocr/tests/fixtures/cbc.png");
   await page.goto("/");
-  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Add data" }).click();
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Data sources" }).click();
+  await page.getByRole("button", { name: /^Lab report/ }).click();
   await page.getByLabel("File path").fill(report);
   await expect(page.getByText("Lab report (photo or PDF)")).toBeVisible();
-  await page.getByRole("button", { name: "Import" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Import", exact: true }).click();
   await page.getByRole("button", { name: "Check them now" }).click({ timeout: 90_000 });
   const review = page.locator(".ocr");
   await expect(review.locator("tbody tr")).toHaveCount(14);
@@ -150,10 +160,11 @@ test("a lab report PDF is read into a batch waiting for review", async ({ page }
   test.setTimeout(120_000);
   const report = join(import.meta.dirname, "../../crates/health-ocr/tests/fixtures/cbc.pdf");
   await page.goto("/");
-  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Add data" }).click();
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Data sources" }).click();
+  await page.getByRole("button", { name: /^Lab report/ }).click();
   await page.getByLabel("File path").fill(report);
   await expect(page.getByText("Lab report (photo or PDF)")).toBeVisible();
-  await page.getByRole("button", { name: "Import" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Import", exact: true }).click();
   await page.getByRole("button", { name: "Check them now" }).click({ timeout: 90_000 });
   const review = page.locator(".ocr");
   await expect(review.locator("tbody tr")).toHaveCount(14);
@@ -184,7 +195,7 @@ test("the health account: nothing is sent until asked, then linking by check cod
   // the app is open and polling the inbox, yet without an account nothing went to the service
   expect((await relayLog()).length).toBe(before);
 
-  await page.getByRole("button", { name: "Use my account from another device…" }).click();
+  await page.getByRole("button", { name: "Link an existing device…" }).click();
   const code = (await page.locator(".link-code").textContent())?.trim() ?? "";
   expect(code).toMatch(/^SBHL1:/);
   // the other computer hands it over (and answers yes to rule 2's question)
@@ -195,4 +206,51 @@ test("the health account: nothing is sent until asked, then linking by check cod
   await expect(page.getByRole("heading", { name: "Your identity code" })).toBeVisible();
   const mine = await page.request.post("/v1/op/account.show", { data: {} });
   expect(((await mine.json()) as { value: { account: { identity: string } } }).value.account.identity).toBe(theirs.identity);
+  // the link is in this device's own link history, with the check code both showed
+  const history = page.getByRole("list", { name: "Link history" });
+  await expect(history).toContainText("Received from another device");
+  await expect(history).toContainText(`Check code ${check}`);
+});
+
+test("the profile: sex and birth month kept here, height recorded as a reading", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Profile" }).click();
+  await page.getByRole("button", { name: /^Sex/ }).click();
+  await page.getByRole("dialog").getByRole("radio", { name: "Female" }).click();
+  await expect(page.getByRole("button", { name: /^Sex/ })).toContainText("Female");
+  await page.getByRole("button", { name: /^Sex/ }).click();
+  await expect(page.getByRole("dialog").getByRole("radio", { name: "Female" })).toHaveAttribute("aria-checked", "true");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: /^Birth month/ }).click();
+  await page.getByRole("combobox", { name: "Year" }).selectOption("1990");
+  await page.getByRole("combobox", { name: "Month" }).selectOption("1");
+  await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("button", { name: /^Birth month/ })).toContainText("1990");
+  await expect(page.getByRole("button", { name: /^Birth month/ })).toContainText("years old");
+  await page.getByRole("button", { name: /^Height/ }).click();
+  await page.getByLabel("Height (cm)").fill("172.5");
+  await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("button", { name: /^Height/ })).toContainText("172.5 cm");
+  // the height is a reading like any other
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Readings" }).click();
+  await expect(page.locator(".tile", { hasText: "Height" })).toContainText("1.725");
+});
+
+test("data sources: one row per source with its status; a table exports as CSV", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Data sources" }).click();
+  await expect(page.getByRole("button", { name: /^WHOOP/ })).toContainText("Not connected");
+  await page.getByRole("button", { name: /^Manage data/ }).click();
+  await expect(page.getByRole("dialog").getByRole("heading", { name: "Manage data" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: /^WHOOP/ }).click();
+  await expect(page.getByRole("dialog")).toContainText("http://localhost:47630/whoop");
+  await page.keyboard.press("Escape");
+  const file = join(tmpdir(), `e2e-${Date.now()}.csv`);
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Backup" }).click();
+  await page.getByRole("button", { name: /^Export a table/ }).click();
+  await page.getByLabel("Save to").fill(file);
+  await page.getByRole("button", { name: "Save table" }).click();
+  await expect(page.getByRole("status")).toContainText("rows");
+  expect(readFileSync(file, "utf8").split("\n").length).toBeGreaterThan(10);
 });

@@ -60,14 +60,15 @@ import {
   when,
 } from "./format";
 
-type Page = "readings" | "add" | "sources" | "review" | "agents" | "backup" | "account";
+type Page = "readings" | "data" | "backup" | "profile" | "account" | "agents" | "review";
+/** The sections, in shortcut order (⌘1…⌘6). */
 const PAGES: { key: Page; label: string }[] = [
   { key: "readings", label: tk("Readings") },
-  { key: "add", label: tk("Add data") },
-  { key: "sources", label: tk("Sources") },
+  { key: "data", label: tk("Data sources") },
   { key: "backup", label: tk("Backup") },
-  { key: "agents", label: tk("Agent access") },
+  { key: "profile", label: tk("Profile") },
   { key: "account", label: tk("Health account") },
+  { key: "agents", label: tk("Agent access") },
 ];
 const MAC = typeof navigator !== "undefined" && /Mac/.test(navigator.userAgent);
 const MOD = MAC ? "⌘" : "Ctrl+";
@@ -75,8 +76,7 @@ const MOD = MAC ? "⌘" : "Ctrl+";
 /** Sidebar icons: 16px outline, drawn in currentColor. */
 const ICON: Record<string, ReactNode> = {
   readings: <path d="M2 12h3l2-6 3 9 2-5h2" />,
-  add: <path d="M8 3v10M3 8h10" />,
-  sources: (
+  data: (
     <>
       <ellipse cx="8" cy="4" rx="5" ry="2" />
       <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2" />
@@ -89,6 +89,13 @@ const ICON: Record<string, ReactNode> = {
     </>
   ),
   backup: <path d="M3 10v3h10v-3M8 2v8M5 7l3 3 3-3" />,
+  profile: (
+    <>
+      <rect x="2.5" y="3" width="11" height="10" rx="2" />
+      <circle cx="6" cy="7" r="1.5" />
+      <path d="M3.8 11c.4-1 1.2-1.6 2.2-1.6s1.8.6 2.2 1.6M9.5 6.5h2.5M9.5 9h2" />
+    </>
+  ),
   account: (
     <>
       <circle cx="8" cy="5.5" r="2.5" />
@@ -111,8 +118,10 @@ const Icon = ({ k }: { k: string }) => (
 /** The last section opened, remembered on this computer (a convenience: may be unavailable). */
 function savedPage(): Page {
   try {
-    const p = localStorage.getItem("page") as Page | null;
-    return p && PAGES.some((x) => x.key === p) ? p : "readings";
+    const p = localStorage.getItem("page");
+    // before data sources were one page
+    if (p === "add" || p === "sources") return "data";
+    return p && PAGES.some((x) => x.key === p) ? (p as Page) : "readings";
   } catch {
     return "readings";
   }
@@ -220,6 +229,8 @@ export function App() {
   const [status, statusErr, reload] = useOp(() => op<Status>("status"), []);
   const [latest, latestErr] = useOp(() => op<Point[]>("obs.latest"), []);
   const [cats, setCats] = useState(true);
+  // the category scrolled into view on Readings (null: its top)
+  const [inView, setInView] = useState<string | null>(null);
   const [core, setCore] = useState<{ up: boolean; error?: string; need_init?: boolean }>({ up: true });
   const [dropped, setDropped] = useState<string>();
   const [hovering, setHovering] = useState(false);
@@ -232,7 +243,7 @@ export function App() {
           if (paths[0]) {
             setDropped(paths[0]);
             setMetric(undefined);
-            setPage("add");
+            setPage("data");
           }
         },
       }),
@@ -244,6 +255,7 @@ export function App() {
   const command = useCallback((id: string) => {
     if (id !== "back") setMetric(undefined); // a section change or import replaces whatever sheet is open
     if (PAGES.some((x) => x.key === id)) setPage(id as Page);
+    else if (id === "add") setPage("data");
     else if (id === "back") setMetric(undefined);
     else if (id === "find") {
       setPage("readings");
@@ -252,14 +264,19 @@ export function App() {
       chooseImportFile().then((f) => {
         if (f) {
           setDropped(f);
-          setPage("add");
+          setPage("data");
         }
       });
   }, []);
   useEffect(() => onMenu(command), [command]);
   useEffect(() => {
     if (menuOwnsKeys) return;
-    const keys: Record<string, string> = { "1": "readings", "2": "add", "3": "sources", "4": "backup", "5": "agents", "6": "account", f: "find", o: "import", "[": "back" };
+    const keys: Record<string, string> = Object.fromEntries([
+      ...PAGES.map((p, i) => [String(i + 1), p.key]),
+      ["f", "find"],
+      ["o", "import"],
+      ["[", "back"],
+    ]);
     const down = (e: KeyboardEvent) => {
       const id = (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey ? keys[e.key.toLowerCase()] : e.altKey && e.key === "ArrowLeft" ? "back" : undefined;
       if (id && !(id === "import" && !isDesktop)) {
@@ -298,11 +315,11 @@ export function App() {
     );
   const open = (code: string) => setMetric(code);
   const present = GROUPS.filter((g) => latest?.some((p) => p.group === g.key));
-  const navItem = (p: { key: Page; label: string }, hint?: string) => (
+  const navItem = (p: { key: Page; label: string }, hint?: string, quiet = false) => (
     <li key={p.key}>
       <button
         type="button"
-        className={page === p.key ? "on" : ""}
+        className={page === p.key && !quiet ? "on" : ""}
         aria-current={page === p.key ? "page" : undefined}
         onClick={() => setPage(p.key)}
         title={hint}
@@ -320,16 +337,7 @@ export function App() {
   return (
     <div className={`app${isDesktop ? " desktop" : ""}${isDesktop && MAC ? " mac" : ""}`}>
       <div className="backdrop" aria-hidden="true" />
-      {isDesktop && MAC && (
-        <>
-          <div className="titlebar" data-tauri-drag-region />
-          <button type="button" className="toolbar-btn" aria-label={t("Add data")} title={`${t("Add data")} (${MOD}2)`} onClick={() => command("add")}>
-            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-              <path d="M8 3v10M3 8h10" />
-            </svg>
-          </button>
-        </>
-      )}
+      {isDesktop && MAC && <div className="titlebar" data-tauri-drag-region />}
       {hovering && (
         <div className="drop-overlay" aria-hidden="true">
           <p>{t("Drop to import")}</p>
@@ -338,7 +346,7 @@ export function App() {
       )}
       <nav className="rail" aria-label={t("Sections")}>
         <ul>
-          {navItem(PAGES[0]!, hint("readings"))}
+          {navItem(PAGES[0]!, hint("readings"), page === "readings" && !!inView)}
           {status && status.reviews > 0 && navItem({ key: "review", label: tk("Waiting for you") })}
         </ul>
         {present.length > 0 && (
@@ -353,9 +361,15 @@ export function App() {
                   <li key={g.key}>
                     <button
                       type="button"
+                      className={page === "readings" && inView === g.key ? "on" : ""}
+                      aria-current={page === "readings" && inView === g.key ? "location" : undefined}
                       onClick={() => {
                         setPage("readings");
-                        requestAnimationFrame(() => document.getElementById(`g-${g.key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+                        // marked at once: a short page can't scroll the section to the top
+                        requestAnimationFrame(() => {
+                          document.getElementById(`g-${g.key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          setInView(g.key);
+                        });
                       }}
                     >
                       <GroupIcon k={g.key} />
@@ -370,17 +384,20 @@ export function App() {
         <div className="rail-section">
           <p className="rail-head">{t("Your data")}</p>
           <ul>
-            {navItem(PAGES[1]!, hint("add"))}
-            {navItem(PAGES[2]!, hint("sources"))}
-            {navItem(PAGES[3]!, hint("backup"))}
+            {navItem(PAGES[1]!, hint("data"))}
+            {navItem(PAGES[2]!, hint("backup"))}
+          </ul>
+        </div>
+        <div className="rail-section">
+          <p className="rail-head">{t("Me")}</p>
+          <ul>
+            {navItem(PAGES[3]!, hint("profile"))}
+            {navItem(PAGES[4]!, hint("account"))}
           </ul>
         </div>
         <div className="rail-section">
           <p className="rail-head">{t("Sharing")}</p>
-          <ul>
-            {navItem(PAGES[5]!, hint("account"))}
-            {navItem(PAGES[4]!, hint("agents"))}
-          </ul>
+          <ul>{navItem(PAGES[5]!, hint("agents"))}</ul>
         </div>
         <div className="rail-foot">
           {status && (
@@ -406,18 +423,22 @@ export function App() {
       <main className="main">
         <div className="view" key={`${page}-${i18n.language}`}>
           {page === "readings" && (
-            <Readings latest={latest} err={latestErr} open={open} go={setPage} reviews={status?.reviews ?? 0} find={find} found={() => setFind(false)} />
+            <Readings
+              latest={latest}
+              err={latestErr}
+              open={open}
+              go={setPage}
+              reviews={status?.reviews ?? 0}
+              find={find}
+              found={() => setFind(false)}
+              onSection={setInView}
+            />
           )}
-          {page === "add" && <AddData file={dropped} onFile={setDropped} go={setPage} done={open} />}
-          {page === "sources" && <Sources go={setPage} />}
+          {page === "data" && <DataSources file={dropped} onFile={setDropped} go={setPage} done={open} />}
           {page === "review" && <Review />}
-          {page === "agents" && (
-            <>
-              <Agents />
-              <AuditLog />
-            </>
-          )}
-          {page === "backup" && <Backup go={setPage} />}
+          {page === "agents" && <Agents />}
+          {page === "backup" && <Backup />}
+          {page === "profile" && <ProfilePage />}
           {page === "account" && <HealthAccount go={setPage} />}
         </div>
       </main>
@@ -577,15 +598,156 @@ interface BackupResult {
   restored_blobs: number;
 }
 
-function AddData({ file, onFile, go, done }: { file?: string; onFile: (p?: string) => void; go: (p: Page) => void; done: (code: string) => void }) {
+/** A row of an inset grouped list: icon, name with a line under it, a live status, a chevron. */
+function Row({ icon, label, sub, value, onClick }: { icon: ReactNode; label: string; sub?: string; value?: ReactNode; onClick: () => void }) {
   return (
-    <section className="page narrow">
-      <h2>{t("Add data")}</h2>
-      <p className="lede">{t("Bring in a file, or write down a reading yourself.")}</p>
-      <div className="stack">
-        <Import file={file} onFile={onFile} go={go} />
-        <Enter done={done} />
-      </div>
+    <li>
+      <button type="button" className="row-btn" onClick={onClick}>
+        {icon}
+        <span className="row-l">
+          <strong>{label}</strong>
+          {sub && <span className="fine">{sub}</span>}
+        </span>
+        {value !== undefined && <span className="row-v fine">{value}</span>}
+        <span className="row-chev" aria-hidden="true">
+          ›
+        </span>
+      </button>
+    </li>
+  );
+}
+
+type SourceSheet = "manage" | "whoop" | "apple" | "report" | "lab" | "restore" | "manual" | "file";
+/** Data sources (as the web's 更多 › 数据来源): managing what is here first, then one row per way data comes
+ *  in, each with its live status; the steps open in a sheet. A file dropped on the window opens here. */
+function DataSources({ file, onFile, go, done }: { file?: string; onFile: (p?: string) => void; go: (p: Page) => void; done: (code: string) => void }) {
+  const [sheet, setSheet] = useState<SourceSheet>();
+  const [batches] = useOp(() => op<Batch[]>("import.list"), []);
+  const [whoop] = useOp(() => op<WhoopStatus>("whoop.status"), []);
+  useEffect(() => {
+    if (file) setSheet((s) => s ?? "file");
+  }, [file]);
+  const close = () => {
+    setSheet(undefined);
+    onFile(undefined);
+  };
+  const lastOf = (connector: string) => {
+    const at = Math.max(0, ...(batches ?? []).filter((b) => b.connector === connector).map((b) => b.at ?? 0));
+    return at ? t("Last import {{when}}", { when: shortDate(at) }) : batches ? t("Not imported yet") : undefined;
+  };
+  const whoopValue =
+    whoop?.state === "connected"
+      ? whoop.last_sync
+        ? t("Synced {{when}}", { when: ago(whoop.last_sync) })
+        : t("Connected")
+      : whoop?.state === "reauth"
+        ? t("Sign in again")
+        : t("Not connected");
+  const titles: Record<SourceSheet, string> = {
+    manage: t("Manage data"),
+    whoop: "WHOOP",
+    apple: t("Apple Health"),
+    report: t("Lab report"),
+    lab: t("Lab self-service"),
+    restore: t("Restore a backup"),
+    manual: t("Enter by hand"),
+    file: t("Import a file"),
+  };
+  return (
+    <section className="page">
+      <h2>{t("Data sources")}</h2>
+      <p className="lede">{t("Where your readings come from. Every source stays on this computer; you can drop a file anywhere on the window.")}</p>
+      <ul className="rows-card">
+        <Row
+          icon={<Icon k="data" />}
+          label={t("Manage data")}
+          sub={t("See and delete imports")}
+          value={batches ? t("{{count}} imports", { count: batches.length }) : undefined}
+          onClick={() => setSheet("manage")}
+        />
+      </ul>
+      <ul className="rows-card">
+        <Row icon={<GroupIcon k="cardio" />} label="WHOOP" sub={t("Syncs every hour while Health is open")} value={whoopValue} onClick={() => setSheet("whoop")} />
+        <Row icon={<GroupIcon k="activity" />} label={t("Apple Health")} sub={t("Export from your iPhone")} value={lastOf("apple_health")} onClick={() => setSheet("apple")} />
+        <Row icon={<GroupIcon k="lab" />} label={t("Lab report")} sub={t("A photo or a PDF")} value={lastOf("ocr")} onClick={() => setSheet("report")} />
+        <Row icon={<GroupIcon k="infectious" />} label={t("Lab self-service")} sub={t("A code for a lab device")} onClick={() => setSheet("lab")} />
+        <Row icon={<Icon k="backup" />} label={t("Restore a backup")} sub={t("A .zuhealth file")} onClick={() => setSheet("restore")} />
+        <Row icon={<GroupIcon k="body" />} label={t("Enter by hand")} sub={t("Write down a reading")} value={lastOf("manual")} onClick={() => setSheet("manual")} />
+      </ul>
+      {sheet && (
+        <Sheet label={titles[sheet]} close={close}>
+          {sheet === "manage" && <Sources go={go} />}
+          {sheet === "whoop" && <WhoopConnect />}
+          {(sheet === "apple" || sheet === "report" || sheet === "restore" || sheet === "file") && (
+            <Import file={file} onFile={onFile} go={go} kind={sheet} title={titles[sheet]} />
+          )}
+          {sheet === "lab" && <SelfService go={go} />}
+          {sheet === "manual" && (
+            <Enter
+              done={(code) => {
+                close();
+                done(code);
+              }}
+            />
+          )}
+        </Sheet>
+      )}
+    </section>
+  );
+}
+
+/** A self-service code for a lab device (protocol 3.3): the device id is beside its QR. */
+function SelfService({ go }: { go: (p: Page) => void }) {
+  const [device, setDevice] = useState("");
+  const [code, setCode] = useState<{ code: string; until: number }>();
+  const [err, setErr] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  return (
+    <section className="record">
+      <h2>{t("Lab self-service")}</h2>
+      <p className="lede">{t("At a lab device that offers self-service, type the code it asks for; the result is sent to your health account.")}</p>
+      {code ? (
+        <div className="group form">
+          <p className="self-code" aria-label={t("Code {{code}}", { code: code.code })}>
+            {code.code}
+          </p>
+          <p className="fine">{t("Valid until {{when}}.", { when: when(code.until) })}</p>
+        </div>
+      ) : (
+        <form
+          className="form"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setErr(undefined);
+            setBusy(true);
+            try {
+              setCode(await op<{ code: string; until: number }>("self.code", { device: device.trim() }));
+              pollFast();
+            } catch (x) {
+              setErr(errText(x));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <label>
+            {t("Device id (beside its QR code)")}
+            <input value={device} onChange={(e) => setDevice(e.target.value)} placeholder="seca-mbca-01" spellCheck={false} required />
+          </label>
+          <Problem text={err} />
+          <div className="actions">
+            <button type="submit" className="primary" disabled={busy}>
+              {busy ? t("Contacting the service…") : t("Get a code")}
+            </button>
+          </div>
+        </form>
+      )}
+      <p className="fine">
+        {t("Staff can also scan your identity code instead.")}{" "}
+        <button type="button" className="link" onClick={() => go("account")}>
+          {t("Show my identity code")}
+        </button>
+      </p>
     </section>
   );
 }
@@ -633,7 +795,14 @@ function OcrInstall({ done }: { done: () => void }) {
   );
 }
 
-function Import({ file, onFile, go }: { file?: string; onFile: (p?: string) => void; go: (p: Page) => void }) {
+const IMPORT_LEDE: Record<string, string> = {
+  apple: tk("On your iPhone, open Health, tap your picture, then Export All Health Data; choose the .zip here."),
+  report: tk("A photo (JPEG, PNG) or PDF of a lab report. Nothing counts until you check it under Waiting for you."),
+  restore: tk("A Health backup (.zuhealth) from this app or the web version. Restoring merges; nothing is overwritten."),
+  file: tk("A photo or PDF of a lab report, an Apple Health export, a Health backup (.zuhealth) or WHOOP data. Importing the same file again updates it; nothing is doubled."),
+};
+
+function Import({ file, onFile, go, kind: hint = "file", title }: { file?: string; onFile: (p?: string) => void; go: (p: Page) => void; kind?: string; title?: string }) {
   const [password, setPassword] = useState("");
   const [source, setSource] = useState("");
   const [busy, setBusy] = useState(false);
@@ -710,11 +879,9 @@ function Import({ file, onFile, go }: { file?: string; onFile: (p?: string) => v
     }
   };
   return (
-    <section className="page narrow">
-      <h2>{t("Import a file")}</h2>
-      <p className="lede">
-        {t("A photo or PDF of a lab report, an Apple Health export, a Health backup (.zuhealth) or WHOOP data. Importing the same file again updates it; nothing is doubled.")}
-      </p>
+    <section className="record">
+      <h2>{title ?? t("Import a file")}</h2>
+      <p className="lede">{t(IMPORT_LEDE[hint] ?? IMPORT_LEDE.file!)}</p>
       <FilePick path={file} onPath={onFile} />
       {file && !kind && (
         <Problem text={t("Health can't read this kind of file. Choose a lab report photo or PDF, a .zip from Apple Health, a .zuhealth backup, or a WHOOP .json file.")} />
@@ -763,7 +930,6 @@ function Import({ file, onFile, go }: { file?: string; onFile: (p?: string) => v
           </div>
         </div>
       )}
-      <WhoopConnect />
     </section>
   );
 }
@@ -782,9 +948,9 @@ function useMonth(p: Point): Day[] | undefined {
   return useOp(() => op<Day[]>("daily.query", { metric: p.metric, from }), [p.metric, from])[0];
 }
 
-function Trend({ p, days }: { p: Point; days?: Day[] }) {
+function Trend({ p, days, latest }: { p: Point; days?: Day[]; latest: string }) {
   const pts = days ? toPts(p.agg, days) : [];
-  return pts.length >= 2 ? <Spark pts={pts} label={nameOf(p.metric, p.name)} /> : null;
+  return pts.length >= 2 ? <Spark pts={pts} label={nameOf(p.metric, p.name)} latest={latest} /> : null;
 }
 
 /** What to show for a reading. Summed measures (steps, energy) show their latest day's total, not the last slice. */
@@ -878,7 +1044,9 @@ function TileBody({
   lab,
 }: { p: Point; open: (code: string) => void; s: { value: string; unit: string; note?: string }; days?: Day[]; lab: boolean }) {
   const old = isStale(p);
-  const note = s.note ?? (lab || old ? ago(p.start_ms) : undefined);
+  // no trend to draw (lab values, old or sparse ones): the date of the value fills the space instead
+  const trend = !old && !!days && toPts(p.agg, days).length >= 2;
+  const note = s.note ?? (lab || old || !trend ? ago(p.start_ms) : undefined);
   return (
     <button type="button" className={`tile${old ? " stale" : ""}`} onClick={() => open(p.metric)}>
       <span className="tile-name">{nameOf(p.metric, p.name)}</span>
@@ -889,7 +1057,7 @@ function TileBody({
       </span>
       <span className="tile-foot">
         {note && <span className="fine">{note}</span>}
-        {!old && days && <Trend p={p} days={days} />}
+        {!old && days && <Trend p={p} days={days} latest={s.unit ? `${s.value} ${s.unit}` : s.value} />}
       </span>
     </button>
   );
@@ -966,44 +1134,6 @@ function Section({ g, rows, sources, open, all }: { g: (typeof GROUPS)[number]; 
   );
 }
 
-/** Status pills, as Home's: the one headline number of each everyday category. */
-function Summary({ latest, open }: { latest: Point[]; open: (code: string) => void }) {
-  const picks = ["body", "cardio", "sleep", "activity"]
-    .map((g) => (KEY[g] ?? []).map((k) => latest.find((p) => p.metric === k && typeof p.value === "number" && !isStale(p))).find(Boolean))
-    .filter((p): p is Point => !!p);
-  if (!picks.length) return null;
-  return (
-    <div className="pills" role="group" aria-label={t("At a glance")}>
-      {picks.map((p) => (
-        <Pill key={p.metric} p={p} open={open} />
-      ))}
-    </div>
-  );
-}
-
-function Pill({ p, open }: { p: Point; open: (code: string) => void }) {
-  return p.agg === "cumulative" ? <SummedPill p={p} open={open} /> : <PillBody p={p} open={open} s={shown(p)} />;
-}
-
-function SummedPill({ p, open }: { p: Point; open: (code: string) => void }) {
-  return <PillBody p={p} open={open} s={display(p, useMonth(p))} />;
-}
-
-function PillBody({ p, open, s }: { p: Point; open: (code: string) => void; s: { value: string; unit: string } }) {
-  return (
-    <button type="button" className="pill" onClick={() => open(p.metric)}>
-      <GroupIcon k={p.group} />
-      <span>
-        <span className="pill-name">{nameOf(p.metric, p.name)}</span>
-        <span className="pill-value">
-          {s.value}
-          {s.unit && ` ${s.unit}`}
-        </span>
-      </span>
-    </button>
-  );
-}
-
 function Readings({
   latest,
   err,
@@ -1012,6 +1142,7 @@ function Readings({
   reviews,
   find,
   found,
+  onSection,
 }: {
   latest?: Point[];
   err?: string;
@@ -1020,6 +1151,8 @@ function Readings({
   reviews: number;
   find: boolean;
   found: () => void;
+  /** The category now in view (null: the top), for the sidebar */
+  onSection: (key: string | null) => void;
 }) {
   const search = useRef<HTMLInputElement>(null);
   const [sources] = useOp(() => op<Source[]>("source.list"), []);
@@ -1030,6 +1163,27 @@ function Readings({
       found();
     }
   }, [find, latest, found]);
+  // which category is under the page's top edge: the sidebar marks it
+  useEffect(() => {
+    if (!latest?.length) return;
+    const seen = new Map<string, boolean>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const x of entries) seen.set(x.target.id.slice(2), x.isIntersecting);
+        const first = GROUPS.find((g) => seen.get(g.key));
+        onSection(window.scrollY < 40 ? null : (first?.key ?? null));
+      },
+      { rootMargin: "-80px 0px -60% 0px" },
+    );
+    for (const el of document.querySelectorAll("section.section[id^='g-']")) io.observe(el);
+    const top = () => window.scrollY < 40 && onSection(null);
+    window.addEventListener("scroll", top, { passive: true });
+    return () => {
+      io.disconnect();
+      window.removeEventListener("scroll", top);
+      onSection(null);
+    };
+  }, [latest, onSection]);
   if (err) return <Problem text={err} />;
   if (!latest) return <p className="empty" aria-busy="true">{t("Loading your readings…")}</p>;
   if (!latest.length)
@@ -1040,8 +1194,8 @@ function Readings({
           {t("Nothing here yet. Restore a Health backup (.zuhealth), import an Apple Health or WHOOP export, or add a reading by hand. You can also drop a file anywhere on this window.")}
         </p>
         <div className="actions">
-          <button type="button" className="primary" onClick={() => go("add")}>
-            {t("Add data")}
+          <button type="button" className="primary" onClick={() => go("data")}>
+            {t("Data sources")}
           </button>
         </div>
       </section>
@@ -1073,7 +1227,6 @@ function Readings({
           />
         </div>
       </div>
-      {!needle && <Summary latest={latest} open={open} />}
       {reviews > 0 && (
         <p className="notice">
           {t("{{count}} imports are waiting for you to check.", { count: reviews })}{" "}
@@ -1134,9 +1287,17 @@ function Record({ code, pick }: { code?: string; pick: (c: string) => void }) {
   const [range, setRange] = useState<number | null>(null);
   const [info] = useOp(() => (code ? op<MetricInfo>("metric.show", { code }) : Promise.resolve(undefined)), [code]);
   const [allDays] = useOp(() => (code ? op<Day[]>("daily.query", { metric: code }) : Promise.resolve([] as Day[])), [code]);
-  const [points] = useOp(() => (code ? op<Point[]>("obs.query", { metric: code, limit: 30, newest_first: true }) : Promise.resolve([])), [code]);
+  // the newest 10 entries show; "Show all" asks for the rest
+  const [allEntries, setAllEntries] = useState(false);
+  const [points] = useOp(
+    () => (code ? op<Point[]>("obs.query", { metric: code, limit: allEntries ? 100_000 : 30, newest_first: true }) : Promise.resolve([])),
+    [code, allEntries],
+  );
   const [sources] = useOp(() => op<Source[]>("source.list"), []);
-  useEffect(() => setRange(null), [code]);
+  useEffect(() => {
+    setRange(null);
+    setAllEntries(false);
+  }, [code]);
   const auto = useMemo(() => {
     const days = allDays ?? [];
     for (const r of [30, 90, 365]) if (days.filter((d) => dayMs(d.day) >= Date.now() - r * DAY).length >= 7) return r;
@@ -1224,7 +1385,7 @@ function Record({ code, pick }: { code?: string; pick: (c: string) => void }) {
       <h3>{t("Latest entries")}</h3>
       <table className="rows">
         <tbody>
-          {recent.map((p) => {
+          {(allEntries ? recent : recent.slice(0, 10)).map((p) => {
             const s = shown(p);
             return (
               <tr key={`${p.start_ms}-${p.source_id}`}>
@@ -1240,7 +1401,11 @@ function Record({ code, pick }: { code?: string; pick: (c: string) => void }) {
           })}
         </tbody>
       </table>
-      <MetricPicker placeholder={t("Look at another measure")} onPick={(m) => pick(m.code)} />
+      {!allEntries && recent.length > 10 && (
+        <button type="button" className="link" onClick={() => setAllEntries(true)}>
+          {t("Show all entries")}
+        </button>
+      )}
     </section>
   );
 }
@@ -1309,7 +1474,7 @@ function Enter({ done }: { done: (code: string) => void }) {
     }
   };
   return (
-    <section className="page narrow">
+    <section className="record">
       <h2>{t("Enter by hand")}</h2>
       {!m ? (
         <>
@@ -1373,7 +1538,7 @@ function Enter({ done }: { done: (code: string) => void }) {
 }
 
 
-function Sources({ go }: { go: (p: Page) => void }) {
+function Sources(_: { go: (p: Page) => void }) {
   const [sources, , reloadSources] = useOp(() => op<Source[]>("source.list"), []);
   const [batches, err, reload] = useOp(() => op<Batch[]>("import.list"), []);
   const [confirm, setConfirm] = useState<number>();
@@ -1410,14 +1575,9 @@ function Sources({ go }: { go: (p: Page) => void }) {
   for (const b of batches ?? []) kinds.set(b.connector, [...(kinds.get(b.connector) ?? []), b]);
   const ordered = [...kinds.entries()].sort((a, b) => Math.max(...b[1].map((x) => x.at ?? 0)) - Math.max(...a[1].map((x) => x.at ?? 0)));
   return (
-    <section className="page narrow">
-      <h2>{t("Sources")}</h2>
-      <p className="lede">
-        {t("Where your readings came from. Open a kind to see each import, or delete one: its readings go with it.")}{" "}
-        <button type="button" className="link" onClick={() => go("add")}>
-          {t("Add data")}
-        </button>
-      </p>
+    <section className="record">
+      <h2>{t("Manage data")}</h2>
+      <p className="lede">{t("Where your readings came from. Open a kind to see each import, or delete one: its readings go with it.")}</p>
       {msg && (
         <p className="notice" role="status">
           {msg}
@@ -1884,6 +2044,8 @@ function Agents() {
   const [expiry, setExpiry] = useState(90);
   const [write, setWrite] = useState<Grant["write"]>("none");
   const [reports, setReports] = useState(false);
+  const [profile, setProfile] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [made, setMade] = useState<{ client: Client; token: string }>();
   const [msg, setMsg] = useState<string>();
   const [bin, setBin] = useState("health");
@@ -1905,12 +2067,14 @@ function Agents() {
         groups: write === "derived" ? [...new Set([...groups, "derived"])] : groups,
         detail,
         reports,
+        profile,
         window: days ? { last_days: days } : "all",
         write,
         expires_ms: Date.now() + expiry * DAY,
       });
       setMade({ client, token: r.token });
       setClient(undefined);
+      setConnecting(false);
       reload();
     } catch (e) {
       setMsg(errText(e));
@@ -1920,12 +2084,20 @@ function Agents() {
   const ordered = [...CLIENTS].sort((a, b) => Number(found.includes(b.id)) - Number(found.includes(a.id)));
   return (
     <section className="page">
-      <h2>{t("Agent access")}</h2>
+      <div className="page-head">
+        <h2>{t("Agent access")}</h2>
+        <div className="actions">
+          <button type="button" className="primary" onClick={() => (setMade(undefined), setConnecting(true))}>
+            {t("Connect an app…")}
+          </button>
+        </div>
+      </div>
       <p className="lede">
         {t("Let an AI app (Claude, Codex, Cursor, Copilot, Gemini and others) read your data through MCP. It sees only what you allow here, can never delete anything or read your backups, and anything it writes waits for you or lands under its own computed measures.")}
       </p>
       {made && <ConnectSteps client={made.client} token={made.token} bin={bin} found={found.includes(made.client.id)} done={() => setMade(undefined)} />}
-      {!made && (
+      {connecting && (
+        <Sheet label={t("Connect an app")} close={() => (setConnecting(false), setClient(undefined))}>
         <div className="group">
           <h3>{t("Connect an app")}</h3>
           <div className="clients" role="group" aria-label={t("Agent apps")}>
@@ -1937,8 +2109,8 @@ function Agents() {
             ))}
           </div>
         </div>
-      )}
-      {client && !made && (
+          {client && (
+
         <form
           className="group form"
           onSubmit={(e) => {
@@ -1969,6 +2141,10 @@ function Agents() {
           <label className="check">
             <input type="checkbox" checked={reports} onChange={(e) => setReports(e.target.checked)} />
             {t("Full text of lab reports (shows every item on the sheet, whatever is ticked above)")}
+          </label>
+          <label className="check">
+            <input type="checkbox" checked={profile} onChange={(e) => setProfile(e.target.checked)} />
+            {t("Age and sex from your profile (not your birth month)")}
           </label>
           <label>
             {t("How far back")}
@@ -2007,6 +2183,8 @@ function Agents() {
             </button>
           </div>
         </form>
+          )}
+        </Sheet>
       )}
       <div className="group">
         <h3>{t("Current access")}</h3>
@@ -2049,6 +2227,7 @@ function Agents() {
           </tbody>
         </table>
       </div>
+      <AuditLog />
     </section>
   );
 }
@@ -2067,9 +2246,9 @@ function AuditLog() {
   const [grants] = useOp(() => op<Grant[]>("grant.list"), []);
   const nameOf = (id: number) => grants?.find((g) => g.id === id)?.name ?? `#${id}`;
   return (
-    <section className="page">
-      <h2>{t("Access log")}</h2>
-      <p className="lede">{t("Every call an agent made: what it asked for and how many rows it got back. Values are never logged.")}</p>
+    <div className="group">
+      <h3>{t("Access log")}</h3>
+      <p className="fine">{t("Every call an agent made: what it asked for and how many rows it got back. Values are never logged.")}</p>
       <Problem text={err} />
       {log && !log.length && <p className="empty">{t("No agent has read anything yet.")}</p>}
       <table className="rows">
@@ -2085,11 +2264,115 @@ function AuditLog() {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/** Backup and export (as the web's 备份与导出): save a backup, restore one, or write a table for other tools. */
+function Backup() {
+  const [sheet, setSheet] = useState<"save" | "restore" | "csv">();
+  const [file, setFile] = useState<string>();
+  const titles = { save: t("Save a backup"), restore: t("Restore a backup"), csv: t("Export a table (CSV)") };
+  return (
+    <section className="page">
+      <h2>{t("Backup")}</h2>
+      <p className="lede">{t("A backup is one encrypted file with everything in Health. It also opens in the web version.")}</p>
+      <ul className="rows-card">
+        <Row icon={<Icon k="backup" />} label={titles.save} sub={t("Encrypted with a password you choose")} onClick={() => setSheet("save")} />
+        <Row icon={<Icon k="data" />} label={titles.restore} sub={t("Merges; nothing is overwritten")} onClick={() => setSheet("restore")} />
+        <Row icon={<GroupIcon k="other" />} label={titles.csv} sub={t("Unencrypted, for spreadsheets and other tools")} onClick={() => setSheet("csv")} />
+      </ul>
+      {sheet && (
+        <Sheet label={titles[sheet]} close={() => (setSheet(undefined), setFile(undefined))}>
+          {sheet === "save" && <BackupSave />}
+          {sheet === "restore" && <Import file={file} onFile={setFile} go={() => setSheet(undefined)} kind="restore" title={titles.restore} />}
+          {sheet === "csv" && <CsvExport />}
+        </Sheet>
+      )}
     </section>
   );
 }
 
-function Backup({ go }: { go: (p: Page) => void }) {
+/** A table of readings for other tools (web 导出表格): chosen groups only; unencrypted, so it says so. */
+function CsvExport() {
+  const [groups, setGroups] = useState<string[]>(GROUPS.filter((g) => !g.sensitive).map((g) => g.key));
+  const [dateOnly, setDateOnly] = useState(false);
+  const [out, setOut] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string>();
+  const [done, setDone] = useState<string>();
+  const save = async () => {
+    setErr(undefined);
+    setDone(undefined);
+    let path = out;
+    if (isDesktop) {
+      const p = await chooseSavePath(`health-${day(Date.now())}.csv`, "CSV", "csv");
+      if (!p) return;
+      path = p;
+    }
+    if (!path) return setErr(t("Choose where to save the table."));
+    setBusy(true);
+    try {
+      const r = await op<{ path: string; rows: number }>("export.csv", { path, groups, date_only: dateOnly });
+      setDone(t("Saved {{file}}: {{count}} rows. It isn't encrypted: keep it somewhere safe.", { file: fileName(r.path), count: r.rows }));
+    } catch (e) {
+      setErr(errText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="record">
+      <h2>{t("Export a table (CSV)")}</h2>
+      <p className="lede">{t("One row per reading, for spreadsheets and other tools. The file isn't encrypted.")}</p>
+      <form
+        className="form"
+        aria-busy={busy}
+        onSubmit={(e) => {
+          e.preventDefault();
+          save();
+        }}
+      >
+        {[false, true].map((sensitive) => (
+          <fieldset key={String(sensitive)}>
+            <legend>{sensitive ? t("Sensitive: tick only what you need") : t("What to include")}</legend>
+            {GROUPS.filter((g) => g.sensitive === sensitive).map((g) => (
+              <label key={g.key} className="check">
+                <input
+                  type="checkbox"
+                  checked={groups.includes(g.key)}
+                  onChange={() => setGroups((x) => (x.includes(g.key) ? x.filter((k) => k !== g.key) : [...x, g.key]))}
+                />
+                {t(g.label)}
+              </label>
+            ))}
+          </fieldset>
+        ))}
+        <label className="check">
+          <input type="checkbox" checked={dateOnly} onChange={(e) => setDateOnly(e.target.checked)} />
+          {t("Dates only (no times or time zones)")}
+        </label>
+        {!isDesktop && (
+          <label>
+            {t("Save to")}
+            <input value={out} onChange={(e) => setOut(e.target.value)} placeholder="/Users/you/Documents/health.csv" />
+          </label>
+        )}
+        <Problem text={err} />
+        <button type="submit" className="primary" disabled={busy || !groups.length}>
+          {busy ? t("Saving…") : isDesktop ? t("Save table…") : t("Save table")}
+        </button>
+      </form>
+      {done && (
+        <p className="notice" role="status">
+          {done}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function BackupSave() {
   const [out, setOut] = useState("");
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
@@ -2130,14 +2413,8 @@ function Backup({ go }: { go: (p: Page) => void }) {
     }
   };
   return (
-    <section className="page narrow">
-      <h2>{t("Backup")}</h2>
-      <p className="lede">
-        {t("A backup is one encrypted file with everything in Health. It also opens in the web version.")}{" "}
-        <button type="button" className="link" onClick={() => go("add")}>
-          {t("Restore a backup")}
-        </button>
-      </p>
+    <section className="record">
+      <h2>{t("Save a backup")}</h2>
       <form
         className="group form"
         aria-busy={busy}
@@ -2291,7 +2568,7 @@ function HealthAccount({ go }: { go: (p: Page) => void }) {
               {busy ? t("Contacting the service…") : acc ? t("Show my identity code") : t("Create my account")}
             </button>
             <button type="button" disabled={busy} onClick={() => setLinking(true)}>
-              {t("Use my account from another device…")}
+              {t("Link an existing device…")}
             </button>
           </div>
         </div>
@@ -2318,14 +2595,11 @@ function HealthAccount({ go }: { go: (p: Page) => void }) {
       {acc && (
         <div className="group form">
           <h3>{t("Devices")}</h3>
-          <div className="actions">
-            <button type="button" onClick={() => setLinking(true)}>
-              {t("Use my account from another device…")}
-            </button>
-            <button type="button" onClick={() => setGiving(true)}>
-              {t("Link a new device…")}
-            </button>
-          </div>
+          <ul className="rows-card">
+            <Row icon={<Icon k="account" />} label={t("Link an existing device")} sub={t("Use the account from your other device on this computer")} onClick={() => setLinking(true)} />
+            <Row icon={<Icon k="account" />} label={t("Link a new device")} sub={t("Hand this computer's account to a new device")} onClick={() => setGiving(true)} />
+          </ul>
+          <LinkHistoryList />
         </div>
       )}
     </section>
@@ -2383,7 +2657,7 @@ function LinkThis({ done }: { done: () => void }) {
   };
   return (
     <section className="page narrow">
-      <h2>{t("Use my account from another device")}</h2>
+      <h2>{t("Link an existing device")}</h2>
       {st.state === "waiting" && code && (
         <div className="group identity">
           <Qr text={code} label={t("Link code")} />
@@ -2688,6 +2962,7 @@ function WhoopConnect() {
         <p className="fine">{t("Waiting for the WHOOP sign-in in your browser…")}</p>
       ) : (
         <form
+          className="form"
           onSubmit={(e) => {
             e.preventDefault();
             connect();
@@ -2695,7 +2970,8 @@ function WhoopConnect() {
         >
           <p className="fine">
             {st.state === "reauth" ? `${t("WHOOP needs you to sign in again.")} ` : ""}
-            {t("Use your own WHOOP developer app (developer.whoop.com) and add this redirect URL to it:")} <span className="mono">{redirect}</span>
+            {t("Use your own WHOOP developer app (developer.whoop.com) and add this redirect URL to it:")} <span className="mono">{redirect}</span>{" "}
+            <Copy text={redirect} label={t("Copy")} />
           </p>
           <label>
             {t("Client ID")}
@@ -2712,5 +2988,243 @@ function WhoopConnect() {
       {note && <p className="fine" role="status">{note}</p>}
       <Problem text={err} />
     </div>
+  );
+}
+
+// ---- Profile (web personal.tsx): sex and birth month kept on this computer; height and weight are the latest
+// readings, and changing one here records a new reading -------------------------------------------------------
+
+const HEIGHT = "loinc:8302-2";
+const WEIGHT = "loinc:29463-7";
+type Personal = { sex?: "Male" | "Female"; age?: number; birth?: string };
+type ProfileField = "sex" | "birth" | "height" | "weight";
+
+const sexLabel = (s?: string) => (s === "Male" ? t("Male") : s === "Female" ? t("Female") : undefined);
+const birthLabel = (b: string) =>
+  new Intl.DateTimeFormat(i18nLocale(), { year: "numeric", month: "long", timeZone: "UTC" }).format(Date.UTC(Number(b.slice(0, 4)), Number(b.slice(5, 7)) - 1, 1));
+
+function ProfilePage() {
+  const [me, , reloadMe] = useOp(() => op<Personal>("profile.get"), []);
+  const [latest, , reloadLatest] = useOp(() => op<Point[]>("obs.latest"), []);
+  const [edit, setEdit] = useState<ProfileField>();
+  const latestOf = (code: string) => {
+    const v = latest?.find((p) => p.metric === code)?.value;
+    return typeof v === "number" ? v : undefined;
+  };
+  const h = latestOf(HEIGHT);
+  const w = latestOf(WEIGHT);
+  const unset = <span className="fine">{t("Not set")}</span>;
+  // as the web shows them: one decimal at most
+  const one = (v: number) => (Math.round(v * 10) / 10).toLocaleString(i18nLocale(), { maximumFractionDigits: 1 });
+  const rows: { k: ProfileField; label: string; value: ReactNode }[] = [
+    { k: "sex", label: t("Sex"), value: sexLabel(me?.sex) ?? unset },
+    { k: "birth", label: t("Birth month"), value: me?.birth ? `${birthLabel(me.birth)} · ${t("{{count}} years old", { count: me.age ?? 0 })}` : unset },
+    { k: "height", label: t("Height"), value: h !== undefined ? `${one(h * 100)} cm` : unset },
+    { k: "weight", label: t("Weight"), value: w !== undefined ? `${one(w)} kg` : unset },
+  ];
+  return (
+    <section className="page">
+      <h2>{t("Profile")}</h2>
+      <p className="lede">{t("Kept on this computer only. Height and weight are your latest readings; changing them here records a new one.")}</p>
+      <ul className="rows-card">
+        {rows.map((x) => (
+          <li key={x.k}>
+            <button type="button" className="row-btn" onClick={() => setEdit(x.k)}>
+              <span className="row-l">
+                <strong>{x.label}</strong>
+              </span>
+              <span className="row-v">{x.value}</span>
+              <span className="row-chev" aria-hidden="true">
+                ›
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {edit && (
+        <Sheet label={rows.find((x) => x.k === edit)!.label} close={() => setEdit(undefined)}>
+          <ProfileEdit
+            field={edit}
+            me={me ?? {}}
+            done={() => {
+              setEdit(undefined);
+              reloadMe();
+              reloadLatest();
+            }}
+          />
+        </Sheet>
+      )}
+    </section>
+  );
+}
+
+function ProfileEdit({ field, me, done }: { field: ProfileField; me: Personal; done: () => void }) {
+  const [year, setYear] = useState(me.birth?.slice(0, 4) ?? "");
+  const [month, setMonth] = useState(me.birth ? String(Number(me.birth.slice(5, 7))) : "");
+  const [value, setValue] = useState("");
+  const [err, setErr] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const now = new Date();
+  const run = async (f: () => Promise<unknown>) => {
+    setErr(undefined);
+    setBusy(true);
+    try {
+      await f();
+      done();
+    } catch (e) {
+      setErr(errText(e));
+      setBusy(false);
+    }
+  };
+  const measure = (metric: string, unit: string, min: number, max: number) => {
+    const v = parseNumber(value);
+    if (!Number.isFinite(v) || v < min || v > max) return setErr(t("Type a number between {{min}} and {{max}}.", { min, max }));
+    const d = new Date();
+    run(() => op("manual.enter", { entries: [{ metric, value: v, unit, at: { ms: d.getTime(), tz_min: -d.getTimezoneOffset() } }] }));
+  };
+  const title = { sex: t("Sex"), birth: t("Birth month"), height: t("Height"), weight: t("Weight") }[field];
+  return (
+    <section className="record">
+      <h2>{title}</h2>
+      {field === "sex" && (
+        <>
+          <ul className="rows-card" role="radiogroup" aria-label={t("Sex")}>
+            {(["Female", "Male"] as const).map((s) => (
+              <li key={s}>
+                <button
+                  type="button"
+                  className="row-btn"
+                  role="radio"
+                  aria-checked={me.sex === s}
+                  disabled={busy}
+                  onClick={() => run(() => op("profile.set", { sex: s }))}
+                >
+                  <span className="row-l">
+                    <strong>{sexLabel(s)}</strong>
+                  </span>
+                  <span className="row-check" aria-hidden="true">
+                    {me.sex === s ? "✓" : ""}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {me.sex && (
+            <button type="button" className="link" disabled={busy} onClick={() => run(() => op("profile.set", { sex: null }))}>
+              {t("Clear")}
+            </button>
+          )}
+        </>
+      )}
+      {field === "birth" && (
+        <form
+          className="form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!year || !month) return setErr(t("Choose a year and a month."));
+            run(() => op("profile.set", { birth: `${year}-${month.padStart(2, "0")}` }));
+          }}
+        >
+          <label>
+            {t("Year")}
+            <select value={year} onChange={(e) => setYear(e.target.value)} required>
+              <option value="">{t("Choose…")}</option>
+              {Array.from({ length: now.getFullYear() - 1900 + 1 }, (_, i) => now.getFullYear() - i).map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {t("Month")}
+            <select value={month} onChange={(e) => setMonth(e.target.value)} required>
+              <option value="">{t("Choose…")}</option>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <option key={m} value={m}>
+                  {new Intl.DateTimeFormat(i18nLocale(), { month: "long", timeZone: "UTC" }).format(Date.UTC(2000, m - 1, 1))}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Problem text={err} />
+          <div className="actions">
+            <button type="submit" className="primary" disabled={busy}>
+              {t("Save")}
+            </button>
+            {me.birth && (
+              <button type="button" className="link" disabled={busy} onClick={() => run(() => op("profile.set", { birth: null }))}>
+                {t("Clear")}
+              </button>
+            )}
+          </div>
+        </form>
+      )}
+      {(field === "height" || field === "weight") && (
+        <form
+          className="form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (field === "height") measure(HEIGHT, "cm", 30, 272);
+            else measure(WEIGHT, "kg", 1, 650);
+          }}
+        >
+          <label>
+            {field === "height" ? t("Height (cm)") : t("Weight (kg)")}
+            <input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} autoFocus required />
+          </label>
+          <p className="fine">{t("Saved as a new reading now, entered by you.")}</p>
+          <Problem text={err} />
+          <div className="actions">
+            <button type="submit" className="primary" disabled={busy}>
+              {t("Save")}
+            </button>
+          </div>
+        </form>
+      )}
+      {field === "sex" && <Problem text={err} />}
+    </section>
+  );
+}
+
+type LinkEntry = { id: string; dir: "gave" | "got"; at: number; check: string };
+
+/** Link history (owner, 2026-11-22: a local record of the links this device completed; list only, as the web's
+ *  连接记录). Newest first, after this device itself. */
+function LinkHistoryList() {
+  const [h] = useOp(() => op<{ state: "ok"; entries: LinkEntry[] } | { state: "unreadable" }>("link.devices"), []);
+  if (!h) return null;
+  return (
+    <>
+      <h3 className="rows-head">{t("Link history")}</h3>
+      <ul className="rows-card" aria-label={t("Link history")}>
+        <li className="row-static">
+          <Icon k="account" />
+          <span className="row-l">
+            <strong>{t("This device")}</strong>
+          </span>
+          <span className="tag">{t("This one")}</span>
+        </li>
+        {h.state === "unreadable" ? (
+          <li className="row-static fine">{t("Can't read the link history")}</li>
+        ) : h.entries.length === 0 ? (
+          <li className="row-static fine">{t("No links recorded on this device")}</li>
+        ) : (
+          h.entries.map((x) => (
+            <li key={x.id} className="row-static">
+              <Icon k="account" />
+              <span className="row-l">
+                <strong>{x.dir === "gave" ? t("Handed over from this device") : t("Received from another device")}</strong>
+                <span className="fine">{t("{{date}} · Check code {{code}}", { date: when(x.at), code: x.check })}</span>
+                {x.dir === "gave" && <span className="fine">{t("Whether the other device confirmed, this one can't know")}</span>}
+              </span>
+            </li>
+          ))
+        )}
+      </ul>
+      <p className="fine">
+        {t("This is this device's own record, kept from this version on. If the other device erases its data or hands the account on, this one won't know. A device can't yet be stopped from using your health identity.")}
+      </p>
+    </>
   );
 }

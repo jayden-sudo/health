@@ -331,14 +331,16 @@ body {
     transform: translateY(4px);
   }
 }
+/* one rule: every page is a centred column; Readings is the wide one */
 .page {
-  max-width: 58rem;
+  max-width: 46rem;
+  margin-inline: auto;
 }
 .page.wide {
-  max-width: 82rem;
+  max-width: 64rem;
 }
 .page.narrow {
-  max-width: 40rem;
+  max-width: 46rem;
 }
 h2 {
   font-size: 26px;
@@ -1182,4 +1184,102 @@ label.inline {
 .link-code {
   user-select: all;
   word-break: break-all;
+}
+
+/* Inset grouped rows (Home): icon, name and a line under it, a live status, a chevron; each opens a sheet */
+.rows-card {
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  border-radius: var(--r-group);
+  box-shadow: var(--shadow);
+  background: var(--card, var(--glass));
+  border: 0.5px solid var(--edge);
+  overflow: hidden;
+}
+.rows-card > li + li {
+  border-top: 0.5px solid var(--rule);
+}
+.row-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0.75rem 1.1rem;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: default;
+}
+.row-btn:hover {
+  background: var(--rule);
+}
+.row-btn .icon {
+  flex: none;
+}
+.row-l {
+  display: grid;
+  gap: 1px;
+  margin-right: auto;
+  min-width: 0;
+}
+.row-l strong {
+  font-weight: 600;
+}
+.row-v {
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 50%;
+}
+.row-chev {
+  color: var(--graphite);
+}
+.rows-head {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--graphite);
+}
+.page-head .actions {
+  margin: 0;
+}
+.self-code {
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* inside a sheet, content sits on the sheet itself: no second card */
+.sheet .group {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.row-check {
+  color: var(--accent-fill);
+  font-weight: 600;
+  min-width: 1em;
+  text-align: right;
+}
+.row-static {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0.75rem 1.1rem;
+}
+.tag {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--rule);
+  color: var(--graphite);
 }

@@ -5,7 +5,7 @@
 
 use crate::{Ctx, bad_request};
 use health_core::error::{Error, Kind, Result};
-use health_core::vault::State;
+use health_core::vault::{LinkEntry, State};
 use health_proto::account::{Account, payload};
 use health_proto::b64::{b64u, unb64u};
 use health_proto::result::{self, LabKey, Verdict};
@@ -238,6 +238,24 @@ pub struct AccountInfo {
     pub drops: i64,
 }
 
+#[derive(Serialize, JsonSchema)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum LinkHistory {
+    /// This account's links, newest first (none without an account)
+    Ok { entries: Vec<LinkEntry> },
+    /// The vault couldn't be read: nothing is shown, and nothing written over it
+    Unreadable,
+}
+
+/// `link.devices`: this device's link history for the current account; no request is sent.
+pub(crate) fn link_devices(ctx: &mut Ctx, _: Empty) -> Result<LinkHistory> {
+    let Ok(s) = ctx.profile.vault.load() else { return Ok(LinkHistory::Unreadable) };
+    let Ok(amk) = amk_of(&s) else { return Ok(LinkHistory::Unreadable) };
+    let mut entries = amk.and_then(|k| s.links.get(&Account::of(&k).id).cloned()).unwrap_or_default();
+    entries.sort_by_key(|e| std::cmp::Reverse(e.at));
+    Ok(LinkHistory::Ok { entries })
+}
+
 /// `account.show`: reads the vault only; makes no account and sends nothing.
 pub(crate) fn account_show(ctx: &mut Ctx, _: Empty) -> Result<AccountShown> {
     let s = ctx.profile.vault.load()?;
@@ -400,6 +418,8 @@ pub struct Adopt {
 #[derive(Serialize, JsonSchema)]
 pub struct Adopted {
     pub id: String,
+    /// The link recorded in this device's link history
+    pub entry: LinkEntry,
 }
 
 fn link_adopt(net: &Net, req: Adopt) -> Result<Adopted> {
@@ -429,7 +449,10 @@ fn link_adopt(net: &Net, req: Adopt) -> Result<Adopted> {
     }
     let text = Zeroizing::new(b64u(&*amk));
     let new_pk = b64u(&Account::of(&amk).inbox_pub);
+    // recorded with the key, in one write: the history and the account can't disagree
+    let got = entry("got", net.now_ms, &req.check);
     update(net, &mut |s| {
+        s.links.entry(account.clone()).or_default().push(got.clone());
         s.amk = Some(text.to_string());
         // the same account again keeps its registration; another one is registered when its code is shown
         if s.registered_pk.as_deref() != Some(new_pk.as_str()) {
@@ -440,7 +463,7 @@ fn link_adopt(net: &Net, req: Adopt) -> Result<Adopted> {
     if g.link.as_ref().is_some_and(|l| l.channel == req.channel) {
         g.clear();
     }
-    Ok(Adopted { id: account })
+    Ok(Adopted { id: account, entry: got })
 }
 
 fn link_cancel(net: &Net, _: Empty) -> Result<Json> {
@@ -462,6 +485,13 @@ pub struct Give {
 pub struct Given {
     /// Show it; the new device must show the same
     pub check: String,
+    /// The link recorded in this device's link history; null when recording it failed (the link itself
+    /// went through)
+    pub entry: Option<LinkEntry>,
+}
+
+fn entry(dir: &str, at: i64, check: &str) -> LinkEntry {
+    LinkEntry { id: b64u(&random::<8>()), dir: dir.into(), at, check: check.into() }
 }
 
 fn link_give(net: &Net, req: Give) -> Result<Given> {
@@ -469,13 +499,23 @@ fn link_give(net: &Net, req: Give) -> Result<Given> {
         return Err(Error::new(Kind::Usage, "confirm", "ask the person first: this hands their health account to that device"));
     }
     let (channel, pk) = codes::read_link(&req.code).ok_or_else(|| Error::invalid("not_link_code", "that isn't a link code (SBHL1)"))?;
-    let a = account_or_make(net)?;
+    account_or_make(net)?;
     let amk = amk_of(&state(net)?)?.ok_or_else(|| Error::other("vault", "no account"))?;
+    // the account id and the check code come from the very key sealed, never from a cached account
+    let a = Account::of(&amk);
     let plain = Zeroizing::new(json!({ "v": 1, "amk": b64u(&*amk) }).to_string());
     let sealed = hpke::seal(&pk, plain.as_bytes(), LINK_INFO, channel.as_bytes(), &random::<32>())
         .ok_or_else(|| Error::invalid("not_link_code", "that link code's key is unusable"))?;
     match net.backend.post(&format!("/h/1/link/{channel}"), &json!({ "ct": b64u(&sealed) }).to_string()) {
-        Ok(_) => Ok(Given { check: codes::link_check(&channel, &pk, &a.id) }),
+        Ok(_) => {
+            let check = codes::link_check(&channel, &pk, &a.id);
+            let e = entry("gave", net.now_ms, &check);
+            // a record that can't be written (or a history that can't be read) doesn't undo the link
+            let id = a.id.clone();
+            let e2 = e.clone();
+            let kept = update(net, &mut |s| s.links.entry(id.clone()).or_default().push(e2.clone())).is_ok();
+            Ok(Given { check, entry: kept.then_some(e) })
+        }
         Err(c) if c == "busy" => Err(Error::conflict("link_busy", "the link failed: start again on the new device")),
         Err(c) => Err(backend_error(c)),
     }

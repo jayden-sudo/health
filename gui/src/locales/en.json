@@ -44,5 +44,9 @@
  "Daily values, {{count}} days_one": "Daily values, {{count}} day",
  "Daily values, {{count}} days_other": "Daily values, {{count}} days",
  "{{count}} days ago_one": "{{count}} day ago",
- "{{count}} days ago_other": "{{count}} days ago"
+ "{{count}} days ago_other": "{{count}} days ago",
+ "Saved {{file}}: {{count}} rows. It isn't encrypted: keep it somewhere safe._one": "Saved {{file}}: {{count}} row. It isn't encrypted: keep it somewhere safe.",
+ "Saved {{file}}: {{count}} rows. It isn't encrypted: keep it somewhere safe._other": "Saved {{file}}: {{count}} rows. It isn't encrypted: keep it somewhere safe.",
+ "{{count}} years old_one": "{{count}} year old",
+ "{{count}} years old_other": "{{count}} years old"
 }
