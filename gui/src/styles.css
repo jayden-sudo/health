@@ -609,6 +609,26 @@ h3 {
   stroke: var(--graphite);
   stroke-width: 1.8;
   stroke-linecap: round;
+  transition: stroke 0.12s;
+}
+/* red on hover, like the macOS window close button */
+.close {
+  transition: background-color 0.12s;
+}
+.close:hover {
+  background: #ff5f57;
+}
+.close:hover:active {
+  background: #e0443e;
+}
+.close:hover svg {
+  stroke: #fff;
+}
+@media (prefers-reduced-motion: reduce) {
+  .close,
+  .close svg {
+    transition: none;
+  }
 }
 @keyframes sheet-in {
   from {
