@@ -1,0 +1,34 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { components: "rustfmt, clippy" }
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: scripts/check-no-net.sh
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with: { command: check licenses }
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel, windows-2025, ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --all
+      - name: scale (1M rows)
+        if: matrix.os == 'ubuntu-24.04'
+        run: cargo test --release -p health-core --test scale -- --ignored --nocapture

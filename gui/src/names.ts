@@ -1,0 +1,147 @@
+// Names people read. The catalog carries LOINC long names ("Epithelial cells.squamous [#/area] in Urine sediment by
+// Microscopy high power field"); these are the short forms, following the web version's names.ts. Unlisted codes
+// fall back to a shortened catalog name.
+
+const NAMES: Record<string, string> = {
+  // wearables
+  "x:hrv_rmssd": "HRV (RMSSD)",
+  "loinc:112429-6": "HRV (SDNN)",
+  "loinc:40443-4": "Resting heart rate",
+  "loinc:8867-4": "Heart rate",
+  "loinc:59408-5": "Blood oxygen",
+  "x:skin_temperature": "Skin temperature",
+  "x:wrist_temperature": "Wrist temperature (sleep)",
+  "x:recovery_score": "Recovery",
+  "x:strain": "Day strain",
+  "x:daily_calories_total": "Energy burned (day)",
+  "x:daily_heart_rate_avg": "Average heart rate (day)",
+  "x:daily_heart_rate_max": "Highest heart rate (day)",
+  "x:daily_sleep_respiratory_rate": "Breathing rate (sleep)",
+  "loinc:9279-1": "Breathing rate",
+  "x:walking_heart_rate": "Walking heart rate",
+  "x:recovery_time": "Heart rate recovery (1 min)",
+  "x:vo2_max": "VO₂ max",
+  "x:max_heart_rate_profile": "Max heart rate (profile)",
+  "loinc:61006-3": "Perfusion index",
+  // sleep
+  "loinc:103213-5": "Time in bed",
+  "x:daily_awake_time": "Awake",
+  "x:daily_light_sleep": "Light sleep",
+  "x:daily_deep_sleep": "Deep sleep",
+  "x:daily_rem_sleep": "REM sleep",
+  "x:daily_sleep_cycle_times": "Sleep cycles",
+  "loinc:103211-9": "Wake-ups",
+  "x:sleep_efficiency": "Sleep efficiency",
+  "x:sleep_performance": "Sleep performance",
+  "x:sleep_consistency": "Sleep consistency",
+  "x:sleep_nap": "Naps",
+  "x:sleep_asleep_rem": "REM sleep (segments)",
+  "x:sleep_asleep_deep": "Deep sleep (segments)",
+  "x:sleep_asleep_core": "Core sleep (segments)",
+  "x:sleep_awake": "Awake (segments)",
+  "x:sleep_unspecified": "Asleep (unstaged)",
+  // activity
+  "loinc:55423-8": "Steps",
+  "loinc:112427-0": "Walking and running distance",
+  "loinc:100304-5": "Floors climbed",
+  "loinc:41981-2": "Active energy",
+  "x:calories_basal": "Resting energy",
+  "x:active_time": "Exercise time",
+  "x:workout_strain": "Workout strain",
+  "x:heart_rate_max": "Workout max heart rate",
+  "loinc:55412-1": "Workout distance",
+  "x:walking_speed": "Walking speed",
+  "x:walking_asymmetry_percentage": "Walking asymmetry",
+  "loinc:112434-6": "Double support time",
+  "loinc:112431-2": "Stair speed up",
+  "loinc:112430-4": "Stair speed down",
+  "loinc:64098-7": "Six-minute walk",
+  // body
+  "loinc:29463-7": "Weight",
+  "loinc:8302-2": "Height",
+  "loinc:39156-5": "BMI",
+  "loinc:41982-0": "Body fat",
+  "loinc:91557-9": "Lean body mass",
+  "x:waist_circumference": "Waist",
+  "loinc:8480-6": "Blood pressure, systolic",
+  "loinc:8462-4": "Blood pressure, diastolic",
+  "loinc:8310-5": "Body temperature",
+  "loinc:2339-0": "Blood glucose",
+  // blood count
+  "loinc:26464-8": "White blood cells",
+  "loinc:789-8": "Red blood cells",
+  "loinc:718-7": "Hemoglobin",
+  "loinc:4544-3": "Hematocrit",
+  "loinc:20570-8": "Hematocrit",
+  "loinc:787-2": "MCV",
+  "loinc:785-6": "MCH",
+  "loinc:786-4": "MCHC",
+  "loinc:26515-7": "Platelets",
+  "loinc:770-8": "Neutrophils %",
+  "loinc:736-9": "Lymphocytes %",
+  "loinc:5905-5": "Monocytes %",
+  "loinc:713-8": "Eosinophils %",
+  "loinc:706-2": "Basophils %",
+  "loinc:6742-1": "Red cell shape",
+  // metabolic, lipids, liver, kidney
+  "loinc:2345-7": "Glucose",
+  "loinc:1558-6": "Fasting glucose",
+  "loinc:4548-4": "HbA1c",
+  "loinc:2093-3": "Total cholesterol",
+  "loinc:2085-9": "HDL cholesterol",
+  "loinc:18262-6": "LDL cholesterol",
+  "loinc:13457-7": "LDL cholesterol (calculated)",
+  "loinc:9830-1": "Cholesterol / HDL ratio",
+  "loinc:2571-8": "Triglycerides",
+  "loinc:1742-6": "ALT",
+  "loinc:1920-8": "AST",
+  "loinc:6768-6": "Alkaline phosphatase",
+  "loinc:1751-7": "Albumin",
+  "loinc:2160-0": "Creatinine",
+  "loinc:3094-0": "Urea nitrogen (BUN)",
+  "loinc:3084-1": "Uric acid",
+  "loinc:62238-1": "eGFR",
+  "loinc:98979-8": "eGFR (2021)",
+  "loinc:2132-9": "Vitamin B12",
+  "loinc:62292-8": "Vitamin D (25-OH)",
+  // markers
+  "loinc:19171-8": "AFP",
+  "loinc:16935-9": "Hepatitis B surface antibody",
+  "loinc:22322-2": "Hepatitis B surface antibody (positive/negative)",
+  // urine
+  "loinc:5778-6": "Urine color",
+  "loinc:5767-9": "Urine appearance",
+  "loinc:5811-5": "Urine specific gravity",
+  "loinc:5803-2": "Urine pH",
+  "loinc:20454-5": "Urine protein",
+  "loinc:25428-4": "Urine glucose",
+  "loinc:5794-3": "Urine blood",
+  "loinc:5799-2": "Urine leukocyte esterase",
+  "loinc:5821-4": "Urine white cells (microscopy)",
+  "loinc:13945-1": "Urine red cells (microscopy)",
+  "loinc:11277-1": "Urine squamous cells",
+  "loinc:24124-0": "Urine casts",
+  "loinc:49755-2": "Urine crystals",
+  "loinc:25145-4": "Urine bacteria",
+  "loinc:32356-8": "Urine yeast",
+  "loinc:8247-9": "Urine mucus",
+};
+
+/** Short name: the table above, else the catalog name cut before LOINC's qualifiers ("[Mass/volume] in Serum by …"). */
+export function nameOf(code: string, catalogName: string): string {
+  const known = NAMES[code];
+  if (known) return known;
+  let n = catalogName.replace(/^seca /, "");
+  const cut = n.search(/ \[| by | in (Serum|Plasma|Blood|Urine)/);
+  if (cut > 8) n = n.slice(0, cut);
+  return n.charAt(0).toUpperCase() + n.slice(1);
+}
+
+/** The measures most people look for first, per group; the rest of a group opens on request. */
+export const KEY: Record<string, string[]> = {
+  body: ["loinc:29463-7", "loinc:39156-5", "loinc:41982-0", "loinc:8480-6", "loinc:8462-4", "x:waist_circumference"],
+  cardio: ["loinc:40443-4", "x:hrv_rmssd", "loinc:112429-6", "loinc:59408-5", "x:recovery_score", "x:vo2_max"],
+  sleep: ["loinc:103213-5", "x:daily_deep_sleep", "x:daily_rem_sleep", "x:daily_light_sleep", "x:sleep_performance", "x:sleep_efficiency"],
+  activity: ["loinc:55423-8", "loinc:41981-2", "x:active_time", "loinc:112427-0", "x:strain"],
+  lab: ["loinc:1558-6", "loinc:2345-7", "loinc:4548-4", "loinc:2093-3", "loinc:2085-9", "loinc:18262-6", "loinc:2571-8", "loinc:2160-0", "loinc:3084-1"],
+};

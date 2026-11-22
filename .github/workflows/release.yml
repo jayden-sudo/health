@@ -1,0 +1,41 @@
+name: release
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - { os: macos-15, target: aarch64-apple-darwin }
+          - { os: macos-15-intel, target: x86_64-apple-darwin }
+          - { os: windows-2025, target: x86_64-pc-windows-msvc, ext: .exe }
+          - { os: ubuntu-24.04, target: x86_64-unknown-linux-gnu }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release -p health --locked
+      - name: package
+        shell: bash
+        run: |
+          name=health-${GITHUB_REF_NAME}-${{ matrix.target }}${{ matrix.ext }}
+          cp target/release/health${{ matrix.ext }} "$name"
+          if command -v sha256sum >/dev/null; then sha256sum "$name" > "$name.sha256"; else shasum -a 256 "$name" > "$name.sha256"; fi
+      - uses: actions/upload-artifact@v4
+        with: { name: "${{ matrix.target }}", path: "health-*" }
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { merge-multiple: true }
+      - run: cat *.sha256 > SHA256SUMS
+      - env: { GH_TOKEN: "${{ github.token }}" }
+        run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes health-* SHA256SUMS

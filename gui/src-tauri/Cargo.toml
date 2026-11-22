@@ -1,0 +1,22 @@
+[package]
+name = "health-gui"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+description = "Desktop shell: starts and watches the bundled `health serve`, relays the UI's calls to it"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-window-state = "2"
+
+# macOS: an empty unified toolbar gives the window the system's toolbar-window shape (larger corners, taller
+# title area), as Apple's own apps have. Already in the tree through tauri.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSThread"] }
+objc2-app-kit = { version = "0.3", features = ["NSToolbar", "NSWindow", "NSResponder"] }

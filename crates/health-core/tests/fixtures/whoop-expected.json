@@ -1,0 +1,262 @@
+{
+ "now": 1795147200000,
+ "rows": [
+  {
+   "metric": "x:daily_light_sleep",
+   "start_ms": 1795039200000,
+   "tz_min": 480,
+   "value": 12000000,
+   "unit": "ms",
+   "detail": {
+    "whoop": "s1"
+   }
+  },
+  {
+   "metric": "x:daily_deep_sleep",
+   "start_ms": 1795039200000,
+   "tz_min": 480,
+   "value": 5400000,
+   "unit": "ms",
+   "detail": {
+    "whoop": "s1"
+   }
+  },
+  {
+   "metric": "x:daily_rem_sleep",
+   "start_ms": 1795039200000,
+   "tz_min": 480,
+   "value": 4800000,
+   "unit": "ms",
+   "detail": {
+    "whoop": "s1"
+   }
+  },
+  {
+   "metric": "x:daily_awake_time",
+   "start_ms": 1795039200000,
+   "tz_min": 480,
+   "value": 1800000,
+   "unit": "ms",
+   "detail": {
+    "whoop": "s1"
+   }
+  },
+  {
+   "metric": "x:daily_sleep_cycle_times",
+   "start_ms": 1795039200000,
+   "tz_min": 480,
+   "value": 4,
+   "detail": {
+    "whoop": "s1"
+   }
+  },
+  {
+   "metric": "loinc:103211-9",
+   "start_ms": 1795039200000,
+   "tz_min": 480,
+   "value": 7,
+   "detail": {
+    "whoop": "s1"
+   }
+  },
+  {
+   "metric": "x:daily_sleep_respiratory_rate",
+   "start_ms": 1795039200000,
+   "tz_min": 480,
+   "value": 15.2,
+   "detail": {
+    "whoop": "s1"
+   }
+  },
+  {
+   "metric": "x:sleep_efficiency",
+   "start_ms": 1795039200000,
+   "tz_min": 480,
+   "value": 91.5,
+   "detail": {
+    "whoop": "s1"
+   }
+  },
+  {
+   "metric": "x:sleep_performance",
+   "start_ms": 1795039200000,
+   "tz_min": 480,
+   "value": 88,
+   "detail": {
+    "whoop": "s1"
+   }
+  },
+  {
+   "metric": "x:sleep_consistency",
+   "start_ms": 1795039200000,
+   "tz_min": 480,
+   "value": 77,
+   "detail": {
+    "whoop": "s1"
+   }
+  },
+  {
+   "metric": "loinc:103213-5",
+   "start_ms": 1795014000000,
+   "end_ms": 1795039200000,
+   "tz_min": 480,
+   "value": null,
+   "detail": {
+    "whoop": "s1"
+   }
+  },
+  {
+   "metric": "x:sleep_nap",
+   "start_ms": 1794981600000,
+   "end_ms": 1794985200000,
+   "tz_min": 480,
+   "value": 3600000,
+   "unit": "ms",
+   "detail": {
+    "whoop": "s2"
+   }
+  },
+  {
+   "metric": "x:recovery_score",
+   "start_ms": 1795039200000,
+   "tz_min": 480,
+   "value": 64,
+   "detail": {
+    "whoop": "10"
+   }
+  },
+  {
+   "metric": "loinc:40443-4",
+   "start_ms": 1795039200000,
+   "tz_min": 480,
+   "value": 52,
+   "detail": {
+    "whoop": "10"
+   }
+  },
+  {
+   "metric": "x:hrv_rmssd",
+   "start_ms": 1795039200000,
+   "tz_min": 480,
+   "value": 48.3,
+   "unit": "ms",
+   "detail": {
+    "whoop": "10"
+   }
+  },
+  {
+   "metric": "loinc:59408-5",
+   "start_ms": 1795039200000,
+   "tz_min": 480,
+   "value": 96.1,
+   "detail": {
+    "whoop": "10"
+   }
+  },
+  {
+   "metric": "x:skin_temperature",
+   "start_ms": 1795039200000,
+   "tz_min": 480,
+   "value": 33.4,
+   "unit": "Cel",
+   "detail": {
+    "whoop": "10"
+   }
+  },
+  {
+   "metric": "x:strain",
+   "start_ms": 1795039200000,
+   "end_ms": null,
+   "tz_min": 480,
+   "value": 11.2,
+   "detail": {
+    "whoop": "10"
+   }
+  },
+  {
+   "metric": "x:daily_calories_total",
+   "start_ms": 1795039200000,
+   "end_ms": null,
+   "tz_min": 480,
+   "value": 8400,
+   "unit": "kJ",
+   "detail": {
+    "whoop": "10"
+   }
+  },
+  {
+   "metric": "x:daily_heart_rate_avg",
+   "start_ms": 1795039200000,
+   "end_ms": null,
+   "tz_min": 480,
+   "value": 68,
+   "detail": {
+    "whoop": "10"
+   }
+  },
+  {
+   "metric": "x:daily_heart_rate_max",
+   "start_ms": 1795039200000,
+   "end_ms": null,
+   "tz_min": 480,
+   "value": 161,
+   "detail": {
+    "whoop": "10"
+   }
+  },
+  {
+   "metric": "x:workout_strain",
+   "start_ms": 1794963600000,
+   "end_ms": 1794967200000,
+   "tz_min": 480,
+   "value": 9.1,
+   "detail": {
+    "whoop": "w1",
+    "sport": "running"
+   }
+  },
+  {
+   "metric": "x:heart_rate_max",
+   "start_ms": 1794963600000,
+   "end_ms": 1794967200000,
+   "tz_min": 480,
+   "value": 171,
+   "detail": {
+    "whoop": "w1",
+    "sport": "running"
+   }
+  },
+  {
+   "metric": "loinc:55412-1",
+   "start_ms": 1794963600000,
+   "end_ms": 1794967200000,
+   "tz_min": 480,
+   "value": 6100,
+   "unit": "m",
+   "detail": {
+    "whoop": "w1",
+    "sport": "running"
+   }
+  },
+  {
+   "metric": "loinc:8302-2",
+   "start_ms": 1795104000000,
+   "tz_min": 480,
+   "value": 1.78,
+   "unit": "m"
+  },
+  {
+   "metric": "loinc:29463-7",
+   "start_ms": 1795104000000,
+   "tz_min": 480,
+   "value": 72.4,
+   "unit": "kg"
+  },
+  {
+   "metric": "x:max_heart_rate_profile",
+   "start_ms": 1795104000000,
+   "tz_min": 480,
+   "value": 190
+  }
+ ]
+}

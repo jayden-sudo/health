@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE HealthData [ <!ELEMENT HealthData ANY> ]>
+<HealthData locale="en_US">
+ <ExportDate value="2026-11-20 08:00:00 +0800"/>
+ <Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Test&apos;s Watch" sourceVersion="17.0" unit="count/min" creationDate="2026-11-18 07:00:00 +0800" startDate="2026-11-18 07:00:00 +0800" endDate="2026-11-18 07:00:00 +0800" value="62"/>
+ <Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Test&apos;s Watch" sourceVersion="17.0" unit="count/min" creationDate="2026-11-18 07:05:00 +0800" startDate="2026-11-18 07:05:00 +0800" endDate="2026-11-18 07:05:00 +0800" value="65.5"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Test&apos;s Watch" sourceVersion="17.0" unit="count" creationDate="2026-11-18 07:01:00 +0800" startDate="2026-11-18 07:01:00 +0800" endDate="2026-11-18 07:03:00 +0800" value="120"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Test&apos;s Watch" sourceVersion="17.0" unit="count" creationDate="2026-11-18 07:10:00 +0800" startDate="2026-11-18 07:10:00 +0800" endDate="2026-11-18 07:12:00 +0800" value="80"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="Test&apos;s Watch" sourceVersion="17.0" unit="count" creationDate="2026-11-18 07:20:00 +0800" startDate="2026-11-18 07:20:00 +0800" endDate="2026-11-18 07:25:00 +0800" value="300"/>
+ <Record type="HKQuantityTypeIdentifierStepCount" sourceName="iPhone" sourceVersion="17.0" unit="count" creationDate="2026-11-18 07:02:00 +0800" startDate="2026-11-18 07:02:00 +0800" endDate="2026-11-18 07:30:00 +0800" value="500"/>
+ <Record type="HKQuantityTypeIdentifierDistanceWalkingRunning" sourceName="iPhone" sourceVersion="17.0" unit="km" creationDate="2026-11-18 07:02:00 +0800" startDate="2026-11-18 07:02:00 +0800" endDate="2026-11-18 07:30:00 +0800" value="0.35"/>
+ <Record type="HKQuantityTypeIdentifierActiveEnergyBurned" sourceName="Test&apos;s Watch" sourceVersion="17.0" unit="Cal" creationDate="2026-11-18 07:01:00 +0800" startDate="2026-11-18 07:01:00 +0800" endDate="2026-11-18 07:01:00 +0800" value="12.4"/>
+ <Record type="HKQuantityTypeIdentifierBodyFatPercentage" sourceName="Scale" sourceVersion="17.0" unit="%" creationDate="2026-11-18 06:50:00 +0800" startDate="2026-11-18 06:50:00 +0800" endDate="2026-11-18 06:50:00 +0800" value="0.29"/>
+ <Record type="HKQuantityTypeIdentifierBodyMass" sourceName="Scale" sourceVersion="17.0" unit="lb" creationDate="2026-11-18 06:50:00 +0800" startDate="2026-11-18 06:50:00 +0800" endDate="2026-11-18 06:50:00 +0800" value="160.2"/>
+ <Record type="HKQuantityTypeIdentifierBodyTemperature" sourceName="Thermo" sourceVersion="17.0" unit="degF" creationDate="2026-11-18 06:55:00 +0800" startDate="2026-11-18 06:55:00 +0800" endDate="2026-11-18 06:55:00 +0800" value="98.6"/>
+ <Record type="HKQuantityTypeIdentifierBloodGlucose" sourceName="Meter" sourceVersion="17.0" unit="mmol<180.1558800000541>/L" creationDate="2026-11-18 06:58:00 +0800" startDate="2026-11-18 06:58:00 +0800" endDate="2026-11-18 06:58:00 +0800" value="5.4"/>
+ <Correlation type="HKCorrelationTypeIdentifierBloodPressure" sourceName="Cuff" startDate="2026-11-18 07:30:00 +0800" endDate="2026-11-18 07:30:00 +0800">
+ <Record type="HKQuantityTypeIdentifierBloodPressureSystolic" sourceName="Cuff" sourceVersion="17.0" unit="mmHg" creationDate="2026-11-18 07:30:00 +0800" startDate="2026-11-18 07:30:00 +0800" endDate="2026-11-18 07:30:00 +0800" value="999"/>
+ </Correlation>
+ <Record type="HKQuantityTypeIdentifierBloodPressureSystolic" sourceName="Cuff" sourceVersion="17.0" unit="mmHg" creationDate="2026-11-18 07:30:00 +0800" startDate="2026-11-18 07:30:00 +0800" endDate="2026-11-18 07:30:00 +0800" value="118"/>
+ <Record type="HKQuantityTypeIdentifierBloodPressureDiastolic" sourceName="Cuff" sourceVersion="17.0" unit="mmHg" creationDate="2026-11-18 07:30:00 +0800" startDate="2026-11-18 07:30:00 +0800" endDate="2026-11-18 07:30:00 +0800" value="76"/>
+ <Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Test&apos;s Watch" sourceVersion="17.0" unit="count/min" creationDate="2026-02-30 07:00:00 +0800" startDate="2026-02-30 07:00:00 +0800" endDate="2026-02-30 07:00:00 +0800" value="70"/>
+ <Record type="HKQuantityTypeIdentifierDietaryWater" sourceName="iPhone" sourceVersion="17.0" unit="mL" creationDate="2026-11-18 08:00:00 +0800" startDate="2026-11-18 08:00:00 +0800" endDate="2026-11-18 08:00:00 +0800" value="250"/>
+ <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Test&apos;s Watch" sourceVersion="10" creationDate="2026-11-18 06:40:00 +0800" startDate="2026-11-17 23:10:00 +0800" endDate="2026-11-18 06:40:00 +0800" value="HKCategoryValueSleepAnalysisInBed"/>
+ <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Test&apos;s Watch" sourceVersion="10" creationDate="2026-11-18 01:10:00 +0800" startDate="2026-11-18 00:00:00 +0800" endDate="2026-11-18 01:10:00 +0800" value="HKCategoryValueSleepAnalysisAsleepDeep"/>
+ <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Test&apos;s Watch" sourceVersion="10" creationDate="2026-11-18 04:40:00 +0800" startDate="2026-11-18 04:00:00 +0800" endDate="2026-11-18 04:40:00 +0800" value="HKCategoryValueSleepAnalysisAsleepREM"/>
+ <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Test&apos;s Watch" sourceVersion="10" creationDate="2026-11-18 04:00:00 +0800" startDate="2026-11-18 01:10:00 +0800" endDate="2026-11-18 04:00:00 +0800" value="HKCategoryValueSleepAnalysisAsleepCore"/>
+ <Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Test&apos;s Watch" sourceVersion="17.0" unit="count/min" creationDate="2026-11-19 07:00:00 -0500" startDate="2026-11-19 07:00:00 -0500" endDate="2026-11-19 07:00:00 -0500" value="58"/>
+</HealthData>

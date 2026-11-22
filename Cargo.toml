@@ -1,0 +1,14 @@
+[workspace]
+resolver = "3"
+members = ["crates/health-core", "crates/health-api", "crates/health"]
+exclude = ["gui/src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+rust-version = "1.89"
+
+[workspace.dependencies]
+health-core = { path = "crates/health-core" }
+health-api = { path = "crates/health-api" }

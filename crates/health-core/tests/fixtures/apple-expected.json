@@ -1,0 +1,161 @@
+{
+ "rows": [
+  {
+   "source": "Test's Watch",
+   "metric": "loinc:8867-4",
+   "start_ms": 1794956400000,
+   "tz_min": 480,
+   "value": 62,
+   "unit": "/min"
+  },
+  {
+   "source": "Test's Watch",
+   "metric": "loinc:8867-4",
+   "start_ms": 1794956700000,
+   "tz_min": 480,
+   "value": 65.5,
+   "unit": "/min"
+  },
+  {
+   "source": "Scale",
+   "metric": "loinc:41982-0",
+   "start_ms": 1794955800000,
+   "tz_min": 480,
+   "value": 29,
+   "unit": "%"
+  },
+  {
+   "source": "Scale",
+   "metric": "loinc:29463-7",
+   "start_ms": 1794955800000,
+   "tz_min": 480,
+   "value": 160.2,
+   "unit": "[lb_av]"
+  },
+  {
+   "source": "Thermo",
+   "metric": "loinc:8310-5",
+   "start_ms": 1794956100000,
+   "tz_min": 480,
+   "value": 98.6,
+   "unit": "[degF]"
+  },
+  {
+   "source": "Meter",
+   "metric": "loinc:2339-0",
+   "start_ms": 1794956280000,
+   "tz_min": 480,
+   "value": 5.4,
+   "unit": "mmol/L"
+  },
+  {
+   "source": "Cuff",
+   "metric": "loinc:8480-6",
+   "start_ms": 1794958200000,
+   "tz_min": 480,
+   "value": 118,
+   "unit": "mm[Hg]"
+  },
+  {
+   "source": "Cuff",
+   "metric": "loinc:8462-4",
+   "start_ms": 1794958200000,
+   "tz_min": 480,
+   "value": 76,
+   "unit": "mm[Hg]"
+  },
+  {
+   "source": "Test's Watch",
+   "metric": "loinc:103213-5",
+   "start_ms": 1794928200000,
+   "end_ms": 1794955200000,
+   "tz_min": 480,
+   "value": null
+  },
+  {
+   "source": "Test's Watch",
+   "metric": "x:sleep_asleep_deep",
+   "start_ms": 1794931200000,
+   "end_ms": 1794935400000,
+   "tz_min": 480,
+   "value": null
+  },
+  {
+   "source": "Test's Watch",
+   "metric": "x:sleep_asleep_rem",
+   "start_ms": 1794945600000,
+   "end_ms": 1794948000000,
+   "tz_min": 480,
+   "value": null
+  },
+  {
+   "source": "Test's Watch",
+   "metric": "x:sleep_asleep_core",
+   "start_ms": 1794935400000,
+   "end_ms": 1794945600000,
+   "tz_min": 480,
+   "value": null
+  },
+  {
+   "source": "Test's Watch",
+   "metric": "loinc:8867-4",
+   "start_ms": 1795089600000,
+   "tz_min": -300,
+   "value": 58,
+   "unit": "/min"
+  },
+  {
+   "source": "Test's Watch",
+   "metric": "loinc:55423-8",
+   "start_ms": 1794956400000,
+   "end_ms": 1794957300000,
+   "tz_min": 480,
+   "value": 200,
+   "unit": "{#}"
+  },
+  {
+   "source": "Test's Watch",
+   "metric": "loinc:55423-8",
+   "start_ms": 1794957300000,
+   "end_ms": 1794958200000,
+   "tz_min": 480,
+   "value": 300,
+   "unit": "{#}"
+  },
+  {
+   "source": "iPhone",
+   "metric": "loinc:55423-8",
+   "start_ms": 1794956400000,
+   "end_ms": 1794957300000,
+   "tz_min": 480,
+   "value": 500,
+   "unit": "{#}"
+  },
+  {
+   "source": "iPhone",
+   "metric": "loinc:112427-0",
+   "start_ms": 1794956400000,
+   "end_ms": 1794957300000,
+   "tz_min": 480,
+   "value": 350,
+   "unit": "m"
+  },
+  {
+   "source": "Test's Watch",
+   "metric": "loinc:41981-2",
+   "start_ms": 1794956400000,
+   "end_ms": 1794957300000,
+   "tz_min": 480,
+   "value": 12.4,
+   "unit": "kcal"
+  }
+ ],
+ "stats": {
+  "records": 21,
+  "mapped": 19,
+  "skippedTypes": {
+   "HKQuantityTypeIdentifierDietaryWater": 1
+  },
+  "broken": 1
+ }
+}

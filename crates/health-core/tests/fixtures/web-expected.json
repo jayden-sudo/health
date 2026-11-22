@@ -1,0 +1,486 @@
+{
+ "now": 1795176000000,
+ "daily": [
+  {
+   "code": "loinc:2093-3",
+   "day": "2026-11-10",
+   "connector": "ocr",
+   "external_id": "photo",
+   "n": 1,
+   "sum": 201.06008,
+   "min": 201.06008,
+   "max": 201.06008,
+   "seconds": null
+  },
+  {
+   "code": "loinc:2345-7",
+   "day": "2026-11-10",
+   "connector": "apple_export",
+   "external_id": "watch:1",
+   "n": 1,
+   "sum": 99.08579999999999,
+   "min": 99.08579999999999,
+   "max": 99.08579999999999,
+   "seconds": null
+  },
+  {
+   "code": "loinc:29463-7",
+   "day": "2026-11-10",
+   "connector": "manual",
+   "external_id": "",
+   "n": 1,
+   "sum": 70.5,
+   "min": 70.5,
+   "max": 70.5,
+   "seconds": null
+  },
+  {
+   "code": "loinc:55423-8",
+   "day": "2026-11-10",
+   "connector": "apple_export",
+   "external_id": "watch:1",
+   "n": 2,
+   "sum": 4600,
+   "min": 1200,
+   "max": 3400,
+   "seconds": null
+  },
+  {
+   "code": "loinc:8867-4",
+   "day": "2026-11-10",
+   "connector": "apple_export",
+   "external_id": "watch:1",
+   "n": 3,
+   "sum": 215,
+   "min": 60,
+   "max": 80,
+   "seconds": null
+  },
+  {
+   "code": "loinc:8867-4",
+   "day": "2026-11-11",
+   "connector": "apple_export",
+   "external_id": "watch:1",
+   "n": 2,
+   "sum": 136,
+   "min": 66,
+   "max": 70,
+   "seconds": null
+  },
+  {
+   "code": "loinc:93831-6",
+   "day": "2026-11-10",
+   "connector": "apple_export",
+   "external_id": "watch:1",
+   "n": 2,
+   "sum": null,
+   "min": null,
+   "max": null,
+   "seconds": 14400
+  },
+  {
+   "code": "x:ocr/ferritin.ng-ml",
+   "day": "2026-11-11",
+   "connector": "ocr",
+   "external_id": "photo",
+   "n": 1,
+   "sum": 88,
+   "min": 88,
+   "max": 88,
+   "seconds": null
+  },
+  {
+   "code": "x:room_co2",
+   "day": "2026-11-10",
+   "connector": "home_assistant",
+   "external_id": "ha-1/sensor.co2",
+   "n": 1,
+   "sum": 4320000,
+   "min": 600,
+   "max": 600,
+   "seconds": 7200
+  },
+  {
+   "code": "x:room_co2",
+   "day": "2026-11-11",
+   "connector": "home_assistant",
+   "external_id": "ha-1/sensor.co2",
+   "n": 3,
+   "sum": 61200000,
+   "min": 600,
+   "max": 900,
+   "seconds": 82800
+  },
+  {
+   "code": "x:room_co2",
+   "day": "2026-11-12",
+   "connector": "home_assistant",
+   "external_id": "ha-1/sensor.co2",
+   "n": 1,
+   "sum": 60480000,
+   "min": 700,
+   "max": 700,
+   "seconds": 86400
+  },
+  {
+   "code": "x:room_co2",
+   "day": "2026-11-13",
+   "connector": "home_assistant",
+   "external_id": "ha-1/sensor.co2",
+   "n": 1,
+   "sum": 60480000,
+   "min": 700,
+   "max": 700,
+   "seconds": 86400
+  },
+  {
+   "code": "x:room_co2",
+   "day": "2026-11-14",
+   "connector": "home_assistant",
+   "external_id": "ha-1/sensor.co2",
+   "n": 1,
+   "sum": 60480000,
+   "min": 700,
+   "max": 700,
+   "seconds": 86400
+  },
+  {
+   "code": "x:room_co2",
+   "day": "2026-11-15",
+   "connector": "home_assistant",
+   "external_id": "ha-1/sensor.co2",
+   "n": 1,
+   "sum": 60480000,
+   "min": 700,
+   "max": 700,
+   "seconds": 86400
+  },
+  {
+   "code": "x:room_co2",
+   "day": "2026-11-16",
+   "connector": "home_assistant",
+   "external_id": "ha-1/sensor.co2",
+   "n": 1,
+   "sum": 60480000,
+   "min": 700,
+   "max": 700,
+   "seconds": 86400
+  },
+  {
+   "code": "x:room_co2",
+   "day": "2026-11-17",
+   "connector": "home_assistant",
+   "external_id": "ha-1/sensor.co2",
+   "n": 1,
+   "sum": 60480000,
+   "min": 700,
+   "max": 700,
+   "seconds": 86400
+  },
+  {
+   "code": "x:room_co2",
+   "day": "2026-11-18",
+   "connector": "home_assistant",
+   "external_id": "ha-1/sensor.co2",
+   "n": 1,
+   "sum": 60480000,
+   "min": 700,
+   "max": 700,
+   "seconds": 86400
+  },
+  {
+   "code": "x:room_co2",
+   "day": "2026-11-19",
+   "connector": "home_assistant",
+   "external_id": "ha-1/sensor.co2",
+   "n": 1,
+   "sum": 60480000,
+   "min": 700,
+   "max": 700,
+   "seconds": 86400
+  },
+  {
+   "code": "x:room_co2",
+   "day": "2026-11-20",
+   "connector": "home_assistant",
+   "external_id": "ha-1/sensor.co2",
+   "n": 1,
+   "sum": 50400000,
+   "min": 700,
+   "max": 700,
+   "seconds": 72000
+  }
+ ],
+ "obs": [
+  {
+   "code": "loinc:2093-3",
+   "start_ms": 1794240000000,
+   "connector": "ocr",
+   "external_id": "photo",
+   "end_ms": null,
+   "tz_min": 480,
+   "value": 201.06008,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000006",
+   "detail": "{\"precision\":\"day\"}",
+   "corrected": 0
+  },
+  {
+   "code": "loinc:2345-7",
+   "start_ms": 1794265200000,
+   "connector": "apple_export",
+   "external_id": "watch:1",
+   "end_ms": null,
+   "tz_min": 480,
+   "value": 36.0312,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000001",
+   "detail": "{\"comparator\":\"<\"}",
+   "corrected": 0
+  },
+  {
+   "code": "loinc:2345-7",
+   "start_ms": 1794268800000,
+   "connector": "apple_export",
+   "external_id": "watch:1",
+   "end_ms": null,
+   "tz_min": 480,
+   "value": 99.08579999999999,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000001",
+   "detail": null,
+   "corrected": 0
+  },
+  {
+   "code": "loinc:29463-7",
+   "start_ms": 1794240000000,
+   "connector": "manual",
+   "external_id": "",
+   "end_ms": null,
+   "tz_min": 480,
+   "value": 70.5,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000004",
+   "detail": "{\"raw\":{\"value\":70.5,\"unit\":\"kg\"},\"precision\":\"day\"}",
+   "corrected": 0
+  },
+  {
+   "code": "loinc:55423-8",
+   "start_ms": 1794272400000,
+   "connector": "apple_export",
+   "external_id": "phone:1",
+   "end_ms": 1794304800000,
+   "tz_min": 480,
+   "value": 9999,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000002",
+   "detail": null,
+   "corrected": 0
+  },
+  {
+   "code": "loinc:55423-8",
+   "start_ms": 1794272400000,
+   "connector": "apple_export",
+   "external_id": "watch:1",
+   "end_ms": 1794276000000,
+   "tz_min": 480,
+   "value": 1200,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000001",
+   "detail": null,
+   "corrected": 0
+  },
+  {
+   "code": "loinc:55423-8",
+   "start_ms": 1794294000000,
+   "connector": "apple_export",
+   "external_id": "watch:1",
+   "end_ms": 1794297600000,
+   "tz_min": 480,
+   "value": 3400,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000001",
+   "detail": null,
+   "corrected": 0
+  },
+  {
+   "code": "loinc:8867-4",
+   "start_ms": 1794268800000,
+   "connector": "apple_export",
+   "external_id": "watch:1",
+   "end_ms": null,
+   "tz_min": 480,
+   "value": 60,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000001",
+   "detail": null,
+   "corrected": 0
+  },
+  {
+   "code": "loinc:8867-4",
+   "start_ms": 1794272400000,
+   "connector": "apple_export",
+   "external_id": "watch:1",
+   "end_ms": null,
+   "tz_min": 480,
+   "value": 75,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000001",
+   "detail": null,
+   "corrected": 1
+  },
+  {
+   "code": "loinc:8867-4",
+   "start_ms": 1794276000000,
+   "connector": "apple_export",
+   "external_id": "watch:1",
+   "end_ms": null,
+   "tz_min": 480,
+   "value": 80,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000001",
+   "detail": null,
+   "corrected": 0
+  },
+  {
+   "code": "loinc:8867-4",
+   "start_ms": 1794358800000,
+   "connector": "apple_export",
+   "external_id": "watch:1",
+   "end_ms": null,
+   "tz_min": 480,
+   "value": 70,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000001",
+   "detail": null,
+   "corrected": 0
+  },
+  {
+   "code": "loinc:8867-4",
+   "start_ms": 1794398400000,
+   "connector": "apple_export",
+   "external_id": "watch:1",
+   "end_ms": null,
+   "tz_min": 540,
+   "value": 66,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000001",
+   "detail": null,
+   "corrected": 0
+  },
+  {
+   "code": "loinc:93831-6",
+   "start_ms": 1794232800000,
+   "connector": "apple_export",
+   "external_id": "watch:1",
+   "end_ms": 1794243600000,
+   "tz_min": 480,
+   "value": null,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000001",
+   "detail": null,
+   "corrected": 0
+  },
+  {
+   "code": "loinc:93831-6",
+   "start_ms": 1794240000000,
+   "connector": "apple_export",
+   "external_id": "watch:1",
+   "end_ms": 1794247200000,
+   "tz_min": 480,
+   "value": null,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000001",
+   "detail": null,
+   "corrected": 0
+  },
+  {
+   "code": "x:ocr/ferritin.ng-ml",
+   "start_ms": 1794326400000,
+   "connector": "ocr",
+   "external_id": "photo",
+   "end_ms": null,
+   "tz_min": 480,
+   "value": 88,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000008",
+   "detail": null,
+   "corrected": 0
+  },
+  {
+   "code": "x:room_co2",
+   "start_ms": 1794319200000,
+   "connector": "home_assistant",
+   "external_id": "ha-1/sensor.co2",
+   "end_ms": null,
+   "tz_min": 480,
+   "value": 600,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000003",
+   "detail": null,
+   "corrected": 0
+  },
+  {
+   "code": "x:room_co2",
+   "start_ms": 1794330000000,
+   "connector": "home_assistant",
+   "external_id": "ha-1/sensor.co2",
+   "end_ms": null,
+   "tz_min": 480,
+   "value": 900,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000003",
+   "detail": null,
+   "corrected": 0
+  },
+  {
+   "code": "x:room_co2",
+   "start_ms": 1794348000000,
+   "connector": "home_assistant",
+   "external_id": "ha-1/sensor.co2",
+   "end_ms": null,
+   "tz_min": 480,
+   "value": null,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000003",
+   "detail": null,
+   "corrected": 0
+  },
+  {
+   "code": "x:room_co2",
+   "start_ms": 1794351600000,
+   "connector": "home_assistant",
+   "external_id": "ha-1/sensor.co2",
+   "end_ms": null,
+   "tz_min": 480,
+   "value": 700,
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000003",
+   "detail": null,
+   "corrected": 0
+  }
+ ],
+ "imports": [
+  {
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000001",
+   "status": "done",
+   "parser": "apple-export@3"
+  },
+  {
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000002",
+   "status": "done",
+   "parser": "apple-export@3"
+  },
+  {
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000003",
+   "status": "done",
+   "parser": "ha@1"
+  },
+  {
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000004",
+   "status": "done",
+   "parser": "manual"
+  },
+  {
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000005",
+   "status": "erased",
+   "parser": "manual"
+  },
+  {
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000006",
+   "status": "done",
+   "parser": "ocr-ppv5@2"
+  },
+  {
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000007",
+   "status": "review",
+   "parser": "ocr-ppv5@2"
+  },
+  {
+   "uid": "0193a5c2-7e1f-7b3a-9c4d-000000000008",
+   "status": "done",
+   "parser": "ocr-ppv5@2"
+  }
+ ]
+}
