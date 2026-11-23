@@ -522,5 +522,6 @@
  "Delete this import": "刪除這一次",
  "Delete this import's data?": "刪除這一次的數據？",
  "The import waiting for you will be deleted.": "將刪除這批待你確認的導入。",
- "{{count}} entries will be deleted._other": "將刪除 {{count}} 條數據。"
+ "{{count}} entries will be deleted._other": "將刪除 {{count}} 條數據。",
+ "No measures found.": "沒有找到指標。"
 }

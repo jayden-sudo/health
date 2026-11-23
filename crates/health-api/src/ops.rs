@@ -153,10 +153,16 @@ pub struct MetricSearch {
     pub q: String,
     #[serde(default = "twenty")]
     pub limit: i64,
+    /// Codes the caller matched by a name in its own language, listed first (the catalog's names are English)
+    #[serde(default)]
+    pub codes: Vec<String>,
+    /// Only measures entered as one number (instant, cumulative)
+    #[serde(default)]
+    pub manual: bool,
 }
 
 fn metric_search(ctx: &mut Ctx, r: MetricSearch) -> Result<Vec<Metric>> {
-    query::metric_search(ctx.db(), &ctx.scope(), &r.q, r.limit)
+    query::metric_search(ctx.db(), &ctx.scope(), &r.q, r.limit, &r.codes, r.manual)
 }
 
 #[derive(Deserialize, JsonSchema)]

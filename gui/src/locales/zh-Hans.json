@@ -522,5 +522,6 @@
  "Delete this import": "删除这一次",
  "Delete this import's data?": "删除这一次的数据？",
  "The import waiting for you will be deleted.": "将删除这批待你确认的导入。",
- "{{count}} entries will be deleted._other": "将删除 {{count}} 条数据。"
+ "{{count}} entries will be deleted._other": "将删除 {{count}} 条数据。",
+ "No measures found.": "没有找到指标。"
 }

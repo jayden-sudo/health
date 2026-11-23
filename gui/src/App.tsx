@@ -35,7 +35,7 @@ import { DailyChart, type Pt, Spark } from "./charts";
 import { useTranslation } from "react-i18next";
 import { LANGS, choice, choose, locale as i18nLocale, t, tk } from "./i18n";
 import { CLIENTS, type Client } from "./agents";
-import { KEY, nameOf } from "./names";
+import { KEY, codesNamed, nameOf } from "./names";
 import {
   GROUPS,
   type ImportKind,
@@ -1334,18 +1334,32 @@ const RANGES = [
   { label: tk("All"), days: 0 },
 ];
 
-function MetricPicker({ onPick, placeholder }: { onPick: (m: Metric) => void; placeholder: string }) {
+/** Finds a measure by the name shown (any language on screen), the catalog's English, its code or a name printed on
+ *  a report. `manual`: only measures entered as one number. */
+function MetricPicker({ onPick, placeholder, manual }: { onPick: (m: Metric) => void; placeholder: string; manual?: boolean }) {
   const [q, setQ] = useState("");
-  const [hits, setHits] = useState<Metric[]>([]);
+  const [hits, setHits] = useState<Metric[]>();
   useEffect(() => {
-    if (q.trim().length < 2) return setHits([]);
-    const t = setTimeout(() => op<Metric[]>("metric.search", { q, limit: 8 }).then(setHits, () => setHits([])), 150);
-    return () => clearTimeout(t);
-  }, [q]);
+    if (!q.trim()) return setHits(undefined);
+    let live = true;
+    const t = setTimeout(
+      () =>
+        op<Metric[]>("metric.search", { q, codes: codesNamed(q), manual: !!manual, limit: 30 }).then(
+          (h) => live && setHits(h),
+          () => live && setHits([]),
+        ),
+      150,
+    );
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [q, manual]);
   return (
     <div className="picker">
       <input aria-label={placeholder} placeholder={placeholder} value={q} onChange={(e) => setQ(e.target.value)} />
-      {hits.length > 0 && (
+      {hits && !hits.length && <p className="fine">{t("No measures found.")}</p>}
+      {hits && hits.length > 0 && (
         <ul className="hits">
           {hits.map((m) => (
             <li key={m.code}>
@@ -1356,7 +1370,11 @@ function MetricPicker({ onPick, placeholder }: { onPick: (m: Metric) => void; pl
                   setQ("");
                 }}
               >
-                {nameOf(m.code, m.name)} <span className="fine">{m.code}</span>
+                {nameOf(m.code, m.name)}{" "}
+                <span className="fine">
+                  {m.code}
+                  {m.unit ? ` · ${unitLabel(m.unit)}` : ""}
+                </span>
               </button>
             </li>
           ))}
@@ -1562,7 +1580,7 @@ function Enter({ done }: { done: (code: string) => void }) {
       <h2>{t("Enter by hand")}</h2>
       {!m ? (
         <>
-          <MetricPicker placeholder={t("What did you measure?")} onPick={pick} />
+          <MetricPicker placeholder={t("What did you measure?")} onPick={pick} manual />
           <div className="chips" role="group" aria-label={t("Common measures")}>
             {QUICK.map(([code, label]) => (
               <button key={code} type="button" className="chip-button" onClick={() => pick({ code, name: label, unit: "", agg: "instant" })}>

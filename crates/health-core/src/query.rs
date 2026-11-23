@@ -5,7 +5,7 @@ use crate::db::{Db, one};
 use crate::error::{Error, Result};
 use crate::scope::Scope;
 use crate::value::Value;
-use rusqlite::Row;
+use rusqlite::{OptionalExtension, Row};
 use serde::Serialize;
 use serde_json::Value as Json;
 
@@ -104,24 +104,50 @@ fn listable(scope: &Scope, code: &str) -> bool {
     crate::catalog::is_catalog(code) || scope.allows(code)
 }
 
-/// Every word must appear in the name or the code ("heart rest" finds "Resting Heart Rate").
-pub fn metric_search(c: &Db, scope: &Scope, q: &str, limit: i64) -> Result<Vec<Metric>> {
+/// Searches the catalog: `codes` first (measures the UI matched by the name it shows, in its own language, which
+/// the catalog's English can't), then code, name and the names printed on reports (aliases). `manual`: only the
+/// measures a person enters one number of (instant, cumulative), as the web's manual entry. Every word must appear
+/// in the name, the code or an alias ("heart rest" finds "Resting Heart Rate").
+pub fn metric_search(c: &Db, scope: &Scope, q: &str, limit: i64, codes: &[String], manual: bool) -> Result<Vec<Metric>> {
+    let fits = |m: &Metric| (!manual || m.agg == "instant" || m.agg == "cumulative") && listable(scope, &m.code);
+    let limit = limit.clamp(0, 100) as usize;
+    let mut out: Vec<Metric> = Vec::new();
+    let mut by_code = c.prepare("SELECT code, name, unit, agg FROM metric WHERE code = ?")?;
+    for code in codes.iter().take(500) {
+        if out.len() >= limit {
+            break;
+        }
+        if let Some(m) = by_code.query_row([code], metric_row).optional()?
+            && fits(&m)
+            && !out.iter().any(|o| o.code == m.code)
+        {
+            out.push(m);
+        }
+    }
     let words: Vec<String> = q.split_whitespace().map(str::to_lowercase).collect();
-    let Some(first) = words.iter().max_by_key(|w| w.len()) else { return Ok(vec![]) };
+    let Some(first) = words.iter().max_by_key(|w| w.len()) else { return Ok(out) };
     let mut st = c.prepare(
-        "SELECT code, name, unit, agg FROM metric WHERE code LIKE ?1 ESCAPE '\\' OR name LIKE ?1 ESCAPE '\\'
-          ORDER BY (code = ?2) DESC, length(name), name",
+        "SELECT m.code, m.name, m.unit, m.agg, group_concat(a.alias, ' ') FROM metric m
+          LEFT JOIN metric_alias a ON a.metric_id = m.id
+          WHERE m.code LIKE ?1 ESCAPE '\\' OR m.name LIKE ?1 ESCAPE '\\' OR a.alias LIKE ?1 ESCAPE '\\'
+          GROUP BY m.id
+          ORDER BY (m.code = ?2) DESC, (m.name LIKE ?3 ESCAPE '\\') DESC, length(m.name), m.name",
     )?;
-    let rows: Vec<Metric> = st.query_map(rusqlite::params![like(first), q.trim()], metric_row)?.collect::<Result<_, _>>()?;
-    Ok(rows
-        .into_iter()
-        .filter(|m| {
-            let hay = format!("{} {}", m.name.to_lowercase(), m.code.to_lowercase());
-            words.iter().all(|w| hay.contains(w.as_str()))
-        })
-        .filter(|m| listable(scope, &m.code))
-        .take(limit.max(0) as usize)
-        .collect())
+    let prefix = format!("{}%", q.trim().replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_"));
+    let rows = st.query_map(rusqlite::params![like(first), q.trim(), prefix], |r| {
+        Ok((metric_row(r)?, r.get::<_, Option<String>>(4)?.unwrap_or_default()))
+    })?;
+    for row in rows {
+        if out.len() >= limit {
+            break;
+        }
+        let (m, aliases) = row?;
+        let hay = format!("{} {} {}", m.name.to_lowercase(), m.code.to_lowercase(), aliases.to_lowercase());
+        if words.iter().all(|w| hay.contains(w.as_str())) && fits(&m) && !out.iter().any(|o| o.code == m.code) {
+            out.push(m);
+        }
+    }
+    Ok(out)
 }
 
 pub fn metric_show(c: &Db, scope: &Scope, code: &str) -> Result<MetricInfo> {

@@ -32,6 +32,18 @@ for (const [lang, locale] of [
         expect(english(text), `${name}: ${text.slice(0, 300)}`).toEqual([]);
       }
     });
+
+    test("entering by hand finds a measure by its Chinese name", async ({ page }) => {
+      await page.goto("/");
+      await page.getByRole("navigation").getByRole("button", { name: SECTIONS[lang]![1], exact: true }).click();
+      await page.getByRole("button", { name: lang === "zh-Hans" ? /^手动录入/ : /^手動錄入/ }).click();
+      const box = page.getByRole("dialog").getByRole("textbox").first();
+      await box.fill(lang === "zh-Hans" ? "体重" : "體重");
+      await expect(page.locator(".hits li").first()).toContainText(lang === "zh-Hans" ? "体重" : "體重");
+      // one character is enough, as on the web
+      await box.fill(lang === "zh-Hans" ? "糖" : "糖");
+      await expect(page.locator(".hits li").first()).toBeVisible();
+    });
   });
 }
 

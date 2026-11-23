@@ -314,3 +314,26 @@ fn the_owner_deletes_everything_from_one_kind_of_source() {
     let none = call(&mut owner, "import.erase_source", json!({"connector": "nothing"})).unwrap().value;
     assert_eq!((none["batches"].clone(), none["deleted"].clone()), (json!(0), json!(0)));
 }
+
+#[test]
+fn search_finds_measures_by_the_names_the_ui_shows_and_by_printed_aliases() {
+    let (_d, p) = setup();
+    let mut owner = Ctx::new(&p, NOW, Caller::Owner);
+    let codes = |v: &Value| v.as_array().unwrap().iter().map(|m| m["code"].as_str().unwrap().to_string()).collect::<Vec<_>>();
+    // "体重" isn't in the catalog's English: the UI matches it in its own language and passes the codes, listed first
+    let r = call(&mut owner, "metric.search", json!({"q": "体重", "codes": ["loinc:29463-7"]})).unwrap().value;
+    assert_eq!(codes(&r), ["loinc:29463-7"]);
+    // a name printed on a lab report, kept as an alias, finds its measure
+    p.db.execute("INSERT INTO metric_alias (alias, unit, metric_id) SELECT 'fbg', '', id FROM metric WHERE code = 'loinc:2345-7'", [])
+        .unwrap();
+    assert!(codes(&call(&mut owner, "metric.search", json!({"q": "FBG"})).unwrap().value).contains(&"loinc:2345-7".to_string()));
+    // for entering by hand, only measures a person can type one value of (no spans, no text results)
+    let all = codes(&call(&mut owner, "metric.search", json!({"q": "sleep", "limit": 100})).unwrap().value);
+    let manual = codes(&call(&mut owner, "metric.search", json!({"q": "sleep", "limit": 100, "manual": true})).unwrap().value);
+    assert!(manual.len() < all.len() && manual.iter().all(|c| all.contains(c)));
+    // a measure made here (not in the catalog) out of a delegate's scope stays hidden, passed as a code too
+    let own: String = p.db.query_row("SELECT code FROM metric WHERE code LIKE 'x:derived/%'", [], |r| r.get(0)).unwrap();
+    let mut agent = Ctx::new(&p, NOW, grant(&p, false, WriteLevel::None, &["cardio"]));
+    assert_eq!(codes(&call(&mut agent, "metric.search", json!({"q": "zz", "codes": [own]})).unwrap().value), Vec::<String>::new());
+    assert_eq!(codes(&call(&mut owner, "metric.search", json!({"q": "zz", "codes": [own.clone()]})).unwrap().value), [own]);
+}

@@ -195,6 +195,22 @@ export function nameOf(code: string, catalogName: string): string {
   return n.charAt(0).toUpperCase() + n.slice(1);
 }
 
+/** Codes whose shown name contains `q` (the language on screen, and the short English names above), best first: a
+ *  search also finds a measure by the name a person reads, which the catalog's English doesn't have ("体重"). */
+export function codesNamed(q: string): string[] {
+  const k = q.trim().toLowerCase();
+  if (!k) return [];
+  const l = lang();
+  const found = new Map<string, string>();
+  if (l !== "en") for (const [code, n] of Object.entries(ZH)) if (n[l].toLowerCase().includes(k)) found.set(code, n[l].toLowerCase());
+  for (const [code, n] of Object.entries(NAMES)) if (!found.has(code) && n.toLowerCase().includes(k)) found.set(code, n.toLowerCase());
+  // names that start with it first, then the shorter ones
+  return [...found.entries()]
+    .sort(([, a], [, b]) => Number(!a.startsWith(k)) - Number(!b.startsWith(k)) || a.length - b.length)
+    .map(([code]) => code)
+    .slice(0, 200);
+}
+
 /** The measures most people look for first, per group; the rest of a group opens on request. */
 export const KEY: Record<string, string[]> = {
   body: ["loinc:29463-7", "loinc:39156-5", "loinc:41982-0", "loinc:8480-6", "loinc:8462-4", "x:waist_circumference"],

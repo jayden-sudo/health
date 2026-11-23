@@ -75,7 +75,7 @@ fn out_of_scope_and_unknown_codes_look_the_same() {
     for code in ["x:ocr/hiv-viral-load", "x:ocr/never-created", GLU] {
         assert_eq!(query::obs_query(&c, &s, code, None, None, None, 10).unwrap_err().code, "out_of_scope");
     }
-    assert!(query::metric_search(&c, &s, "x:ocr", 10).unwrap().is_empty());
+    assert!(query::metric_search(&c, &s, "x:ocr", 10, &[], false).unwrap().is_empty());
 }
 
 #[test]
