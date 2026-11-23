@@ -288,3 +288,29 @@ fn the_owner_corrects_a_confirmed_lab_photo_value() {
     let v = call(&mut owner, "obs.latest", json!({"metric": "loinc:2345-7"})).unwrap().value;
     assert_eq!((v[0]["value"].clone(), v[0]["corrected"].clone()), (json!(90), json!(true)));
 }
+
+#[test]
+fn the_owner_deletes_everything_from_one_kind_of_source() {
+    let (_d, p) = setup();
+    let c = &p.db;
+    // a second WHOOP batch, and one under review, both go; the derived seed (another connector) stays
+    let s = health_core::write::SourceSpec::new("whoop", "user-4711");
+    let (id, _) =
+        health_core::write::begin(c, health_core::write::Begin { source: &s, parser: "t", blob: None, uid: None, candidates: None }, NOW)
+            .unwrap();
+    let row: health_core::write::ObsRow =
+        serde_json::from_value(json!({"metric": "loinc:2345-7", "start_ms": NOW - 2 * DAY, "tz_min": 0, "value": 91})).unwrap();
+    health_core::write::write(c, id, &[row]).unwrap();
+    health_core::write::finish(c, id, NOW).unwrap();
+    let mut owner = Ctx::new(&p, NOW, Caller::Owner);
+    let others = call(&mut owner, "import.list", json!({})).unwrap().value.as_array().unwrap().len() - 2;
+    let r = call(&mut owner, "import.erase_source", json!({"connector": "whoop"})).unwrap().value;
+    assert_eq!((r["batches"].clone(), r["deleted"].clone()), (json!(2), json!(122)));
+    assert_eq!(call(&mut owner, "import.list", json!({"connector": "whoop"})).unwrap().value, json!([]));
+    assert_eq!(call(&mut owner, "import.list", json!({})).unwrap().value.as_array().unwrap().len(), others);
+    // the erased imports stay as tombstones, so a backup merged later deletes them too
+    let tomb: i64 = c.query_row("SELECT count(*) FROM import WHERE status = 'erased'", [], |r| r.get(0)).unwrap();
+    assert_eq!(tomb, 2);
+    let none = call(&mut owner, "import.erase_source", json!({"connector": "nothing"})).unwrap().value;
+    assert_eq!((none["batches"].clone(), none["deleted"].clone()), (json!(0), json!(0)));
+}

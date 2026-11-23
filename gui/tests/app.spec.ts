@@ -244,6 +244,42 @@ test("the profile: sex and birth month kept here, height recorded as a reading",
   await expect(page.locator(".tile", { hasText: "Height" })).toContainText("1.725");
 });
 
+test("manage data: a source lists its imports; one opens with what it holds and is deleted after asking twice", async ({ page }) => {
+  await page.goto("/");
+  const sections = page.getByRole("navigation", { name: "Sections" });
+  await sections.getByRole("button", { name: "Data sources" }).click();
+  await page.getByRole("button", { name: /^Enter by hand/ }).click();
+  await page.getByPlaceholder("What did you measure?").fill("weight");
+  await page.getByRole("button", { name: /^Weight/ }).first().click();
+  await page.getByLabel("Value").fill("88.8");
+  await page.getByLabel("Unit").selectOption("kg");
+  await page.getByRole("button", { name: "Save reading" }).click();
+  await expect(page.getByRole("heading", { name: "Weight", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await sections.getByRole("button", { name: "Data sources" }).click();
+  await page.getByRole("button", { name: /^Manage data/ }).click();
+  const sheet = page.getByRole("dialog");
+  await sheet.getByRole("list", { name: "Manage data" }).getByRole("button", { name: /^Entered by you/ }).click();
+  // newest first: the reading just entered
+  await sheet.getByRole("list", { name: "Entered by you" }).getByRole("button").first().click();
+  await expect(sheet).toContainText("1 entry");
+  await expect(sheet.locator(".batch-items")).toContainText("88.8 kg");
+  await sheet.getByRole("button", { name: "Delete this import" }).click();
+  await expect(sheet.getByRole("group", { name: "Delete this import's data?" })).toContainText("1 entry will be deleted.");
+  await sheet.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(sheet.getByRole("group", { name: "Delete for good?" })).toBeVisible();
+  await sheet.getByRole("button", { name: "Delete for good" }).click();
+  await expect(sheet.getByRole("status")).toHaveText("Deleted.");
+  await expect(sheet.getByRole("heading", { name: "Entered by you" })).toBeVisible();
+  // cancelling the second question leaves everything as it was
+  await sheet.getByRole("button", { name: "‹ Manage data" }).click();
+  await sheet.getByRole("list", { name: "Manage data" }).getByRole("button").first().click();
+  await sheet.getByRole("button", { name: /^Delete all/ }).click();
+  await sheet.getByRole("button", { name: "Delete", exact: true }).click();
+  await sheet.getByRole("button", { name: "Cancel" }).click();
+  await expect(sheet.getByRole("button", { name: /^Delete all/ })).toBeVisible();
+});
+
 test("data sources: one row per source with its status; a table exports as CSV", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Data sources" }).click();

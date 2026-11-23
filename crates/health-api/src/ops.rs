@@ -3,7 +3,7 @@
 use crate::{Ctx, Delegate, OpDef, bad_request};
 use health_core::access::{Audit, Grant, GrantSpec};
 use health_core::backup::{self, Exported, Imported};
-use health_core::batches::{self, Batch, BatchDetail};
+use health_core::batches::{self, Batch, BatchDetail, ErasedSource};
 use health_core::correction::{self, Key};
 use health_core::csv::GroupCount;
 use health_core::derived::{Derive, Derived};
@@ -60,6 +60,7 @@ pub static OPS: &[OpDef] = &[
     op!("import.list", "Import batches, newest first", write: false, delegate: Never, manual_tx: false, import_list, ImportList, Vec<Batch>),
     op!("import.show", "One batch and the rows it holds now", write: false, delegate: Never, manual_tx: false, import_show, IdLimit, BatchDetail),
     op!("import.erase", "Delete a batch and everything it delivered", write: true, delegate: Never, manual_tx: false, import_erase, IdReq, EraseResult),
+    op!("import.erase_source", "Delete every batch of one kind of source (a connector) and everything they delivered", write: true, delegate: Never, manual_tx: false, import_erase_source, ConnectorReq, ErasedSource),
     op!("review.list", "Batches waiting for review (invisible until confirmed)", write: false, delegate: Never, manual_tx: false, review_list, Empty, Vec<BatchDetail>),
     op!("review.confirm", "Confirm a review batch with the rows to write", write: true, delegate: Never, manual_tx: false, review_confirm, ReviewConfirm, Confirmed),
     op!("review.confirm_ocr", "Confirm a lab-report batch: a measure (or a new one) and unit per item, or skip", write: true, delegate: Never, manual_tx: false, review_confirm_ocr, OcrConfirm, OcrConfirmed),
@@ -368,6 +369,19 @@ fn import_show(ctx: &mut Ctx, r: IdLimit) -> Result<BatchDetail> {
 
 fn import_erase(ctx: &mut Ctx, r: IdReq) -> Result<EraseResult> {
     let res = batches::erase(ctx.db(), r.id, ctx.now_ms)?;
+    ctx.delete_blobs_after_commit(res.orphan_blobs.clone());
+    Ok(res)
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectorReq {
+    /// manual, ocr, apple_health, whoop, lab, …
+    pub connector: String,
+}
+
+fn import_erase_source(ctx: &mut Ctx, r: ConnectorReq) -> Result<ErasedSource> {
+    let res = batches::erase_connector(ctx.db(), &r.connector, ctx.now_ms)?;
     ctx.delete_blobs_after_commit(res.orphan_blobs.clone());
     Ok(res)
 }

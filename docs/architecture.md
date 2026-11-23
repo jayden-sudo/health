@@ -59,7 +59,7 @@ pub struct OpDef {
 | `daily.rebuild` | `rebuildAllDaily` | `daily rebuild` | ✓ |
 | `correct` | `putCorrection` (no web handler) | `correct` | ✓ |
 | `source.list`, `source.update` | `sources` | `source list|rename|priority` | –/✓ |
-| `import.list`, `import.show`, `import.erase` | `batches`, `previewBatch`, `eraseBatch` | `import list|show|erase` | –/–/✓ |
+| `import.list`, `import.show`, `import.erase`, `import.erase_source` | `batches`, `previewBatch`, `eraseBatch`, `eraseConnector` | `import list|show|erase|erase-source` | –/–/✓/✓ |
 | `review.list`, `review.confirm`, `review.discard` | `reviews`, `confirmReview` (strict), `discardReview` | `review list|confirm|discard` | –/✓/✓ |
 | `import.ocr`, `import.seen`, `review.confirm_ocr` (M5) | `ingestOcr`, `blobSeen`, `confirmReview` (noOverwrite) | `ocr <file>`, `op …` | ✓/–/✓ |
 | `report.search`, `report.show` | report_text | `report search|show` | – |

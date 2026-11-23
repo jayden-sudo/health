@@ -57,7 +57,8 @@ fn batch(r: &rusqlite::Row) -> rusqlite::Result<(Batch, Option<String>)> {
     Ok((
         Batch {
             import_id: r.get(0)?,
-            at: uuid_time(&uid),
+            // the time in its UUIDv7, else the earliest time it holds (W whenOf)
+            at: uuid_time(&uid).or_else(|| span.values().map(|s| s.0).min()),
             uid,
             source_id: r.get(2)?,
             connector: r.get(3)?,
@@ -112,4 +113,40 @@ pub fn erase(c: &Db, import_id: i64, now_ms: i64) -> Result<crate::erase::EraseR
         return Err(Error::conflict("import_state", status));
     }
     crate::erase::erase(c, import_id, now_ms)
+}
+
+#[derive(Debug, Default, Serialize, schemars::JsonSchema)]
+pub struct ErasedSource {
+    /// Batches deleted
+    pub batches: u64,
+    /// Rows deleted
+    pub deleted: u64,
+    #[serde(skip)]
+    pub orphan_blobs: Vec<String>,
+}
+
+/// Erases every listed batch (done or review) of a connector, in one transaction (W `eraseConnector`).
+pub fn erase_connector(c: &Db, connector: &str, now_ms: i64) -> Result<ErasedSource> {
+    crate::db::tx(c, || {
+        let ids: Vec<i64> = c
+            .prepare(
+                "SELECT i.id FROM import i JOIN source s ON s.id = i.source_id
+                  WHERE s.connector = ? AND i.status IN ('done','review') ORDER BY i.id",
+            )?
+            .query_map([connector], |r| r.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        let mut out = ErasedSource::default();
+        // erase renumbers the import it deletes to max(id) + 1, which none of the ids still waiting can be
+        for id in ids {
+            let r = crate::erase::erase(c, id, now_ms)?;
+            out.batches += 1;
+            out.deleted += r.deleted;
+            for b in r.orphan_blobs {
+                if !out.orphan_blobs.contains(&b) {
+                    out.orphan_blobs.push(b);
+                }
+            }
+        }
+        Ok(out)
+    })
 }

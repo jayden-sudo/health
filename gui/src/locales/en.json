@@ -11,8 +11,6 @@
  "{{count}} imports are waiting for you to check._other": "{{count}} imports are waiting for you to check.",
  "{{count}} imports_one": "{{count}} import",
  "{{count}} imports_other": "{{count}} imports",
- "{{count}} devices_one": "{{count}} device",
- "{{count}} devices_other": "{{count}} devices",
  "{{count}} measures_one": "{{count}} measure",
  "{{count}} measures_other": "{{count}} measures",
  "Saved {{count}} results, with {{created}} new measures._one": "Saved {{count}} result, with {{created}} new measures.",
@@ -48,5 +46,15 @@
  "{{obs}} entries from {{count}} sources_one": "{{obs}} entries from {{count}} source",
  "{{obs}} entries from {{count}} sources_other": "{{obs}} entries from {{count}} sources",
  "Read {{count}} results. Please check them._one": "Read {{count}} result. Please check it.",
- "Read {{count}} results. Please check them._other": "Read {{count}} results. Please check them."
+ "Read {{count}} results. Please check them._other": "Read {{count}} results. Please check them.",
+ "The data of {{count}} syncs will be deleted, and WHOOP disconnected._one": "The data of {{count}} sync will be deleted, and WHOOP disconnected.",
+ "The data of {{count}} syncs will be deleted, and WHOOP disconnected._other": "The data of {{count}} syncs will be deleted, and WHOOP disconnected.",
+ "The data of {{count}} imports will be deleted._one": "The data of {{count}} import will be deleted.",
+ "The data of {{count}} imports will be deleted._other": "The data of {{count}} imports will be deleted.",
+ "{{count}} entries_one": "{{count}} entry",
+ "{{count}} entries_other": "{{count}} entries",
+ "Showing the newest {{count}}._one": "Showing the newest {{count}}.",
+ "Showing the newest {{count}}._other": "Showing the newest {{count}}.",
+ "{{count}} entries will be deleted._one": "{{count}} entry will be deleted.",
+ "{{count}} entries will be deleted._other": "{{count}} entries will be deleted."
 }

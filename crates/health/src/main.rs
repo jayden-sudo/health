@@ -381,6 +381,10 @@ enum ImportCmd {
     Erase {
         id: i64,
     },
+    /// Every batch of one kind of source (manual, ocr, apple_health, whoop, lab, …)
+    EraseSource {
+        connector: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -558,6 +562,7 @@ fn request(cmd: &Cmd, now: i64) -> Result<(String, Value)> {
         Cmd::Import(ImportCmd::List { connector }) => ("import.list".into(), json!({ "connector": connector })),
         Cmd::Import(ImportCmd::Show { id, limit }) => ("import.show".into(), json!({ "id": id, "limit": limit })),
         Cmd::Import(ImportCmd::Erase { id }) => ("import.erase".into(), json!({ "id": id })),
+        Cmd::Import(ImportCmd::EraseSource { connector }) => ("import.erase_source".into(), json!({ "connector": connector })),
         Cmd::Review(ReviewCmd::List) => ("review.list".into(), json!({})),
         Cmd::Review(ReviewCmd::Confirm { id, rows, text }) => {
             let rows: Value = match rows {

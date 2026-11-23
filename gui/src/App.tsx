@@ -734,7 +734,14 @@ function DataSources({ file, onFile, go, done }: { file?: string; onFile: (p?: s
       </ul>
       {sheet && (
         <Sheet label={titles[sheet]} close={close}>
-          {sheet === "manage" && <Sources go={go} />}
+          {sheet === "manage" && (
+            <Sources
+              go={(p) => {
+                close();
+                go(p);
+              }}
+            />
+          )}
           {sheet === "whoop" && <WhoopConnect />}
           {(sheet === "apple" || sheet === "report" || sheet === "restore" || sheet === "file") && (
             <Import file={file} onFile={onFile} go={go} kind={sheet} title={titles[sheet]} />
@@ -1615,10 +1622,48 @@ function Enter({ done }: { done: (code: string) => void }) {
 }
 
 
-function Sources(_: { go: (p: Page) => void }) {
+/** Sources whose imports are told apart by the device, lab or room they came from (the web's NAMED). */
+const NAMED = new Set(["apple_health", "lab", "room"]);
+/** Deleted only as a whole: every sync fetches the last days again, so one sync deleted would come back. */
+const WHOLE_ONLY = new Set(["whoop"]);
+
+/** A delete that can't be undone asks twice: what goes, then once more (as the web does). */
+function DeleteTwice({ label, title, detail, busy, run }: { label: string; title: string; detail: string; busy: boolean; run: () => void }) {
+  const [step, setStep] = useState<0 | 1 | 2>(0);
+  if (step === 0)
+    return (
+      <div className="actions">
+        <button type="button" className="danger" disabled={busy} onClick={() => setStep(1)}>
+          {label}
+        </button>
+      </div>
+    );
+  return (
+    <div className="confirm" role="group" aria-label={step === 1 ? title : t("Delete for good?")}>
+      <p>
+        <strong>{step === 1 ? title : t("Delete for good?")}</strong>
+      </p>
+      <p className="fine">{step === 1 ? detail : t("This can't be undone. Backups you saved earlier still have this data.")}</p>
+      <div className="actions">
+        <button type="button" autoFocus disabled={busy} onClick={() => setStep(0)}>
+          {t("Cancel")}
+        </button>
+        <button type="button" className="danger" disabled={busy} onClick={() => (step === 1 ? setStep(2) : run())}>
+          {step === 1 ? t("Delete") : t("Delete for good")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Manage data (the web's 管理数据): each kind of source with how many times data came from it; a kind lists
+ *  those imports, newest first; an import shows what it holds now and can be deleted; a kind can be deleted
+ *  whole. WHOOP only whole, and is disconnected with it. */
+function Sources({ go }: { go: (p: Page) => void }) {
   const [sources, , reloadSources] = useOp(() => op<Source[]>("source.list"), []);
   const [batches, err, reload] = useOp(() => op<Batch[]>("import.list"), []);
-  const [confirm, setConfirm] = useState<number>();
+  const [kind, setKind] = useState<string>();
+  const [open, setOpen] = useState<Batch>();
   const [msg, setMsg] = useState<string>();
   const [ordering, setOrdering] = useState(false);
   const run = async (fn: () => Promise<unknown>, ok: string) => {
@@ -1642,70 +1687,118 @@ function Sources(_: { go: (p: Page) => void }) {
     }, t("Order saved."));
     setOrdering(false);
   };
-  const device = (id: number) => {
-    const x = sources?.find((s) => s.id === id);
-    // inside a kind, repeating a generic device name ("OCR") says nothing
-    return !x || x.connector === "manual" || sourceLabel(x) === sourceKind(x.connector) ? "" : `${x.name} · `;
-  };
-  // one row per kind of source, newest first, opening its imports
   const kinds = new Map<string, Batch[]>();
   for (const b of batches ?? []) kinds.set(b.connector, [...(kinds.get(b.connector) ?? []), b]);
-  const ordered = [...kinds.entries()].sort((a, b) => Math.max(...b[1].map((x) => x.at ?? 0)) - Math.max(...a[1].map((x) => x.at ?? 0)));
+  const last = (list: Batch[]) => Math.max(0, ...list.map((b) => b.at ?? 0));
+  const ordered = [...kinds.entries()].sort((a, b) => last(b[1]) - last(a[1]) || a[0].localeCompare(b[0]));
+  const status = msg && (
+    <p className="notice" role="status">
+      {msg}
+    </p>
+  );
+
+  if (kind && open)
+    return (
+      <ImportView
+        b={open}
+        kind={kind}
+        device={sources?.find((s) => s.id === open.source_id)?.name}
+        back={() => setOpen(undefined)}
+        go={go}
+        erased={() => {
+          setOpen(undefined);
+          setMsg(t("Deleted."));
+          reload();
+          reloadSources();
+        }}
+      />
+    );
+  if (kind) {
+    const list = kinds.get(kind) ?? [];
+    const whole = WHOLE_ONLY.has(kind);
+    const name = sourceKind(kind);
+    return (
+      <div className="manage">
+        <button type="button" className="link back" onClick={() => setKind(undefined)}>
+          ‹ {t("Manage data")}
+        </button>
+        <h3 className="manage-title">{name}</h3>
+        {status}
+        {list.length ? (
+          <ul className="rows-card" aria-label={name}>
+            {list.map((b) => (
+              <Row
+                key={b.import_id}
+                icon={null}
+                label={b.at ? when(b.at) : "–"}
+                value={
+                  b.status === "review" ? (
+                    <span className="signal">{t("waiting for you")}</span>
+                  ) : NAMED.has(kind) ? (
+                    sources?.find((s) => s.id === b.source_id)?.name
+                  ) : (
+                    t("{{count}} measures", { count: b.metrics })
+                  )
+                }
+                onClick={() => {
+                  setMsg(undefined);
+                  setOpen(b);
+                }}
+              />
+            ))}
+          </ul>
+        ) : (
+          <p className="empty">{t("No imports yet.")}</p>
+        )}
+        {whole && <p className="rows-foot">{t("WHOOP fetches the last few days again at every sync, so its data can only be deleted all at once.")}</p>}
+        {list.length > 0 && (
+          <DeleteTwice
+            label={whole ? t("Delete all and disconnect") : t("Delete all")}
+            title={t("Delete everything from {{name}}?", { name })}
+            detail={
+              whole
+                ? t("The data of {{count}} syncs will be deleted, and WHOOP disconnected.", { count: list.length })
+                : t("The data of {{count}} imports will be deleted.", { count: list.length })
+            }
+            busy={false}
+            run={() =>
+              run(async () => {
+                await op("import.erase_source", { connector: kind });
+                if (whole) await op("whoop.disconnect");
+                setKind(undefined);
+              }, t("Deleted."))
+            }
+          />
+        )}
+      </div>
+    );
+  }
   return (
-    <section className="record">
+    <div className="manage">
       <h2>{t("Manage data")}</h2>
-      {msg && (
-        <p className="notice" role="status">
-          {msg}
-        </p>
-      )}
+      {status}
       <Problem text={err} />
       {batches && !batches.length && <p className="empty">{t("No imports yet.")}</p>}
-      <div className="list-card">
-        {ordered.map(([kind, list]) => {
-          const devices = new Set(list.map((b) => b.source_id));
-          const last = Math.max(...list.map((b) => b.at ?? 0));
-          return (
-            <details key={kind} className="kind">
-              <summary>
-                <span className="name">{sourceKind(kind)}</span>
-                <span className="fine">
-                  {t("{{count}} imports", { count: list.length })}
-                  {devices.size > 1 ? `${t(", ")}${t("{{count}} devices", { count: devices.size })}` : ""} · {last ? shortDate(last) : ""}
-                </span>
-              </summary>
-              <ul className="batches">
-                {list.map((b) => (
-                  <li key={b.import_id}>
-                    <span>
-                      {b.at ? when(b.at) : ""}
-                      <br />
-                      <span className="fine">
-                        {device(b.source_id)}
-                        {b.status === "review" ? <span className="signal">{t("waiting for you")}</span> : t("{{count}} measures", { count: b.metrics })}
-                      </span>
-                    </span>
-                    {confirm === b.import_id ? (
-                      <span className="actions">
-                        <button type="button" className="danger" onClick={() => run(() => op("import.erase", { id: b.import_id }), t("Deleted."))}>
-                          {t("Delete import and its readings")}
-                        </button>
-                        <button type="button" onClick={() => setConfirm(undefined)}>
-                          {t("Keep")}
-                        </button>
-                      </span>
-                    ) : (
-                      <button type="button" className="link" onClick={() => setConfirm(b.import_id)}>
-                        {t("Delete…")}
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </details>
-          );
-        })}
-      </div>
+      {ordered.length > 0 && (
+        <>
+          <ul className="rows-card" aria-label={t("Manage data")}>
+            {ordered.map(([k, list]) => (
+              <Row
+                key={k}
+                icon={null}
+                label={sourceKind(k)}
+                sub={last(list) ? t("Last import {{when}}", { when: shortDate(last(list)) }) : undefined}
+                value={t("{{count}} imports", { count: list.length })}
+                onClick={() => {
+                  setMsg(undefined);
+                  setKind(k);
+                }}
+              />
+            ))}
+          </ul>
+          <p className="rows-foot">{t("Open a source to see what each import brought, or to delete it.")}</p>
+        </>
+      )}
       <details className="group">
         <summary>
           <h3>{t("Source priority")}</h3>
@@ -1724,7 +1817,78 @@ function Sources(_: { go: (p: Page) => void }) {
           ))}
         </ol>
       </details>
-    </section>
+    </div>
+  );
+}
+
+/** One import: what it holds now (a row belongs to the newest import that delivered it), newest first. */
+function ImportView({ b, kind, device, back, go, erased }: { b: Batch; kind: string; device?: string; back: () => void; go: (p: Page) => void; erased: () => void }) {
+  const [d, err] = useOp(() => op<BatchDetail>("import.show", { id: b.import_id, limit: 50 }), [b.import_id]);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string>();
+  const name = sourceKind(kind);
+  const erase = async () => {
+    setBusy(true);
+    setProblem(undefined);
+    try {
+      await op("import.erase", { id: b.import_id });
+      erased();
+    } catch (e) {
+      setProblem(errText(e));
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="manage">
+      <button type="button" className="link back" disabled={busy} onClick={back}>
+        ‹ {name}
+      </button>
+      <h3 className="manage-title">{b.at ? when(b.at) : name}</h3>
+      {NAMED.has(kind) && device && <p className="fine">{device}</p>}
+      <Problem text={err ?? problem} />
+      {b.status === "review" ? (
+        <p>
+          {t("Waiting for you to check. Nothing from it is in your data yet.")}{" "}
+          <button type="button" className="link" onClick={() => go("review")}>
+            {t("Check it")}
+          </button>
+        </p>
+      ) : (
+        d && (
+          <>
+            <p className="fine">{t("{{count}} entries", { count: d.rows })}</p>
+            {d.items.length > 0 && (
+              <ul className="rows-card batch-items">
+                {d.items.map((p) => {
+                  const v = shown(p);
+                  return (
+                    <li key={`${p.metric}|${p.start_ms}`} className="row-static">
+                      <span className="row-l">
+                        <strong>{nameOf(p.metric, p.name)}</strong>
+                        <span className="fine">{when(p.start_ms, p.tz_min)}</span>
+                      </span>
+                      <span className="row-v">
+                        {v.value} {v.unit}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {d.rows > d.items.length && <p className="rows-foot">{t("Showing the newest {{count}}.", { count: d.items.length })}</p>}
+          </>
+        )
+      )}
+      {!WHOLE_ONLY.has(kind) && (
+        <DeleteTwice
+          label={t("Delete this import")}
+          title={t("Delete this import's data?")}
+          detail={b.status === "review" ? t("The import waiting for you will be deleted.") : t("{{count}} entries will be deleted.", { count: d?.rows ?? 0 })}
+          busy={busy || (!d && b.status !== "review")}
+          run={erase}
+        />
+      )}
+    </div>
   );
 }
 

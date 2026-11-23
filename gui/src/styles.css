@@ -1459,3 +1459,41 @@ label.inline {
   font-size: 13px;
   font-weight: 400;
 }
+
+/* Manage data: a source, then one import, inside the sheet (back link, title, the delete asked twice) */
+.sheet:has(.manage) {
+  width: min(600px, calc(100vw - 3rem));
+}
+.manage .back {
+  font-size: 13px;
+}
+.manage-title {
+  margin: 0.4rem 0 0.75rem;
+  font-size: 20px;
+}
+.manage .rows-card {
+  margin-bottom: 0.4rem;
+}
+.manage .rows-foot {
+  margin-bottom: 1.25rem;
+}
+.manage > .actions {
+  margin-top: 1.25rem;
+}
+.batch-items .row-v {
+  font-variant-numeric: tabular-nums;
+}
+.confirm {
+  margin-top: 1.25rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: var(--r-group);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--danger) 30%, transparent);
+}
+.confirm p {
+  margin: 0 0 0.35rem;
+}
+.confirm .actions {
+  justify-content: flex-end;
+  margin: 0.75rem 0 0;
+}
