@@ -48,3 +48,28 @@ fn edits_win_even_with_a_pinned_clock() {
     assert!(query::latest(&c, &health_core::scope::Scope::all(), None).unwrap().is_empty());
     assert_eq!(manual::remove(&c, "loinc:29463-7", T + 1, T).unwrap_err().code, "no_row");
 }
+
+#[test]
+fn several_entries_make_one_import_each() {
+    // merge-fixes R7: a manual import holds one row, so superseding and removing a value never leaves an old
+    // import with a claim on that key
+    let c = db::open_memory().unwrap();
+    let at = |ms| When::At { ms, end_ms: None, tz_min: 480 };
+    let r = manual::enter(&c, &[weight(70.0, Some("kg"), at(T)), weight(71.0, Some("kg"), at(T + 60_000))], T).unwrap();
+    assert_eq!(r.import_ids.len(), 2);
+    assert_eq!(r.import_id, *r.import_ids.last().unwrap());
+    assert_eq!(r.result.written, 2);
+    let uids: Vec<String> = c
+        .prepare("SELECT uid FROM import WHERE parser = 'manual' ORDER BY id")
+        .unwrap()
+        .query_map([], |x| x.get(0))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert_eq!(uids.len(), 2);
+    assert!(uids[0] < uids[1], "uids stay monotonic within one call");
+    for id in &r.import_ids {
+        let n: i64 = c.query_row("SELECT count(*) FROM observation WHERE import_id = ?", [id], |x| x.get(0)).unwrap();
+        assert_eq!(n, 1);
+    }
+}

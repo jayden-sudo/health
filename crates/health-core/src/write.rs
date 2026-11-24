@@ -119,9 +119,45 @@ pub fn set_span(meta: &mut Map<String, Json>, span: &Span) {
     meta.insert("span".into(), span_json(span));
 }
 
-/// Finds or creates a source. Manual data gets priority 0, everything else 100.
+/// A connector's default source priority (smaller wins). Shared with the web for R3's upgrade stamp.
+pub fn default_priority(connector: &str) -> i64 {
+    match connector {
+        "manual" => 0,
+        "derived" => crate::derived::PRIORITY,
+        _ => 100,
+    }
+}
+
+/// Stamps a source's name/priority setting with an HLC and the device that set it (merge-fixes R3). The HLC is
+/// kept as a decimal string: it exceeds what a JSON number carries exactly.
+pub fn stamp_source(c: &Db, id: i64, now_ms: i64, by: &str) -> Result<()> {
+    let at = crate::correction::next_at(c, now_ms)?;
+    let meta: Option<String> = c.query_row("SELECT meta FROM source WHERE id = ?", [id], |r| r.get(0))?;
+    let mut m = parse_meta(meta);
+    m.insert("set_at".into(), Json::String(at.to_string()));
+    m.insert("set_by".into(), Json::String(by.to_string()));
+    c.execute("UPDATE source SET meta = ? WHERE id = ?", rusqlite::params![Json::Object(m).to_string(), id])?;
+    Ok(())
+}
+
+/// Once per profile in effect (idempotent): a priority chosen before settings were stamped (it differs from the
+/// connector's default and has no `set_at`) is stamped now, so an unstamped default elsewhere can't revert it.
+pub fn stamp_legacy_sources(c: &Db, now_ms: i64) -> Result<()> {
+    let rows: Vec<(i64, String, i64, Option<String>)> = c
+        .prepare("SELECT id, connector, priority, meta FROM source")?
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+    for (id, connector, priority, meta) in rows {
+        if priority != default_priority(&connector) && !parse_meta(meta).contains_key("set_at") {
+            stamp_source(c, id, now_ms, "")?;
+        }
+    }
+    Ok(())
+}
+
+/// Finds or creates a source. Manual data gets priority 0, everything else 100 (`default_priority`).
 pub fn source_id(c: &Db, s: &SourceSpec) -> Result<i64> {
-    let priority = s.priority.unwrap_or(if s.connector == "manual" { 0 } else { 100 });
+    let priority = s.priority.unwrap_or(default_priority(&s.connector));
     let name = s.name.clone().unwrap_or_else(|| if s.external_id.is_empty() { s.connector.clone() } else { s.external_id.clone() });
     c.execute(
         "INSERT INTO source (connector, external_id, name, priority, meta) VALUES (?, ?, ?, ?, ?) ON CONFLICT (connector, external_id) DO NOTHING",
@@ -155,6 +191,56 @@ pub struct Begin<'a> {
 }
 
 /// Creates an import batch; a file (blob) can be imported only once. Returns (id, uid).
+/// One-time upgrade 2 (merge-fixes R6b, R10): every import holding a file records it in `meta.file`, and every
+/// import's span covers the rows it owns (web data written under the R8 bug can hold rows outside it).
+pub fn upgrade_files_and_spans(c: &Db) -> Result<()> {
+    tx(c, || {
+        let held: Vec<(i64, String, Option<String>)> = c
+            .prepare("SELECT id, blob, meta FROM import WHERE blob IS NOT NULL")?
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        for (id, blob, meta) in held {
+            let mut m = parse_meta(meta);
+            if !m.contains_key("file") {
+                m.insert("file".into(), Json::String(blob));
+                c.execute("UPDATE import SET meta = ? WHERE id = ?", rusqlite::params![Json::Object(m).to_string(), id])?;
+            }
+        }
+        let rows: Vec<(i64, i64, i64, i64)> = c
+            .prepare("SELECT import_id, metric_id, min(start_ms), max(start_ms) FROM observation GROUP BY 1, 2")?
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        let mut by: BTreeMap<i64, Span> = BTreeMap::new();
+        for (id, metric, a, b) in rows {
+            by.entry(id).or_default().insert(metric, (a, b));
+        }
+        for (id, add) in by {
+            let meta: Option<String> = c.query_row("SELECT meta FROM import WHERE id = ?", [id], |r| r.get(0))?;
+            let mut m = parse_meta(meta);
+            let mut span = span_of(&m);
+            let before = span.clone();
+            for (k, (a, b)) in add {
+                let e = span.entry(k).or_insert((a, b));
+                *e = (e.0.min(a), e.1.max(b));
+            }
+            if span != before {
+                set_span(&mut m, &span);
+                c.execute("UPDATE import SET meta = ? WHERE id = ?", rusqlite::params![Json::Object(m).to_string(), id])?;
+            }
+        }
+        Ok(())
+    })
+}
+
+/// The latest time a row may have, on every writer and in every merge (merge-fixes R13): 9999-12-29T00:00:00Z, so
+/// `to` plus the daily padding stays inside year 9999 for SQLite's strftime, JS Date and chrono alike.
+pub const MAX_TIME_MS: i64 = 253_402_041_600_000;
+
+/// A uid that syncs safely: 1-64 bytes, each 0x21-0x7E (merge-fixes P5). Spaces or newlines would forge lines.
+pub fn plain_uid(u: &str) -> bool {
+    (1..=64).contains(&u.len()) && u.bytes().all(|b| (0x21..=0x7e).contains(&b))
+}
+
 pub fn begin(c: &Db, b: Begin<'_>, now_ms: i64) -> Result<(i64, String)> {
     tx(c, || {
         if let Some(sha) = b.blob
@@ -164,12 +250,16 @@ pub fn begin(c: &Db, b: Begin<'_>, now_ms: i64) -> Result<(i64, String)> {
         }
         let sid = source_id(c, b.source)?;
         let uid = match b.uid {
-            Some(u) => u,
+            Some(u) if plain_uid(&u) => u,
+            Some(u) => return Err(Error::invalid("bad_uid", format!("{} bytes", u.len()))),
             None => new_uid(c, now_ms)?,
         };
-        let (status, meta) = match &b.candidates {
-            Some(cand) => ("review", Some(json!({ "candidates": cand }).to_string())),
-            None => ("running", None),
+        // an import that brings a file records it, so the file can pass to it when its holder is erased (R6b)
+        let (status, meta) = match (&b.candidates, b.blob) {
+            (Some(cand), Some(f)) => ("review", Some(json!({ "candidates": cand, "file": f }).to_string())),
+            (Some(cand), None) => ("review", Some(json!({ "candidates": cand }).to_string())),
+            (None, Some(f)) => ("running", Some(json!({ "file": f }).to_string())),
+            (None, None) => ("running", None),
         };
         c.execute(
             "INSERT INTO import (uid, source_id, parser, blob, status, meta) VALUES (?, ?, ?, ?, ?, ?)",
@@ -193,7 +283,7 @@ const UPSERT: &str = "INSERT INTO observation (metric_id, start_ms, source_id, e
 
 /// Validates and converts one row: the value to store, or why it is rejected.
 pub fn check_row(m: &MetricRow, r: &ObsRow) -> std::result::Result<Value, Reject> {
-    let safe = |t: i64| (t as f64) <= MAX_SAFE;
+    let safe = |t: i64| (0..=MAX_TIME_MS).contains(&t);
     if r.start_ms < 0 || !safe(r.start_ms) || !(-840..=840).contains(&r.tz_min) {
         return Err(Reject::Time);
     }

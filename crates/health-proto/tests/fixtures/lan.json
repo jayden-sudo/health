@@ -1,0 +1,53 @@
+{
+  "about": "LAN sync signalling (health-proto/src/lan.rs). HKDF-SHA256(salt 'health-amk-v1', amk), info 'lan-sync/key/v1/<day>' and 'lan-sync/rid/v1/<day>'; rid = base32 lower case, no padding, of the first 16 bytes; ct = base64url(nonce ‖ AES-256-GCM(key, nonce, plain, aad = rid ASCII)).",
+  "amk_hex": "0707070707070707070707070707070707070707070707070707070707070707",
+  "day": "2026-11-18",
+  "days_at": [
+    {
+      "days": [
+        "2026-11-19",
+        "2026-11-18"
+      ],
+      "now_ms": 1795046700000
+    },
+    {
+      "days": [
+        "2026-11-18",
+        "2026-11-19"
+      ],
+      "now_ms": 1795046340000
+    },
+    {
+      "days": [
+        "2026-11-19"
+      ],
+      "now_ms": 1795050000000
+    },
+    {
+      "days": [
+        "1970-01-01",
+        "1969-12-31"
+      ],
+      "now_ms": 0
+    },
+    {
+      "days": [
+        "2000-02-29",
+        "2000-02-28"
+      ],
+      "now_ms": 951782400000
+    }
+  ],
+  "host_only": {
+    "kept": "v=0\r\na=candidate:1 1 udp 2122260223 192.168.1.5 50000 typ host\r\na=candidate:4 1 udp 2122260223 0b1c2d3e-aaaa.local 50003 typ host\r\na=candidate:5 1 udp 2122260223 fe80::1 50004 typ host\r\na=candidate:6 1 udp 2122260223 10.0.0.7 50005 typ host\r\na=end\r\n",
+    "sdp": "v=0\r\na=candidate:1 1 udp 2122260223 192.168.1.5 50000 typ host\r\na=candidate:2 1 udp 2122260223 8.8.8.8 50001 typ host\r\na=candidate:3 1 udp 1686052607 203.0.113.9 50002 typ srflx raddr 192.168.1.5 rport 50000\r\na=candidate:4 1 udp 2122260223 0b1c2d3e-aaaa.local 50003 typ host\r\na=candidate:5 1 udp 2122260223 fe80::1 50004 typ host\r\na=candidate:6 1 udp 2122260223 10.0.0.7 50005 typ host\r\na=candidate:7 1 udp 2122260223 172.32.0.1 50006 typ host\r\na=end\r\n"
+  },
+  "key_hex": "c1926ceb7c272cfdbe3760a6112b07153639dfab45f91357147a44102a24b726",
+  "next_day_rid": "4tq3h47gz3t7hvkppesxrizoke",
+  "rid": "bgbakkycclzta6bp4zgeny6ixi",
+  "seal": {
+    "ct": "AQEBAQEBAQEBAQEB4lj4TdSUdRNdzozLXTWL4kkiV650i_saqlkjBt-q1KK0qXJsvzLhM-YvLrZjU1yiJ240N8FU8ty4SoODiQ55aHSm-pIsngWkRvCNx2iYZL2DLlpk7mk12lbMP59ONgpeuRMWknQc8LeOLDPZ61wingRld4IJS8NnvxKty277Ltt3JepFXUC16Afb0x2q2Aa0y76DnELakK1aQ5CoDmYjN2ZOaZx6DJWPpw",
+    "nonce_hex": "010101010101010101010101",
+    "plain": "{\"v\":1,\"t\":1795000000000,\"id\":\"AAECAwQFBgcICQoLDA0ODw\",\"from\":\"0123456789abcdef0123456789abcdef\",\"type\":\"hello\",\"name\":\"Health 0.1 · macos\",\"proto\":[1]}"
+  }
+}

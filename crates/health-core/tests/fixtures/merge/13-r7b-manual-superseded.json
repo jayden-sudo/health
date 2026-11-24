@@ -1,0 +1,107 @@
+{
+ "name": "13-r7b-manual-superseded",
+ "about": "R7b: b's entry (larger uid) superseded a's at the same time. a's emptied manual import is erased by the merge; b receives a's import (it owns nothing there), then its tombstone in the second round.",
+ "a": {
+  "sources": [
+   {
+    "connector": "manual",
+    "external_id": "",
+    "name": "manual",
+    "priority": 0
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000013",
+    "connector": "manual",
+    "external_id": "",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:29463-7",
+    "connector": "manual",
+    "external_id": "",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000013",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 71
+    }
+   }
+  ]
+ },
+ "b": {
+  "sources": [
+   {
+    "connector": "manual",
+    "external_id": "",
+    "name": "manual",
+    "priority": 0
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000014",
+    "connector": "manual",
+    "external_id": "",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:29463-7",
+    "connector": "manual",
+    "external_id": "",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000014",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 72
+    }
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "manual",
+    "external_id": "",
+    "name": "manual",
+    "priority": 0
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000013",
+    "connector": "manual",
+    "external_id": "",
+    "status": "erased"
+   },
+   {
+    "uid": "019a0000-0000-7000-8000-000000000014",
+    "connector": "manual",
+    "external_id": "",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:29463-7",
+    "connector": "manual",
+    "external_id": "",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000014",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 72
+    }
+   }
+  ]
+ },
+ "rounds": 2
+}

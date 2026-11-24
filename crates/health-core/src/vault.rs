@@ -39,6 +39,69 @@ pub struct State {
     /// The WHOOP connection (the person's own developer app and its tokens)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub whoop: Option<Whoop>,
+    /// Where early builds counted one-time data upgrades; read once to migrate, now kept in the database header's
+    /// `application_id` (profile.rs)
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub upgraded: u32,
+    /// This installation's id for sync (docs/lan-sync.md §4): 16 random bytes, hex. Never synced, never in backups.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device: Option<String>,
+    /// When and by which device `profile` was last set (a synced setting, lan-sync §8)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile_stamp: Option<Stamp>,
+    /// When WHOOP was last disconnected or its data deleted on any device (a synced setting, lan-sync §8)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub whoop_stopped: Option<Stopped>,
+}
+
+/// A synced setting's clock: `set_at` is an HLC (`(ms << 16) | counter`), `set_by` a device id.
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Stamp {
+    /// A decimal string in JSON (merge-fixes G5's grammar): an HLC is above 2^53, which JS numbers can't hold
+    #[serde(with = "hlc_text")]
+    pub set_at: i64,
+    pub set_by: String,
+}
+
+/// An HLC as JSON text `^(0|[1-9][0-9]*)$` within i64. A number is still read, as early vault files wrote it.
+mod hlc_text {
+    use serde::{Deserialize, Deserializer, Serializer, de::Error};
+
+    pub fn serialize<S: Serializer>(v: &i64, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(&v.to_string())
+    }
+
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Raw {
+        Text(String),
+        Num(i64),
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<i64, D::Error> {
+        match Raw::deserialize(d)? {
+            Raw::Num(n) if n >= 0 => Ok(n),
+            Raw::Text(t)
+                if t == "0"
+                    || (t.len() <= 19 && t.starts_with(|c: char| ('1'..='9').contains(&c)) && t.bytes().all(|b| b.is_ascii_digit())) =>
+            {
+                t.parse().map_err(D::Error::custom)
+            }
+            _ => Err(D::Error::custom("set_at is a decimal string")),
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Stopped {
+    /// When it stopped (ms)
+    pub at: i64,
+    #[serde(flatten)]
+    pub stamp: Stamp,
+}
+
+fn is_zero(n: &u32) -> bool {
+    *n == 0
 }
 
 /// One completed link (web `link-log.ts` LinkEntry).
@@ -88,6 +151,59 @@ pub struct Whoop {
     /// The refresh token stopped working: sign in again
     #[serde(default)]
     pub reauth: bool,
+    /// When this device connected (ms): a newer `whoop_stopped` from another device disconnects it here
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub connected_at: Option<i64>,
+}
+
+/// Reads a JSON value sealed with AES-256-GCM (nonce ‖ ciphertext); a missing file is the default value.
+pub(crate) fn load_sealed<T: serde::de::DeserializeOwned + Default>(
+    path: &std::path::Path,
+    key: &[u8; 32],
+    aad: &[u8],
+    what: &'static str,
+) -> Result<T> {
+    let raw = match std::fs::read(path) {
+        Ok(r) => r,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(T::default()),
+        Err(e) => return Err(e.into()),
+    };
+    if raw.len() < 12 + 16 {
+        return Err(Error::other(what, format!("the {what} file is damaged")));
+    }
+    let cipher = Aes256Gcm::new(key.into());
+    let nonce: [u8; 12] = raw[..12].try_into().expect("12");
+    let plain = Zeroizing::new(
+        cipher
+            .decrypt(&Nonce::from(nonce), Payload { msg: &raw[12..], aad })
+            .map_err(|_| Error::other(what, format!("the {what} file is damaged or from another key")))?,
+    );
+    serde_json::from_slice(&plain).map_err(|_| Error::other(what, format!("the {what} file is damaged")))
+}
+
+/// Seals `v` into a temp file, then renames it into place.
+pub(crate) fn save_sealed<T: Serialize>(
+    path: &std::path::Path,
+    tmp: &std::path::Path,
+    key: &[u8; 32],
+    aad: &[u8],
+    what: &str,
+    v: &T,
+) -> Result<()> {
+    let plain = Zeroizing::new(serde_json::to_vec(v)?);
+    let nonce = crate::aead::random::<12>();
+    let cipher = Aes256Gcm::new(key.into());
+    let sealed = cipher.encrypt(&Nonce::from(nonce), Payload { msg: &plain, aad }).expect("AES-GCM encrypt");
+    let t = tmp.join(format!("{what}-{}", hex::encode(crate::aead::random::<8>())));
+    {
+        use std::io::Write;
+        let mut f = crate::profile::create_private(&t)?;
+        f.write_all(&nonce)?;
+        f.write_all(&sealed)?;
+        f.sync_all()?;
+    }
+    std::fs::rename(&t, path)?;
+    Ok(())
 }
 
 pub struct Vault {
@@ -102,39 +218,11 @@ impl Vault {
     }
 
     pub fn load(&self) -> Result<State> {
-        let raw = match std::fs::read(&self.path) {
-            Ok(r) => r,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(State::default()),
-            Err(e) => return Err(e.into()),
-        };
-        if raw.len() < 12 + 16 {
-            return Err(Error::other("vault", "the vault file is damaged"));
-        }
-        let cipher = Aes256Gcm::new((&*self.key).into());
-        let nonce: [u8; 12] = raw[..12].try_into().expect("12");
-        let plain = Zeroizing::new(
-            cipher
-                .decrypt(&Nonce::from(nonce), Payload { msg: &raw[12..], aad: AAD })
-                .map_err(|_| Error::other("vault", "the vault file is damaged or from another key"))?,
-        );
-        serde_json::from_slice(&plain).map_err(|_| Error::other("vault", "the vault file is damaged"))
+        load_sealed(&self.path, &self.key, AAD, "vault")
     }
 
     pub fn save(&self, s: &State) -> Result<()> {
-        let plain = Zeroizing::new(serde_json::to_vec(s)?);
-        let nonce = crate::aead::random::<12>();
-        let cipher = Aes256Gcm::new((&*self.key).into());
-        let sealed = cipher.encrypt(&Nonce::from(nonce), Payload { msg: &plain, aad: AAD }).expect("AES-GCM encrypt");
-        let tmp = self.tmp.join(format!("vault-{}", hex::encode(crate::aead::random::<8>())));
-        {
-            use std::io::Write;
-            let mut f = crate::profile::create_private(&tmp)?;
-            f.write_all(&nonce)?;
-            f.write_all(&sealed)?;
-            f.sync_all()?;
-        }
-        std::fs::rename(&tmp, &self.path)?;
-        Ok(())
+        save_sealed(&self.path, &self.tmp, &self.key, AAD, "vault", s)
     }
 
     /// Loads, changes and saves the state.
@@ -143,5 +231,13 @@ impl Vault {
         let out = f(&mut s)?;
         self.save(&s)?;
         Ok(out)
+    }
+
+    /// This installation's device id, made and saved on first use.
+    pub fn device_id(&self) -> Result<String> {
+        if let Some(d) = self.load()?.device {
+            return Ok(d);
+        }
+        self.update(|s| Ok(s.device.get_or_insert_with(|| hex::encode(crate::aead::random::<16>())).clone()))
     }
 }

@@ -1,0 +1,104 @@
+{
+ "name": "04-r5-correction-only",
+ "about": "R5: b holds only a correction for a point whose import it doesn't have; a's daily must be rebuilt for it.",
+ "a": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000004",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000004",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 60
+    }
+   }
+  ]
+ },
+ "b": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "corrections": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "at": "117309440000000000",
+    "value": {
+     "t": "integer",
+     "v": 55
+    }
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000004",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000004",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 60
+    }
+   }
+  ],
+  "corrections": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "at": "117309440000000000",
+    "value": {
+     "t": "integer",
+     "v": 55
+    }
+   }
+  ]
+ }
+}

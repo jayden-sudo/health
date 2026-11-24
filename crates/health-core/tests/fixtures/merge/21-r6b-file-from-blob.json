@@ -1,0 +1,94 @@
+{
+ "name": "21-r6b-file-from-blob",
+ "about": "R6b v6: a pack from before R6b carries a file without meta.file; the receiving side records the blob as the file, and in the second round b takes it back through review/review. A remote meta.file that isn't a sha is dropped from what a copies; b's own bad value stays local (meta.file isn't in the inventory).",
+ "a": {
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ]
+ },
+ "b": {
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000021",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "review",
+    "blob": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   {
+    "uid": "019a0000-0000-7000-8000-000000000022",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "review",
+    "file": "not-a-sha"
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000021",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "review",
+    "blob": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "file": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   {
+    "uid": "019a0000-0000-7000-8000-000000000022",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "review"
+   }
+  ]
+ },
+ "expect_b": {
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000021",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "review",
+    "blob": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "file": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   {
+    "uid": "019a0000-0000-7000-8000-000000000022",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "review",
+    "file": "not-a-sha"
+   }
+  ]
+ },
+ "rounds": 2
+}

@@ -1,6 +1,7 @@
 //! User correction layer (DB design §4.6), ported from the web `db/correction.ts` and `db/hlc.ts`.
 //! One row per point; the winner is decided in SQL (CORRECTION_WINS), independent of arrival order:
-//! larger `at` wins; on equal `at` the larger value wins, NULL (delete) being smallest.
+//! larger `at` wins; on equal `at` the larger value wins, NULL (delete) being smallest; on equal values the larger
+//! `typeof` (merge-fixes R12).
 
 use crate::daily::Scope;
 use crate::db::{Db, one, tx};
@@ -10,15 +11,32 @@ use crate::value::{MAX_SAFE, Value};
 /// HLC: at = physical ms × 65536 + counter.
 pub const HLC_SHIFT: u32 = 16;
 
-/// Next HLC value after everything already in the database: strictly increasing, even if the clock goes back.
+/// Next HLC value after everything already in the database, corrections and source settings alike (merged ones
+/// included, merge-fixes G2/R3): strictly increasing, even if the clock goes back.
 pub fn next_at(c: &Db, now_ms: i64) -> Result<i64> {
-    let last: i64 = one::<Option<i64>>(c, "SELECT max(at) FROM correction", [])?.flatten().unwrap_or(0);
+    // a source's meta comes from backups and other devices: unparsable or future stamps are ignored, never fatal
+    let limit = (now_ms.max(0) + crate::merge::MAX_SKEW_MS) << HLC_SHIFT;
+    let last: i64 = one::<Option<i64>>(
+        c,
+        // G5: only a string of digits without a leading zero counts, as in the merge
+        "SELECT max(m) FROM (SELECT max(at) AS m FROM correction
+                             UNION ALL SELECT max(s) FROM (
+                               SELECT CAST(v AS INTEGER) AS s FROM (
+                                 -- the guard inside one expression: SQLite may evaluate WHERE terms in any order
+                                 SELECT CASE WHEN json_valid(meta) AND json_type(meta, '$.set_at') = 'text'
+                                             THEN json_extract(meta, '$.set_at') END AS v FROM source)
+                                WHERE v GLOB '[1-9]*' AND v NOT GLOB '*[^0-9]*' AND length(v) <= 19) WHERE s <= ?1)",
+        [limit],
+    )?
+    .flatten()
+    .unwrap_or(0);
     let wall = now_ms.max(0) << HLC_SHIFT;
     Ok(if wall > last { wall } else { last + 1 })
 }
 
 pub const CORRECTION_WINS: &str = "(excluded.at > correction.at
-  OR (excluded.at = correction.at AND excluded.value IS NOT NULL AND (correction.value IS NULL OR excluded.value > correction.value)))";
+  OR (excluded.at = correction.at AND excluded.value IS NOT NULL AND (correction.value IS NULL OR excluded.value > correction.value))
+  OR (excluded.at = correction.at AND excluded.value IS correction.value AND typeof(excluded.value) > typeof(correction.value)))";
 
 #[derive(Debug, Clone, Copy)]
 pub struct Key {

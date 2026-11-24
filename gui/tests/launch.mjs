@@ -9,7 +9,7 @@ const bin = join(import.meta.dirname, "../../target/debug/health");
 const dir = mkdtempSync(join(tmpdir(), "health-e2e-"));
 
 // A stand-in for the health backend (debug builds take HEALTH_BACKEND): inbox keys, the link relay, a request log.
-const relay = { log: [], keys: new Set(), links: new Map() };
+const relay = { log: [], keys: new Set(), links: new Map(), lan: new Map(), seq: 0 };
 const backend = createServer((rq, rs) => {
   let body = "";
   rq.on("data", (c) => (body += c));
@@ -34,6 +34,25 @@ const backend = createServer((rq, rs) => {
       relay.links.delete(link);
       return ct ? send(200, { ct }) : send(404, { err: "unknown" });
     }
+    // LAN sync signalling (§3.7 of the protocol): sealed items per rid, long-polled
+    const lan = /^\/h\/1\/lan\/([a-z2-7]{26})(?:\?(.*))?$/.exec(path);
+    if (lan && rq.method === "POST") {
+      const items = relay.lan.get(lan[1]) ?? [];
+      items.push({ seq: ++relay.seq, ct: JSON.parse(body).ct });
+      relay.lan.set(lan[1], items);
+      return send(200, { seq: relay.seq });
+    }
+    if (lan) {
+      const q = new URLSearchParams(lan[2] ?? "");
+      const after = Number(q.get("after") ?? 0);
+      const until = Date.now() + Math.min(Number(q.get("wait") ?? 0), 30) * 1000;
+      const poll = () => {
+        const items = (relay.lan.get(lan[1]) ?? []).filter((i) => i.seq > after);
+        if (items.length || Date.now() >= until) return send(200, { items, more: false });
+        setTimeout(poll, 50);
+      };
+      return poll();
+    }
     const inbox = /^\/h\/1\/inbox\/([^?]+)/.exec(path)?.[1];
     if (inbox) return relay.keys.has(inbox) ? send(200, { items: [], more: false }) : send(404, { err: "unknown" });
     send(404, { err: "unknown" });
@@ -49,6 +68,8 @@ const env = {
   HEALTH_BACKEND: base,
   HEALTH_NO_BROWSER: "1",
   HEALTH_LAB_KEYS: "did:key:z6MkmpEvQWbkRbSWwtJyRbKK1qH4jCneVsuFt9knU8ZCdDsq:lab",
+  // LAN sync between this serve and a test's second one, on this machine
+  HEALTH_LAN_LOOPBACK: "1",
 };
 execFileSync(bin, ["init"], { env });
 const DAY = 86_400_000;

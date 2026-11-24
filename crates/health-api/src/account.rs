@@ -276,7 +276,7 @@ pub(crate) fn account_show(ctx: &mut Ctx, _: Empty) -> Result<AccountShown> {
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct QrReq {
-    /// An identity (SBH1) or link (SBHL1) code
+    /// An identity (SBH1) or link (ZUHL1) code
     pub text: String,
 }
 
@@ -303,7 +303,7 @@ fn account_register(net: &Net, _: Empty) -> Result<Registered> {
 
 #[derive(Serialize, JsonSchema)]
 pub struct Joined {
-    /// The text the QR shows (SBHL1)
+    /// The text the QR shows (ZUHL1)
     pub code: String,
     pub channel: String,
     pub expires_ms: i64,
@@ -474,7 +474,7 @@ fn link_cancel(net: &Net, _: Empty) -> Result<Json> {
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Give {
-    /// The SBHL1 code the new device shows
+    /// The ZUHL1 code the new device shows
     pub code: String,
     /// The person was asked: "this hands your health account to the device showing this code; continue only
     /// if it is your own device" (protocol 3.5 rule 2)
@@ -498,7 +498,7 @@ fn link_give(net: &Net, req: Give) -> Result<Given> {
     if !req.confirmed {
         return Err(Error::new(Kind::Usage, "confirm", "ask the person first: this hands their health account to that device"));
     }
-    let (channel, pk) = codes::read_link(&req.code).ok_or_else(|| Error::invalid("not_link_code", "that isn't a link code (SBHL1)"))?;
+    let (channel, pk) = codes::read_link(&req.code).ok_or_else(|| Error::invalid("not_link_code", "that isn't a link code (ZUHL1)"))?;
     account_or_make(net)?;
     let amk = amk_of(&state(net)?)?.ok_or_else(|| Error::other("vault", "no account"))?;
     // the account id and the check code come from the very key sealed, never from a cached account
@@ -790,7 +790,7 @@ pub fn call_net(net: &Net, name: &str, req: Json) -> Result<Json> {
 pub(crate) fn account_qr(_: &mut Ctx, req: QrReq) -> Result<Qr> {
     let ok = codes::read_identity(&req.text).is_some() || codes::read_link(&req.text).is_some_and(|_| req.text.trim() == req.text);
     if !ok {
-        return Err(Error::invalid("not_a_code", "only identity (SBH1) and link (SBHL1) codes are drawn"));
+        return Err(Error::invalid("not_a_code", "only identity (SBH1) and link (ZUHL1) codes are drawn"));
     }
     let code = qrcode::QrCode::with_error_correction_level(req.text.as_bytes(), qrcode::EcLevel::M)
         .map_err(|e| Error::other("qr", e.to_string()))?;

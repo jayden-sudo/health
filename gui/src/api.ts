@@ -98,6 +98,13 @@ export async function corePath(): Promise<string> {
 }
 
 /** Calls `fn` after every committed write (SSE through the shell in Tauri; polling in the browser). */
+/** LAN sync's live state changed (Tauri); in the browser, every 2 s. */
+export function onSync(fn: () => void): () => void {
+  if (inTauri) return listenAll(["health:sync", "health:changed"], fn);
+  const t = setInterval(fn, 2000);
+  return () => clearInterval(t);
+}
+
 export function onChange(fn: () => void): () => void {
   if (inTauri) return listenAll(["health:changed", "health:unlocked", "health:locked", "health:status"], fn);
   const t = setInterval(fn, 5000);

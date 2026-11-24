@@ -1,0 +1,138 @@
+{
+ "name": "16-r10-span-cover",
+ "about": "R10: b's import holds a row outside its own span (as web data written under the R8 bug can). Spans widen to the incoming rows; both converge in two rounds to a span covering both rows.",
+ "a": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000016",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:2345-7",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000016",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 90
+    }
+   }
+  ]
+ },
+ "b": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000016",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done",
+    "span": {
+     "loinc:2345-7": [
+      1790000000000,
+      1790000000000
+     ]
+    }
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:2345-7",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000016",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 90
+    }
+   },
+   {
+    "code": "loinc:2345-7",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790864000000,
+    "uid": "019a0000-0000-7000-8000-000000000016",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 91
+    }
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000016",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done",
+    "span": {
+     "loinc:2345-7": [
+      1790000000000,
+      1790864000000
+     ]
+    }
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:2345-7",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000016",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 90
+    }
+   },
+   {
+    "code": "loinc:2345-7",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790864000000,
+    "uid": "019a0000-0000-7000-8000-000000000016",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 91
+    }
+   }
+  ]
+ },
+ "rounds": 2,
+ "check_spans": true
+}

@@ -1,7 +1,7 @@
 // The interface's translations, checked: every text the code marks (t("…"), tr("…"), tk("…")) must be in
 // src/locales/zh-Hans.json and zh-Hant.json, and every text passed a `count` needs its English `_one` / `_other`
 // in en.json and `_other` in Chinese (i18next plurals). Unused entries are reported too.
-// `node scripts/i18n.mjs` checks (exit 1 on a gap); `--missing` prints the missing keys as JSON.
+// `node scripts/i18n.mjs` checks (exit 1 on a gap); `--missing` / `--unused` print those keys as JSON.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -31,6 +31,19 @@ for (const [lang, pack] of Object.entries({ en, ...packs })) {
   const all = new Set(want(lang));
   const extra = Object.keys(pack).filter((k) => !all.has(k));
   if (extra.length) unused[lang] = extra;
+}
+// words the owner ruled out (2026-11): "读数" is inaccurate; a reading is 数据 (or 指标 for a measure)
+const banned = { "zh-Hans": ["读数"], "zh-Hant": ["讀數"] };
+const bad = Object.entries(banned).flatMap(([l, ws]) =>
+  Object.entries(packs[l]).filter(([, v]) => ws.some((w) => v.includes(w))).map(([k]) => `${l}: ${k}`),
+);
+if (bad.length) {
+  console.log(`banned words in:\n${bad.join("\n")}`);
+  process.exit(1);
+}
+if (process.argv.includes("--unused")) {
+  console.log(JSON.stringify(unused, null, 1));
+  process.exit(0);
 }
 if (process.argv.includes("--missing")) {
   console.log(JSON.stringify(missing, null, 1));

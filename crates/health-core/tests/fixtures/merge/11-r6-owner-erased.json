@@ -1,0 +1,117 @@
+{
+ "name": "11-r6-owner-erased",
+ "about": "R6: a erased the file's owner (smaller uid) and lost the file; b only ever saw the other import, which holds the file. Both end with the other import holding it, and a gets the file back (needed_blobs). Every import that brought the file records it in meta.file (data after upgrade 2).",
+ "a": {
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000005",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "erased"
+   },
+   {
+    "uid": "019a0000-0000-7000-8000-000000000006",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "done",
+    "file": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:2345-7",
+    "connector": "ocr",
+    "external_id": "photo",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000006",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 90
+    }
+   }
+  ]
+ },
+ "b": {
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000006",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "done",
+    "blob": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "file": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:2345-7",
+    "connector": "ocr",
+    "external_id": "photo",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000006",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 90
+    }
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000005",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "erased"
+   },
+   {
+    "uid": "019a0000-0000-7000-8000-000000000006",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "done",
+    "blob": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "file": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:2345-7",
+    "connector": "ocr",
+    "external_id": "photo",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000006",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 90
+    }
+   }
+  ]
+ }
+}

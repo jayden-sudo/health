@@ -334,7 +334,9 @@ pub fn sources(c: &Db) -> Result<Vec<Source>> {
     Ok(rows.collect::<Result<_, _>>()?)
 }
 
-pub fn source_update(c: &Db, id: i64, name: Option<&str>, priority: Option<i64>) -> Result<Source> {
+/// Renames a source or changes its priority; the change is stamped (`set_at`, `set_by`) so it wins on other devices
+/// (merge-fixes R3).
+pub fn source_update(c: &Db, id: i64, name: Option<&str>, priority: Option<i64>, now_ms: i64, set_by: &str) -> Result<Source> {
     if one::<i64>(c, "SELECT 1 FROM source WHERE id = ?", [id])?.is_none() {
         return Err(Error::not_found("no_source", id.to_string()));
     }
@@ -346,6 +348,9 @@ pub fn source_update(c: &Db, id: i64, name: Option<&str>, priority: Option<i64>)
     }
     if let Some(p) = priority {
         c.execute("UPDATE source SET priority = ? WHERE id = ?", rusqlite::params![p, id])?;
+    }
+    if name.is_some() || priority.is_some() {
+        crate::write::stamp_source(c, id, now_ms, set_by)?;
     }
     Ok(sources(c)?.into_iter().find(|s| s.id == id).expect("source exists"))
 }

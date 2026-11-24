@@ -1,0 +1,34 @@
+{
+ "name": "20-r3-utf8-order",
+ "about": "R3: unstamped, equal priority; the name decides by UTF-8 byte order. U+1F600 (F0 9F 98 80) beats U+FF01 (EF BC 81); UTF-16 order would pick U+FF01.",
+ "a": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "！",
+    "priority": 100
+   }
+  ]
+ },
+ "b": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "😀",
+    "priority": 100
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "😀",
+    "priority": 100
+   }
+  ]
+ }
+}

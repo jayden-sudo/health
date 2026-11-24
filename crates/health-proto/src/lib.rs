@@ -5,5 +5,6 @@ pub mod account;
 pub mod b64;
 pub mod codes;
 pub mod hpke;
+pub mod lan;
 pub mod result;
 pub mod sig;

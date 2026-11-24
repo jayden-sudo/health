@@ -43,11 +43,13 @@ pub static OPS: &[OpDef] = &[
     op!("account.qr", "An identity or link code drawn as a QR (SVG)", write: false, delegate: Never, manual_tx: false, crate::account::account_qr, crate::account::QrReq, crate::account::Qr),
     op!("whoop.status", "Whether WHOOP is connected, and when it last synced (no request is sent)", write: false, delegate: Never, manual_tx: false, crate::whoop::status, crate::account::Empty, crate::whoop::Status),
     op!("profile.get", "Age (whole years) and sex; the owner also sees the birth month", write: false, delegate: Read, manual_tx: false, profile_get, Empty, ProfileShown),
+    op!("sync.state", "LAN sync on this device: on or off, joined, paused, the devices it has synced with", write: false, delegate: Never, manual_tx: true, sync_state, Empty, SyncShown),
+    op!("sync.set", "Turn LAN sync on or off, or continue it after a pause", write: true, delegate: Never, manual_tx: true, sync_set, SyncSet, SyncShown),
     op!("profile.set", "Set the birth month (YYYY-MM) and sex; null clears one", write: true, delegate: Never, manual_tx: true, profile_set, ProfileSet, ProfileShown),
     op!("status", "Profile and database summary", write: false, delegate: Never, manual_tx: false, status, Empty, Status),
     op!("metric.search", "Search the metric catalog by code or name", write: false, delegate: Read, manual_tx: false, metric_search, MetricSearch, Vec<Metric>),
     op!("metric.show", "One metric with its accepted units", write: false, delegate: Read, manual_tx: false, metric_show, MetricShow, MetricShown),
-    op!("manual.enter", "Enter values by hand (one import per call)", write: true, delegate: Never, manual_tx: false, manual_enter, ManualEnter, Entered),
+    op!("manual.enter", "Enter values by hand (one import per entry)", write: true, delegate: Never, manual_tx: false, manual_enter, ManualEnter, Entered),
     op!("manual.edit", "Replace a manual entry", write: true, delegate: Never, manual_tx: false, manual_edit, ManualEdit, Entered),
     op!("manual.remove", "Delete a manual entry", write: true, delegate: Never, manual_tx: false, manual_remove, PointReq, Done),
     op!("obs.query", "Points of one metric in a time range (UTC ms, [from, to))", write: false, delegate: Read, manual_tx: false, obs_query, ObsQuery, Vec<Point>),
@@ -355,7 +357,8 @@ pub struct SourceUpdate {
 }
 
 fn source_update(ctx: &mut Ctx, r: SourceUpdate) -> Result<Source> {
-    query::source_update(ctx.db(), r.id, r.name.as_deref(), r.priority)
+    let device = ctx.profile.vault.device_id()?;
+    query::source_update(ctx.db(), r.id, r.name.as_deref(), r.priority, ctx.now_ms, &device)
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -389,6 +392,10 @@ pub struct ConnectorReq {
 fn import_erase_source(ctx: &mut Ctx, r: ConnectorReq) -> Result<ErasedSource> {
     let res = batches::erase_connector(ctx.db(), &r.connector, ctx.now_ms)?;
     ctx.delete_blobs_after_commit(res.orphan_blobs.clone());
+    if r.connector == "whoop" {
+        // other devices still connected would fetch the last days again: they stop too (docs/lan-sync.md §8)
+        ctx.stop_whoop_after_commit();
+    }
     Ok(res)
 }
 
@@ -473,10 +480,7 @@ fn some<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(d: D) -> std::res
 
 fn profile_set(ctx: &mut Ctx, r: ProfileSet) -> Result<ProfileShown> {
     if let Some(Some(b)) = &r.birth {
-        let ok = b.len() == 7
-            && b.as_bytes()[4] == b'-'
-            && b[..4].parse::<i32>().is_ok_and(|y| (1900..=2099).contains(&y))
-            && b[5..].parse::<u32>().is_ok_and(|m| (1..=12).contains(&m))
+        let ok = health_core::sync::birth_ok(b)
             && age_of(b, ctx.now_ms).is_some_and(|_| {
                 let now = chrono::DateTime::from_timestamp_millis(ctx.now_ms).map(|d| d.format("%Y-%m").to_string()).unwrap_or_default();
                 b.as_str() <= now.as_str()
@@ -491,7 +495,11 @@ fn profile_set(ctx: &mut Ctx, r: ProfileSet) -> Result<ProfileShown> {
     {
         return Err(Error::invalid("bad_sex", "Male or Female"));
     }
+    let device = ctx.profile.vault.device_id()?;
     let p = ctx.profile.vault.update(|st| {
+        // a synced setting (docs/lan-sync.md §8): the stamp lands in the same vault write
+        let set_at = health_core::sync::next_stamp(ctx.db(), st, ctx.now_ms)?;
+        st.profile_stamp = Some(health_core::vault::Stamp { set_at, set_by: device.clone() });
         let p = st.profile.get_or_insert_with(Default::default);
         if let Some(b) = r.birth.clone() {
             p.birth = b;
@@ -830,4 +838,79 @@ fn export_csv(ctx: &mut Ctx, r: ExportCsv) -> Result<ExportedCsv> {
             Err(e)
         }
     }
+}
+
+// ---- LAN sync settings (docs/lan-sync.md §9–§11) -------------------------------------------------------------
+
+#[derive(Serialize, JsonSchema)]
+pub struct SyncPeerShown {
+    pub device: String,
+    pub name: String,
+    pub last_seen: i64,
+    pub last_synced: Option<i64>,
+    pub up_to_date: bool,
+    /// Things kept out of sync with this device (they differ and can't be merged; "partly synced")
+    pub skipped: u64,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct SyncShown {
+    /// "Sync on this network"
+    pub enabled: bool,
+    /// This device's first sync was allowed
+    pub joined: bool,
+    /// Paused after "Not now" on a large erase
+    pub paused: bool,
+    /// This device holds a health account (sync needs one)
+    pub account: bool,
+    pub device: String,
+    pub peers: Vec<SyncPeerShown>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SyncSet {
+    #[serde(default)]
+    pub enabled: Option<bool>,
+    /// false continues a paused sync
+    #[serde(default)]
+    pub paused: Option<bool>,
+}
+
+fn sync_shown(ctx: &Ctx) -> Result<SyncShown> {
+    let st = ctx.profile.sync.load_or_reset()?;
+    let account = ctx.profile.vault.load()?.amk.is_some();
+    let peers = st
+        .peers
+        .iter()
+        .map(|(d, p)| SyncPeerShown {
+            device: d.clone(),
+            name: p.name.clone(),
+            last_seen: p.last_seen,
+            last_synced: p.last_synced,
+            up_to_date: p.up_to_date,
+            skipped: st.skip.iter().filter(|k| k.peer == *d).count() as u64,
+        })
+        .collect();
+    Ok(SyncShown { enabled: st.enabled, joined: st.joined, paused: st.paused, account, device: ctx.profile.vault.device_id()?, peers })
+}
+
+fn sync_state(ctx: &mut Ctx, _: Empty) -> Result<SyncShown> {
+    sync_shown(ctx)
+}
+
+fn sync_set(ctx: &mut Ctx, r: SyncSet) -> Result<SyncShown> {
+    if !ctx.profile.is_writer() {
+        return Err(Error::other("not_writer", "write op on a read-only profile"));
+    }
+    ctx.profile.sync.update(|s| {
+        if let Some(e) = r.enabled {
+            s.enabled = e;
+        }
+        if let Some(p) = r.paused {
+            s.paused = p;
+        }
+        Ok(())
+    })?;
+    sync_shown(ctx)
 }

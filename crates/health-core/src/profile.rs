@@ -1,5 +1,5 @@
 //! A profile = one person = one directory (plan §3.2):
-//!   id  health.db  blobs/  tmp/  lock
+//!   id  health.db  blobs/  tmp/  lock  access.db  vault  sync
 //! Writers hold `lock` and run crash recovery; readers open without it (WAL).
 
 use crate::blob::Store;
@@ -18,6 +18,8 @@ pub struct Profile {
     /// Grants and audit (plan §5), kept apart from the health data
     pub access: crate::access::AccessDb,
     pub vault: crate::vault::Vault,
+    /// What this device remembers about syncing (docs/lan-sync.md §9)
+    pub sync: crate::syncstate::SyncStore,
     pub key_store: &'static str,
     /// Held while this process is the writer.
     _lock: Option<File>,
@@ -121,7 +123,8 @@ impl Profile {
         let access = crate::access::AccessDb::open(&dir.join("access.db"), &derive(&root, "health/access"))?;
         chmod_private(&dir.join("access.db"));
         let vault = crate::vault::Vault::new(dir.join("vault"), dir.join("tmp"), *derive(&root, "health/vault"));
-        let p = Profile { name: name.into(), dir, id, db, blobs, access, vault, key_store: keys.kind(), _lock: lock };
+        let sync = crate::syncstate::SyncStore::new(dir.join("sync"), dir.join("tmp"), *derive(&root, "health/sync"));
+        let p = Profile { name: name.into(), dir, id, db, blobs, access, vault, sync, key_store: keys.kind(), _lock: lock };
         if write {
             p.on_writer_open(now_ms)?;
         }
@@ -138,6 +141,29 @@ impl Profile {
 
     /// Crash recovery, catalog top-up, leftover temp files.
     /// Blob files nothing references (a crash between COMMIT and deleting them) are removed too.
+    /// One-time data upgrades (1: R3's legacy stamp; 2: R6b's `meta.file` and R10's span repair), counted in the
+    /// database header's `application_id`, so the count can't be lost apart from the data it describes and lands in
+    /// the same transaction. `user_version` is the schema's. Profiles that counted in the vault first are read too.
+    fn upgrade(&self, now_ms: i64) -> Result<()> {
+        let c = &self.db;
+        let in_db: i64 = c.query_row("PRAGMA application_id", [], |r| r.get(0))?;
+        let in_vault = self.vault.load().map(|s| s.upgraded as i64).unwrap_or(0);
+        let done = in_db.max(in_vault);
+        if done >= 2 && in_db >= 2 {
+            return Ok(());
+        }
+        crate::db::tx(c, || {
+            if done < 1 {
+                crate::write::stamp_legacy_sources(c, now_ms)?;
+            }
+            if done < 2 {
+                crate::write::upgrade_files_and_spans(c)?;
+            }
+            c.pragma_update(None, "application_id", 2)?;
+            Ok(())
+        })
+    }
+
     fn on_writer_open(&self, now_ms: i64) -> Result<()> {
         let orphans = crate::db::recover_crashed(&self.db, now_ms)?;
         self.blobs.remove(&orphans);
@@ -147,6 +173,7 @@ impl Profile {
             }
         }
         crate::catalog::seed(&self.db)?;
+        self.upgrade(now_ms)?;
         if let Ok(rd) = std::fs::read_dir(self.tmp()) {
             for e in rd.flatten() {
                 let _ = std::fs::remove_file(e.path());

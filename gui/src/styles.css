@@ -1336,6 +1336,16 @@ label.inline {
 .row-static .fine {
   line-height: 1.35;
 }
+/* a sync question inside a device row (docs/lan-sync.md §10) */
+.sync-ask {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.sync-ask .actions {
+  margin: 0;
+}
 .row-pick input[type="radio"] {
   position: absolute;
   opacity: 0;
@@ -1496,4 +1506,70 @@ label.inline {
 .confirm .actions {
   justify-content: flex-end;
   margin: 0.75rem 0 0;
+}
+
+/* ---- Health account: connecting and LAN sync (as the web's 更多 › 其他设备) ---- */
+.role-card {
+  background: var(--glass);
+  border: 0.5px solid var(--edge);
+  border-radius: var(--r-panel);
+  box-shadow: var(--shadow);
+  padding: 1.1rem 1.2rem 1.2rem;
+  margin: 0 0 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.role-card h3 {
+  margin: 0;
+}
+.role-card .fine {
+  margin: 0;
+}
+button.wide {
+  width: 100%;
+  padding-block: 0.7rem;
+}
+button.tonal {
+  background: color-mix(in srgb, var(--accent-fill) 14%, transparent);
+  color: var(--link);
+  border-color: transparent;
+}
+button.tonal:disabled {
+  opacity: 0.5;
+}
+.notice.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  margin-inline-end: 0.4rem;
+  vertical-align: middle;
+}
+.rail .dot {
+  margin-inline-start: auto;
+  margin-inline-end: 0;
+}
+.sync-peer progress {
+  width: 100%;
+  height: 4px;
+  margin-top: 0.4rem;
+  accent-color: var(--accent-fill);
+}
+.sync-peer details {
+  margin-top: 0.2rem;
+}
+.tag.state-up_to_date {
+  color: var(--pulse);
+  background: none;
+}
+.tag:empty {
+  display: none;
 }

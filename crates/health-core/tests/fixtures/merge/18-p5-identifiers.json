@@ -1,0 +1,82 @@
+{
+ "name": "18-p5-identifiers",
+ "about": "P5: a uid with a space is refused (b keeps its own); a blob that isn't a sha arrives as NULL.",
+ "a": {
+  "sources": [
+   {
+    "connector": "lab",
+    "external_id": "dev1",
+    "name": "dev1",
+    "priority": 100
+   }
+  ]
+ },
+ "b": {
+  "sources": [
+   {
+    "connector": "lab",
+    "external_id": "dev1",
+    "name": "dev1",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "bad uid",
+    "connector": "lab",
+    "external_id": "dev1",
+    "status": "done"
+   },
+   {
+    "uid": "019a0000-0000-7000-8000-000000000018",
+    "connector": "lab",
+    "external_id": "dev1",
+    "status": "done",
+    "blob": "not-a-sha"
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "lab",
+    "external_id": "dev1",
+    "name": "dev1",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000018",
+    "connector": "lab",
+    "external_id": "dev1",
+    "status": "done"
+   }
+  ]
+ },
+ "expect_b": {
+  "sources": [
+   {
+    "connector": "lab",
+    "external_id": "dev1",
+    "name": "dev1",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "bad uid",
+    "connector": "lab",
+    "external_id": "dev1",
+    "status": "done"
+   },
+   {
+    "uid": "019a0000-0000-7000-8000-000000000018",
+    "connector": "lab",
+    "external_id": "dev1",
+    "status": "done",
+    "blob": "not-a-sha"
+   }
+  ]
+ }
+}

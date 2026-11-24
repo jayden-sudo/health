@@ -25,6 +25,8 @@ pub mod query;
 pub mod result;
 pub mod review;
 pub mod scope;
+pub mod sync;
+pub mod syncstate;
 pub mod units;
 pub mod value;
 pub mod vault;

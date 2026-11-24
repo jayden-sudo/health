@@ -1,0 +1,104 @@
+{
+ "name": "10-erase-after-takeover",
+ "about": "Review finding 1: a newer import B took a row over from A and was erased; a lost the row, b still has it under A. Both end with A's row.",
+ "a": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000010",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done"
+   },
+   {
+    "uid": "019a0000-0000-7000-8000-000000000011",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "erased"
+   }
+  ]
+ },
+ "b": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000010",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done"
+   },
+   {
+    "uid": "019a0000-0000-7000-8000-000000000011",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "erased"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000010",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 60
+    }
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000010",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done"
+   },
+   {
+    "uid": "019a0000-0000-7000-8000-000000000011",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "erased"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000010",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 60
+    }
+   }
+  ]
+ }
+}

@@ -52,7 +52,10 @@ fn start_of(at: &When) -> Option<i64> {
 
 #[derive(Debug, Serialize, schemars::JsonSchema)]
 pub struct Entered {
+    /// The last import written (the only one for a single entry)
     pub import_id: i64,
+    /// One import per entry, in order (merge-fixes R7: a manual import holds one row)
+    pub import_ids: Vec<i64>,
     #[serde(flatten)]
     pub result: WriteResult,
 }
@@ -94,18 +97,27 @@ pub fn enter(c: &Db, entries: &[Entry], now_ms: i64) -> Result<Entered> {
                 detail: Some(detail),
             });
         }
-        // the imports that own these entries now: this entry takes their rows over
-        let before: Vec<i64> = rows.iter().filter_map(|r| owner_of(c, &r.metric, r.start_ms).ok().map(|(id, _)| id)).collect();
+        // one import per entry, all in one transaction (merge-fixes R7)
         let src = manual_source();
-        let (import_id, _) = begin(c, Begin { source: &src, parser: "manual", blob: None, uid: None, candidates: None }, now_ms)?;
-        let result = write(c, import_id, &rows)?;
-        // A person typing a value must hear that it was refused; nothing is saved then (decision 10).
-        if !result.rejected.is_empty() {
-            return Err(Error::invalid("rejected", serde_json::to_string(&result.rejected)?));
+        let mut import_ids = Vec::new();
+        let mut total = WriteResult::default();
+        for row in rows {
+            // the import that owns this entry now: this entry takes its row over
+            let before: Vec<i64> = owner_of(c, &row.metric, row.start_ms).ok().map(|(id, _)| id).into_iter().collect();
+            let (import_id, _) = begin(c, Begin { source: &src, parser: "manual", blob: None, uid: None, candidates: None }, now_ms)?;
+            let result = write(c, import_id, std::slice::from_ref(&row))?;
+            // A person typing a value must hear that it was refused; nothing is saved then (decision 10).
+            if !result.rejected.is_empty() {
+                return Err(Error::invalid("rejected", serde_json::to_string(&result.rejected)?));
+            }
+            finish(c, import_id, now_ms)?;
+            erase_if_empty(c, &before, now_ms)?;
+            total.written += result.written;
+            total.kept += result.kept;
+            import_ids.push(import_id);
         }
-        finish(c, import_id, now_ms)?;
-        erase_if_empty(c, &before, now_ms)?;
-        Ok(Entered { import_id, result })
+        let import_id = *import_ids.last().ok_or_else(|| Error::invalid("no_entries", ""))?;
+        Ok(Entered { import_id, import_ids, result: total })
     })
 }
 
@@ -135,7 +147,7 @@ fn owner_of(c: &Db, code: &str, start_ms: i64) -> Result<(i64, u64)> {
 }
 
 /// Rows an import still owns (found through its span, as erase finds them).
-fn rows_held(c: &Db, import_id: i64) -> Result<u64> {
+pub(crate) fn rows_held(c: &Db, import_id: i64) -> Result<u64> {
     let meta: Option<String> = c.query_row("SELECT meta FROM import WHERE id = ?", [import_id], |r| r.get(0))?;
     let mut rows = 0u64;
     for (mid, (from, to)) in span_of(&parse_meta(meta)) {

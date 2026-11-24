@@ -20,3 +20,17 @@ Synthetic export of 3,000,000 `<Record>` lines: heart rate every 2 minutes for a
 | 2026-11-22 | Apple M1 Max | 1,700,001 (1.5M heart rate + 15-min step sums from 2 sources) | 12.9 s | 105 MB RSS |
 
 Memory comes from the zip stream, one 5,000-row batch per source, and the 15-minute sums map (one entry per slot per cumulative type and source). It grows with years of cumulative data, not with the file size.
+
+## Sync at scale (LAN sync S1)
+
+Run with `cargo test --release -p health-core --test scale sync_one_million_rows -- --ignored --nocapture`. The data is the same 1M heart-rate rows in one import, on SQLCipher.
+
+- The inventory computes every fingerprint in one scan (`docs/lan-sync.md` §6.2).
+- The subset holds that whole import.
+- The merge goes into an empty profile.
+
+| Date | Machine | Inventory + fingerprints | Subset export (size) | Merge into empty | Inventory of the copy |
+| --- | --- | --- | --- | --- | --- |
+| 2026-11-23 | Apple M1 Max | 0.92 s | 0.89 s (32 MB) | 2.18 s | 0.91 s |
+
+On a LAN a whole 1M-row import can go as one batch: serve's lock is held about 2 s for the merge. The in-memory fingerprint cache (§6.2) keeps the 0.9 s scan off every `hello`. Splitting large imports (§6.5) matters for slow links, not for CPU.

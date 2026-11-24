@@ -1,0 +1,151 @@
+{
+ "name": "09-r8-metric-ids",
+ "about": "R8: measures made on each device in a different order have different local ids; the same import's spans unite correctly.",
+ "a": {
+  "metrics": [
+   {
+    "code": "x:ocr/foo",
+    "name": "Foo",
+    "unit": "mg/dl",
+    "agg": "instant"
+   },
+   {
+    "code": "x:ocr/bar",
+    "name": "Bar",
+    "unit": "mg/dl",
+    "agg": "instant"
+   }
+  ],
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000008",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "x:ocr/foo",
+    "connector": "ocr",
+    "external_id": "photo",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000008",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 1
+    }
+   }
+  ]
+ },
+ "b": {
+  "metrics": [
+   {
+    "code": "x:ocr/bar",
+    "name": "Bar",
+    "unit": "mg/dl",
+    "agg": "instant"
+   },
+   {
+    "code": "x:ocr/foo",
+    "name": "Foo",
+    "unit": "mg/dl",
+    "agg": "instant"
+   }
+  ],
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000008",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "x:ocr/bar",
+    "connector": "ocr",
+    "external_id": "photo",
+    "start_ms": 1790000001000,
+    "uid": "019a0000-0000-7000-8000-000000000008",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 2
+    }
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000008",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "done",
+    "span": {
+     "x:ocr/foo": [
+      1790000000000,
+      1790000000000
+     ],
+     "x:ocr/bar": [
+      1790000001000,
+      1790000001000
+     ]
+    }
+   }
+  ],
+  "obs": [
+   {
+    "code": "x:ocr/foo",
+    "connector": "ocr",
+    "external_id": "photo",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000008",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 1
+    }
+   },
+   {
+    "code": "x:ocr/bar",
+    "connector": "ocr",
+    "external_id": "photo",
+    "start_ms": 1790000001000,
+    "uid": "019a0000-0000-7000-8000-000000000008",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 2
+    }
+   }
+  ]
+ },
+ "check_spans": true
+}

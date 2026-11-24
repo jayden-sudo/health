@@ -1,0 +1,104 @@
+{
+ "name": "02-r2-review-confirmed",
+ "about": "R2: a review confirmed on b reaches a, which still holds it as review; a keeps its own file. Every import that brought the file records it in meta.file (data after upgrade 2).",
+ "a": {
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000002",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "review",
+    "blob": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "file": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  ]
+ },
+ "b": {
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000002",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "done",
+    "blob": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "file": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:2345-7",
+    "connector": "ocr",
+    "external_id": "photo",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000002",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 100
+    }
+   }
+  ],
+  "texts": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000002",
+    "text": "report"
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000002",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "done",
+    "blob": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "file": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:2345-7",
+    "connector": "ocr",
+    "external_id": "photo",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000002",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 100
+    }
+   }
+  ],
+  "texts": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000002",
+    "text": "report"
+   }
+  ]
+ }
+}

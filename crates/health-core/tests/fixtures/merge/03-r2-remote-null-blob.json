@@ -1,0 +1,92 @@
+{
+ "name": "03-r2-remote-null-blob",
+ "about": "R2 + R6: b confirmed the review but holds no file (NULL); a's file stays, and b takes it in the second round (done/done, a NULL never clears a file). Every import that brought the file records it in meta.file (data after upgrade 2).",
+ "a": {
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000003",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "review",
+    "blob": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "file": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  ]
+ },
+ "b": {
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000003",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "done",
+    "file": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:2345-7",
+    "connector": "ocr",
+    "external_id": "photo",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000003",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 101
+    }
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000003",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "done",
+    "blob": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "file": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:2345-7",
+    "connector": "ocr",
+    "external_id": "photo",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000003",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 101
+    }
+   }
+  ]
+ },
+ "rounds": 2
+}

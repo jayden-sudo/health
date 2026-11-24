@@ -2,7 +2,7 @@
 //! a manifest, and the referenced blobs. Import merges (never overwrites). Both run outside a transaction.
 
 use crate::error::{Error, Kind, Result};
-use crate::merge::{MergeReport, export_plain, merge_from};
+use crate::merge::{MergeReport, export_plain};
 use crate::pack;
 use crate::profile::{Profile, create_private};
 use serde::Serialize;
@@ -87,24 +87,64 @@ pub fn export_to(
     let mut guard = TmpFiles(vec![plain.clone()]);
     export_plain(&p.db, &plain)?;
     let blobs = if with_blobs { referenced_blobs(p)? } else { vec![] };
-    let part_file = create_private(&part)?;
+    pack_plain(p, &plain, &part, password, &blobs, now_ms, opts)?;
     guard.0.push(part.clone());
-    let mut w = pack::Writer::new(BufWriter::new(part_file), password, opts)?;
-    w.entry("db.sqlite", BufReader::new(File::open(&plain)?))?;
-    w.entry("manifest.json", serde_json::json!({ "fmt": "zu-health-backup", "v": 1, "at": now_ms }).to_string().as_bytes())?;
-    for sha in &blobs {
-        w.begin_entry(&format!("blobs/{sha}"))?;
-        p.blobs.get(sha, &mut pack::EntryWriter(&mut w))?;
-        w.end_entry()?;
-    }
-    let f = w.finish()?.into_inner().map_err(|e| e.into_error())?;
-    f.sync_all()?;
     std::fs::rename(&part, out)?;
     guard.0.retain(|x| x != &part);
     Ok(Exported { path: out.display().to_string(), bytes: std::fs::metadata(out)?.len(), blobs: blobs.len() })
 }
 
+/// Wraps the plain database `plain` and the files `blobs` (those present) into a pack at `out` (must not exist).
+/// Returns how many files went in. On failure `out` is removed (only once this call has created it).
+pub fn pack_plain(
+    p: &Profile,
+    plain: &Path,
+    out: &Path,
+    password: &str,
+    blobs: &[String],
+    now_ms: i64,
+    opts: pack::Options,
+) -> Result<usize> {
+    let f = create_private(out)?;
+    let r = write_pack(p, f, plain, password, blobs, now_ms, opts);
+    if r.is_err() {
+        let _ = std::fs::remove_file(out);
+    }
+    r
+}
+
+fn write_pack(p: &Profile, f: File, plain: &Path, password: &str, blobs: &[String], now_ms: i64, opts: pack::Options) -> Result<usize> {
+    let mut w = pack::Writer::new(BufWriter::new(f), password, opts)?;
+    w.entry("db.sqlite", BufReader::new(File::open(plain)?))?;
+    w.entry("manifest.json", serde_json::json!({ "fmt": "zu-health-backup", "v": 1, "at": now_ms }).to_string().as_bytes())?;
+    let mut n = 0;
+    for sha in blobs {
+        if !p.blobs.has(sha) {
+            continue;
+        }
+        w.begin_entry(&format!("blobs/{sha}"))?;
+        p.blobs.get(sha, &mut pack::EntryWriter(&mut w))?;
+        w.end_entry()?;
+        n += 1;
+    }
+    let f = w.finish()?.into_inner().map_err(|e| e.into_error())?;
+    f.sync_all()?;
+    Ok(n)
+}
+
 pub fn import(p: &Profile, src: &Path, password: &str, now_ms: i64) -> Result<Imported> {
+    import_checked(p, src, password, now_ms, &|_| Ok(()))
+}
+
+/// `import`, with `check` run inside the merge's transaction once the pack's database has passed the schema checks
+/// (`merge::merge_from_checked`; sync: the pack holds only what was asked for).
+pub fn import_checked(
+    p: &Profile,
+    src: &Path,
+    password: &str,
+    now_ms: i64,
+    check: &dyn Fn(&crate::db::Db) -> Result<()>,
+) -> Result<Imported> {
     let plain = tmp_name(p, "import");
     let mut guard = TmpFiles(vec![plain.clone()]);
     let mut db_file: Option<BufWriter<File>> = None;
@@ -167,7 +207,7 @@ pub fn import(p: &Profile, src: &Path, password: &str, now_ms: i64) -> Result<Im
             return Err(Error::new(Kind::Invalid, "backup_manifest", "unknown backup format"));
         }
     }
-    let merge = merge_from(&p.db, &plain, now_ms)?;
+    let merge = crate::merge::merge_from_checked(&p.db, &plain, now_ms, check)?;
     // committed: now the files
     p.blobs.remove(&merge.orphan_blobs);
     let mut restored = 0;

@@ -1,0 +1,120 @@
+{
+ "name": "15-r9-row-source",
+ "about": "R9: b's lab import (a signed-result uid, which plausible_uid accepts) carries a row under the whoop source; a takes the import but not the row. b keeps its own data.",
+ "a": {
+  "sources": [
+   {
+    "connector": "lab",
+    "external_id": "dev1",
+    "name": "dev1",
+    "priority": 100
+   },
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ]
+ },
+ "b": {
+  "sources": [
+   {
+    "connector": "lab",
+    "external_id": "dev1",
+    "name": "dev1",
+    "priority": 100
+   },
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "result-1",
+    "connector": "lab",
+    "external_id": "dev1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "result-1",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 999
+    }
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "lab",
+    "external_id": "dev1",
+    "name": "dev1",
+    "priority": 100
+   },
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "result-1",
+    "connector": "lab",
+    "external_id": "dev1",
+    "status": "done"
+   }
+  ]
+ },
+ "expect_b": {
+  "sources": [
+   {
+    "connector": "lab",
+    "external_id": "dev1",
+    "name": "dev1",
+    "priority": 100
+   },
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "result-1",
+    "connector": "lab",
+    "external_id": "dev1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "result-1",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 999
+    }
+   }
+  ]
+ }
+}

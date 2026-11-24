@@ -181,8 +181,10 @@ fn times_beyond_safe_integers_are_rejected() {
     let (id, _) = begin(&c, Begin { source: &s, parser: "p", blob: None, uid: None, candidates: None }, T).unwrap();
     let r =
         |t| ObsRow { metric: "loinc:8867-4".into(), start_ms: t, end_ms: None, tz_min: 0, value: Value::Int(60), unit: None, detail: None };
-    let w = write(&c, id, &[r(1_795_176_000_000_000_000), r(i64::MAX)]).unwrap();
-    assert_eq!((w.written, w.rejected.get("time").copied()), (0, Some(2)));
+    let max = health_core::write::MAX_TIME_MS;
+    let w = write(&c, id, &[r(1_795_176_000_000_000_000), r(i64::MAX), r(max + 1), r(-1), r(max)]).unwrap();
+    // the writers' bound is the merge's (merge-fixes R13): up to 9999-12-29, never before 1970
+    assert_eq!((w.written, w.rejected.get("time").copied()), (1, Some(4)));
     finish(&c, id, T).unwrap();
 }
 
@@ -288,4 +290,97 @@ fn export_replaces_a_file_only_when_asked() {
     assert_eq!(backup::export(&a, &out, PW, true, T, pack::Options { iter: 10, chunk: 4096 }).unwrap_err().code, "exists");
     backup::export_to(&a, &out, PW, true, true, T, opts).unwrap();
     assert_ne!(std::fs::read(&out).unwrap(), b"old");
+}
+
+fn set_at(p: &Profile, connector: &str) -> Option<String> {
+    let meta: Option<String> = p.db.query_row("SELECT meta FROM source WHERE connector = ?", [connector], |r| r.get(0)).unwrap();
+    health_core::write::parse_meta(meta).get("set_at").and_then(|v| v.as_str()).map(String::from)
+}
+
+#[test]
+fn a_source_edit_is_stamped_later_than_anything_merged() {
+    let t = Two::new();
+    let a = t.open("a");
+    let whoop = health_core::write::source_id(&a.db, &SourceSpec::new("whoop", "u1")).unwrap();
+    // a setting merged from a device whose clock runs an hour ahead
+    let ahead = ((T + 3_600_000) << 16).to_string();
+    let other = health_core::write::source_id(&a.db, &SourceSpec::new("apple_health", "x")).unwrap();
+    a.db.execute("UPDATE source SET meta = ? WHERE id = ?", rusqlite::params![serde_json::json!({"set_at": ahead}).to_string(), other])
+        .unwrap();
+    query::source_update(&a.db, whoop, None, Some(40), T, "devA").unwrap();
+    let at: i64 = set_at(&a, "whoop").expect("stamped").parse().unwrap();
+    assert!(at > ahead.parse::<i64>().unwrap(), "{at} must beat {ahead}");
+    let by: Option<String> =
+        a.db.query_row("SELECT json_extract(meta, '$.set_by') FROM source WHERE id = ?", [whoop], |r| r.get(0)).unwrap();
+    assert_eq!(by.as_deref(), Some("devA"));
+}
+
+#[test]
+fn a_priority_chosen_before_sync_is_stamped_once_on_open() {
+    let t = Two::new();
+    {
+        let a = t.open("a");
+        let w = health_core::write::source_id(&a.db, &SourceSpec::new("whoop", "u1")).unwrap();
+        health_core::write::source_id(&a.db, &SourceSpec::new("apple_health", "x")).unwrap();
+        health_core::write::source_id(&a.db, &SourceSpec::new("manual", "")).unwrap();
+        // as an older version would have saved it: no stamp, and no upgrade recorded yet
+        a.db.execute("UPDATE source SET priority = 50 WHERE id = ?", [w]).unwrap();
+        a.db.pragma_update(None, "application_id", 0).unwrap();
+        a.vault
+            .update(|s| {
+                s.upgraded = 0;
+                Ok(())
+            })
+            .unwrap();
+    }
+    let a = t.open("a");
+    let first = set_at(&a, "whoop").expect("a chosen priority is stamped");
+    assert_eq!((set_at(&a, "apple_health"), set_at(&a, "manual")), (None, None), "defaults stay unstamped");
+    // a later open doesn't stamp again, even a priority that is still unstamped
+    a.db.execute("UPDATE source SET priority = 60 WHERE connector = 'apple_health'", []).unwrap();
+    drop(a);
+    let a = t.open("a");
+    assert_eq!(set_at(&a, "whoop"), Some(first), "stamped once");
+    assert_eq!(set_at(&a, "apple_health"), None, "the upgrade runs once per profile");
+}
+
+#[test]
+fn an_untrusted_source_setting_cannot_push_the_clock_or_break_it() {
+    // a backup holding a source new here, stamped a year ahead, and another whose meta isn't JSON
+    let t = Two::new();
+    let b = t.open("b");
+    let ahead = ((T + 365 * 86_400_000) << 16).to_string();
+    b.db.execute(
+        "INSERT INTO source (connector, external_id, name, priority, meta) VALUES ('whoop', 'u9', 'WHOOP', 40, ?)",
+        [serde_json::json!({"set_at": ahead, "set_by": "fast"}).to_string()],
+    )
+    .unwrap();
+    b.db.execute("INSERT INTO source (connector, external_id, name, priority, meta) VALUES ('lab', 'x', 'x', 100, '{not json')", [])
+        .unwrap();
+    let f = t.export(&b, "b.zuhealth", false);
+    let a = t.open("a");
+    backup::import(&a, &f, PW, T).unwrap();
+    // the local clock stays at the wall clock, and still works
+    let at = health_core::correction::next_at(&a.db, T).unwrap();
+    assert_eq!(at, T << 16, "a future set_at must not move the HLC");
+    assert_eq!(set_at(&a, "whoop"), None, "a future stamp is dropped on the way in");
+    let lab = health_core::write::source_id(&a.db, &SourceSpec::new("lab", "x")).unwrap();
+    query::source_update(&a.db, lab, None, Some(30), T, "devA").unwrap();
+}
+
+#[test]
+fn losing_the_vault_does_not_run_the_upgrades_again() {
+    // the count lives in the database header (application_id), with the data it describes
+    let t = Two::new();
+    {
+        let a = t.open("a");
+        let w = health_core::write::source_id(&a.db, &SourceSpec::new("whoop", "u1")).unwrap();
+        // an unstamped priority that arrived later (from a merge), not an edit made before sync existed
+        a.db.execute("UPDATE source SET priority = 50 WHERE id = ?", [w]).unwrap();
+    }
+    std::fs::remove_file(t.dir.path().join("profiles/a/vault")).ok();
+    let a = t.open("a");
+    assert_eq!(set_at(&a, "whoop"), None, "no upgrade runs a second time");
+    let id: i64 = a.db.query_row("PRAGMA application_id", [], |r| r.get(0)).unwrap();
+    assert_eq!(id, 2);
 }

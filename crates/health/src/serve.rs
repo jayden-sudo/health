@@ -37,6 +37,25 @@ struct State {
     session: Mutex<health_api::account::Session>,
     config: health_api::account::Config,
     backend: Box<dyn health_api::account::Backend>,
+    /// LAN sync (docs/lan-sync.md, S4): set once serve has started
+    lan: std::sync::OnceLock<crate::lan::Lan>,
+}
+
+impl crate::lan::Host for State {
+    fn with_profile(&self, f: &mut dyn FnMut(&Profile) -> Result<()>) -> Result<()> {
+        let guard = self.open.lock().unwrap();
+        let p = guard.as_ref().ok_or_else(|| Error::new(Kind::Locked, "locked", "serve is locked"))?;
+        f(p)
+    }
+    fn emit(&self, event: &str, data: Value) {
+        State::emit(self, event, data);
+    }
+    fn get(&self, path: &str) -> std::result::Result<Value, String> {
+        self.backend.get(path)
+    }
+    fn post(&self, path: &str, json: &str) -> std::result::Result<Value, String> {
+        self.backend.post(path, json)
+    }
 }
 
 fn ct_eq(a: &str, b: &str) -> bool {
@@ -68,6 +87,13 @@ fn err(e: &Error) -> Reply {
 
 impl State {
     fn emit(&self, event: &str, data: Value) {
+        // a local change starts a sync session with the devices connected (not the sync's own changes)
+        if event == "changed"
+            && data["op"] != "sync"
+            && let Some(l) = self.lan.get()
+        {
+            let _ = l.tx.send(crate::lan::Cmd::Changed);
+        }
         let msg = format!("event: {event}\ndata: {data}\n\n");
         self.events.lock().unwrap().retain(|tx| tx.send(msg.clone()).is_ok());
     }
@@ -131,6 +157,22 @@ impl State {
                 }
                 self.lock();
                 (200, Body::Json(json!({ "locked": true })))
+            }
+            ("POST", "/v1/op/sync.live") if owner => {
+                drop(guard);
+                let live = self.lan.get().map(|l| l.live.lock().unwrap().clone()).unwrap_or_default();
+                (200, Body::Json(json!({ "value": live, "withheld": null })))
+            }
+            ("POST", "/v1/op/sync.answer") if owner => {
+                drop(guard);
+                let v: Value = serde_json::from_slice(body).unwrap_or_default();
+                let (Some(device), Some(allow)) = (v["device"].as_str(), v["allow"].as_bool()) else {
+                    return err(&Error::invalid("bad_request", "device and allow are required"));
+                };
+                if let Some(l) = self.lan.get() {
+                    let _ = l.tx.send(crate::lan::Cmd::Answer { device: device.into(), allow });
+                }
+                (200, Body::Json(json!({ "value": {}, "withheld": null })))
             }
             ("GET", "/v1/events") if owner => {
                 let (tx, rx) = channel();
@@ -398,7 +440,9 @@ pub fn run(o: Opts) -> Result<()> {
         session: Mutex::new(Default::default()),
         backend: crate::account::backend(o.offline, &config),
         config,
+        lan: std::sync::OnceLock::new(),
     });
+    let _ = state.lan.set(crate::lan::start(state.clone(), o.offline));
     // serve.json: how the CLI finds us. In passphrase mode it never holds the owner token (plan §3.3).
     let file = dir.join("serve.json");
     let _ = std::fs::remove_file(&file);

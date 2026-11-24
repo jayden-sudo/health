@@ -1,0 +1,39 @@
+{
+ "name": "12-r3-future-new-source",
+ "about": "R3 + G1: a source new to a, stamped more than MAX_SKEW_MS ahead, comes in unstamped, so a's HLC can't be pushed into the future; b keeps its own stamp until the clocks pass it.",
+ "a": {},
+ "b": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u9",
+    "name": "WHOOP",
+    "priority": 40,
+    "set_at": "117659978956800000",
+    "set_by": "fast"
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u9",
+    "name": "WHOOP",
+    "priority": 40
+   }
+  ]
+ },
+ "expect_b": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u9",
+    "name": "WHOOP",
+    "priority": 40,
+    "set_at": "117659978956800000",
+    "set_by": "fast"
+   }
+  ]
+ }
+}

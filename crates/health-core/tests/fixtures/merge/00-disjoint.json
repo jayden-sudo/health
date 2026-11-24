@@ -1,0 +1,22 @@
+{
+ "name": "00-disjoint",
+ "about": "Tracer: two devices with unrelated imports end with the union.",
+ "a": {
+  "sources": [{"connector": "manual", "external_id": "", "name": "manual", "priority": 0}],
+  "imports": [{"uid": "019a0000-0000-7000-8000-000000000001", "connector": "manual", "external_id": "", "status": "done"}],
+  "obs": [{"code": "loinc:29463-7", "connector": "manual", "external_id": "", "start_ms": 1790000000000, "uid": "019a0000-0000-7000-8000-000000000001", "tz_min": 480, "value": {"t": "real", "v": 70.5}}]
+ },
+ "b": {
+  "sources": [{"connector": "whoop", "external_id": "u1", "name": "WHOOP", "priority": 100}],
+  "imports": [{"uid": "019a0000-0000-7000-8000-000000000002", "connector": "whoop", "external_id": "u1", "status": "done"}],
+  "obs": [{"code": "loinc:40443-4", "connector": "whoop", "external_id": "u1", "start_ms": 1790000000000, "uid": "019a0000-0000-7000-8000-000000000002", "tz_min": 480, "value": {"t": "integer", "v": 52}}]
+ },
+ "expect": {
+  "sources": [{"connector": "manual", "external_id": "", "name": "manual", "priority": 0}, {"connector": "whoop", "external_id": "u1", "name": "WHOOP", "priority": 100}],
+  "imports": [{"uid": "019a0000-0000-7000-8000-000000000001", "connector": "manual", "external_id": "", "status": "done"}, {"uid": "019a0000-0000-7000-8000-000000000002", "connector": "whoop", "external_id": "u1", "status": "done"}],
+  "obs": [
+   {"code": "loinc:29463-7", "connector": "manual", "external_id": "", "start_ms": 1790000000000, "uid": "019a0000-0000-7000-8000-000000000001", "tz_min": 480, "value": {"t": "real", "v": 70.5}},
+   {"code": "loinc:40443-4", "connector": "whoop", "external_id": "u1", "start_ms": 1790000000000, "uid": "019a0000-0000-7000-8000-000000000002", "tz_min": 480, "value": {"t": "integer", "v": 52}}
+  ]
+ }
+}

@@ -1,0 +1,139 @@
+{
+ "name": "17-r12-correction-typeof",
+ "about": "R12: corrections with equal at and equal values (5 IS 5.0) are decided by typeof: real > integer.",
+ "a": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000017",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000017",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 60
+    }
+   }
+  ],
+  "corrections": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "at": "117309440000000000",
+    "value": {
+     "t": "integer",
+     "v": 5
+    }
+   }
+  ]
+ },
+ "b": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000017",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000017",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 60
+    }
+   }
+  ],
+  "corrections": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "at": "117309440000000000",
+    "value": {
+     "t": "real",
+     "v": 5.0
+    }
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000017",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000017",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 60
+    }
+   }
+  ],
+  "corrections": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "at": "117309440000000000",
+    "value": {
+     "t": "real",
+     "v": 5.0
+    }
+   }
+  ]
+ }
+}

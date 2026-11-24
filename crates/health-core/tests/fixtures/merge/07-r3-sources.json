@@ -1,0 +1,80 @@
+{
+ "name": "07-r3-sources",
+ "about": "R3: name and priority by (set_at, set_by, priority, name); absent set_at = 0, set_by = ''. HLCs are decimal strings.",
+ "a": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 50,
+    "set_at": "117309440000000000",
+    "set_by": "devA"
+   },
+   {
+    "connector": "manual",
+    "external_id": "",
+    "name": "manual",
+    "priority": 0
+   },
+   {
+    "connector": "apple_health",
+    "external_id": "x",
+    "name": "iPhone",
+    "priority": 20,
+    "set_at": "117309440000000000",
+    "set_by": "devA"
+   }
+  ]
+ },
+ "b": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   },
+   {
+    "connector": "manual",
+    "external_id": "",
+    "name": "Manual",
+    "priority": 0
+   },
+   {
+    "connector": "apple_health",
+    "external_id": "x",
+    "name": "iPhone",
+    "priority": 30,
+    "set_at": "117309440000000000",
+    "set_by": "devB"
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 50,
+    "set_at": "117309440000000000",
+    "set_by": "devA"
+   },
+   {
+    "connector": "manual",
+    "external_id": "",
+    "name": "manual",
+    "priority": 0
+   },
+   {
+    "connector": "apple_health",
+    "external_id": "x",
+    "name": "iPhone",
+    "priority": 30,
+    "set_at": "117309440000000000",
+    "set_by": "devB"
+   }
+  ]
+ }
+}

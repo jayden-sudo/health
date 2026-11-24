@@ -64,3 +64,36 @@ fn one_million_rows() {
         assert!(ms < 100.0, "30-day query must stay under 100 ms (plan §9)");
     }
 }
+
+/// Sync at scale (docs/lan-sync.md §13 risk 5): inventory with fingerprints, the subset export of a 1M-row import,
+/// and merging it into an empty profile, on SQLCipher. Record in docs/perf.md.
+#[test]
+#[ignore]
+fn sync_one_million_rows() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = db::open(&dir.path().join("a.db"), &[9u8; 32]).unwrap();
+    let b = db::open(&dir.path().join("b.db"), &[7u8; 32]).unwrap();
+    health_core::catalog::seed(&a).unwrap();
+    health_core::catalog::seed(&b).unwrap();
+    fill(&a);
+    let t = Instant::now();
+    let inv = health_core::sync::inventory(&a, &|_| true).unwrap();
+    let inv_s = t.elapsed().as_secs_f64();
+    let uids: Vec<String> = inv.imports.keys().cloned().collect();
+    let f = dir.path().join("subset.db");
+    let t = Instant::now();
+    health_core::merge::export_subset(&a, &uids, true, &f).unwrap();
+    let export_s = t.elapsed().as_secs_f64();
+    let mb = std::fs::metadata(&f).unwrap().len() as f64 / 1_048_576.0;
+    let t = Instant::now();
+    let rep = health_core::merge::merge_from(&b, &f, T0 + N * STEP).unwrap();
+    let merge_s = t.elapsed().as_secs_f64();
+    assert_eq!(rep.added_imports, 1);
+    let t = Instant::now();
+    let inv_b = health_core::sync::inventory(&b, &|_| true).unwrap();
+    assert_eq!(inv_b.digest(), inv.digest(), "the merged copy has the same inventory");
+    println!(
+        "inventory+fingerprints {inv_s:.2}s  subset export {export_s:.2}s ({mb:.0} MB)  merge into empty {merge_s:.2}s  inventory of the copy {:.2}s",
+        t.elapsed().as_secs_f64()
+    );
+}

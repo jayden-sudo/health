@@ -177,7 +177,7 @@ fn link(old: &Env, new: &Env, give_answer: &str, answer: &str) -> (i32, Value, i
     let mut code = String::new();
     let mut line = String::new();
     while err.read_line(&mut line).unwrap() > 0 {
-        if line.starts_with("SBHL1:") {
+        if line.starts_with("ZUHL1:") {
             code = line.trim().to_string();
             break;
         }

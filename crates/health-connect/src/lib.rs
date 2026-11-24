@@ -2,6 +2,8 @@
 //! the OCR components the person asked to install. Requests carry no user information; certificates are
 //! checked against the operating system's trust store.
 
+pub mod lan;
+
 use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
 use std::path::Path;

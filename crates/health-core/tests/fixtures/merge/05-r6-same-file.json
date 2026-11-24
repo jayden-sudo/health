@@ -1,0 +1,113 @@
+{
+ "name": "05-r6-same-file",
+ "about": "R6: the same file imported on two devices (different uids). The smaller uid owns the file; rows belong to the larger uid. Every import that brought the file records it in meta.file (data after upgrade 2).",
+ "a": {
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000006",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "done",
+    "blob": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "file": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:2345-7",
+    "connector": "ocr",
+    "external_id": "photo",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000006",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 90
+    }
+   }
+  ]
+ },
+ "b": {
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000005",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "done",
+    "blob": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "file": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:2345-7",
+    "connector": "ocr",
+    "external_id": "photo",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000005",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 90
+    }
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "ocr",
+    "external_id": "photo",
+    "name": "OCR",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000005",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "done",
+    "blob": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "file": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   {
+    "uid": "019a0000-0000-7000-8000-000000000006",
+    "connector": "ocr",
+    "external_id": "photo",
+    "status": "done",
+    "file": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:2345-7",
+    "connector": "ocr",
+    "external_id": "photo",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000006",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 90
+    }
+   }
+  ]
+ }
+}

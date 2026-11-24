@@ -1,0 +1,291 @@
+{
+ "name": "01-r1-equal-uid",
+ "about": "R1: the same import (uid) holds different rows on two devices. Per key: typeof first (blob<integer<null<real<text), then value, end_ms, tz_min, detail, NULL-safe. Genotypes: larger (genotype, rsid). Report text: larger text.",
+ "a": {
+  "sources": [
+   {
+    "connector": "lab",
+    "external_id": "dev1",
+    "name": "dev1",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "connector": "lab",
+    "external_id": "dev1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:2345-7",
+    "connector": "lab",
+    "external_id": "dev1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 90
+    }
+   },
+   {
+    "code": "loinc:2345-7",
+    "connector": "lab",
+    "external_id": "dev1",
+    "start_ms": 1790000060000,
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 5
+    }
+   },
+   {
+    "code": "loinc:2345-7",
+    "connector": "lab",
+    "external_id": "dev1",
+    "start_ms": 1790000120000,
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 7
+    }
+   },
+   {
+    "code": "loinc:2345-7",
+    "connector": "lab",
+    "external_id": "dev1",
+    "start_ms": 1790000180000,
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 8
+    }
+   },
+   {
+    "code": "loinc:2345-7",
+    "connector": "lab",
+    "external_id": "dev1",
+    "start_ms": 1790000240000,
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "tz_min": 480,
+    "value": {
+     "t": "null"
+    }
+   }
+  ],
+  "genotypes": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "chrom": "1",
+    "pos": 100,
+    "rsid": 5,
+    "genotype": "AG"
+   }
+  ],
+  "texts": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "text": "alpha"
+   }
+  ]
+ },
+ "b": {
+  "sources": [
+   {
+    "connector": "lab",
+    "external_id": "dev1",
+    "name": "dev1",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "connector": "lab",
+    "external_id": "dev1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:2345-7",
+    "connector": "lab",
+    "external_id": "dev1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 95
+    }
+   },
+   {
+    "code": "loinc:2345-7",
+    "connector": "lab",
+    "external_id": "dev1",
+    "start_ms": 1790000060000,
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "tz_min": 480,
+    "value": {
+     "t": "real",
+     "v": 5.0
+    }
+   },
+   {
+    "code": "loinc:2345-7",
+    "connector": "lab",
+    "external_id": "dev1",
+    "start_ms": 1790000120000,
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 7
+    },
+    "detail": "{\"flag\":\"H\"}"
+   },
+   {
+    "code": "loinc:2345-7",
+    "connector": "lab",
+    "external_id": "dev1",
+    "start_ms": 1790000180000,
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 8
+    },
+    "end_ms": 1790000181000
+   },
+   {
+    "code": "loinc:2345-7",
+    "connector": "lab",
+    "external_id": "dev1",
+    "start_ms": 1790000240000,
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 1
+    }
+   }
+  ],
+  "genotypes": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "chrom": "1",
+    "pos": 100,
+    "rsid": 5,
+    "genotype": "GG"
+   }
+  ],
+  "texts": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "text": "beta"
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "lab",
+    "external_id": "dev1",
+    "name": "dev1",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "connector": "lab",
+    "external_id": "dev1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:2345-7",
+    "connector": "lab",
+    "external_id": "dev1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 95
+    }
+   },
+   {
+    "code": "loinc:2345-7",
+    "connector": "lab",
+    "external_id": "dev1",
+    "start_ms": 1790000060000,
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "tz_min": 480,
+    "value": {
+     "t": "real",
+     "v": 5.0
+    }
+   },
+   {
+    "code": "loinc:2345-7",
+    "connector": "lab",
+    "external_id": "dev1",
+    "start_ms": 1790000120000,
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 7
+    },
+    "detail": "{\"flag\":\"H\"}"
+   },
+   {
+    "code": "loinc:2345-7",
+    "connector": "lab",
+    "external_id": "dev1",
+    "start_ms": 1790000180000,
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 8
+    },
+    "end_ms": 1790000181000
+   },
+   {
+    "code": "loinc:2345-7",
+    "connector": "lab",
+    "external_id": "dev1",
+    "start_ms": 1790000240000,
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "tz_min": 480,
+    "value": {
+     "t": "null"
+    }
+   }
+  ],
+  "genotypes": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "chrom": "1",
+    "pos": 100,
+    "rsid": 5,
+    "genotype": "GG"
+   }
+  ],
+  "texts": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000001",
+    "text": "beta"
+   }
+  ]
+ }
+}

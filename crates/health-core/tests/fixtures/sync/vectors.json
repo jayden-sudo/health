@@ -1,0 +1,75 @@
+{
+  "about": "LAN sync shared vectors (docs/lan-sync.md §6). Open each .db as is (it has the health schema). Inventory = database lines plus the vault settings below, files present as listed.",
+  "pack": {
+    "blobs": [],
+    "db_entry_is": "subset.db",
+    "file": "subset.pack",
+    "iter": 1,
+    "password": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  },
+  "parts": {
+    "first": {
+      "db": "part1.db",
+      "next": {
+        "code": "loinc:8867-4",
+        "start_ms": 1794996520000
+      },
+      "wire": "i 0190a000-0000-7000-8000-000000000001 done - 2:ca614b6d2c723f48eab461659eab5d553d48324237a69d7d4f83a6a1cbe40982\ns source 3:lab 20:實驗室 🧪\nline2 0 0: 100 20:實驗室 🧪\nline2\ns source 3:ocr 5:photo 0 0: 100 5:photo\ns source 5:whoop 2:u1 117637120000000005 32:dddddddddddddddddddddddddddddddd 3 8:My WHOOP\ns source 6:device 3:ecg 0 0: 100 3:ecg\ns source 6:genome 5:kit-1 0 0: 100 5:kit-1\ns source 6:manual 0: 0 0: 0 6:manual\na 9:葡萄糖 6:mmol/l 12:loinc:2345-7\n"
+    },
+    "max_rows": 2,
+    "second": {
+      "after": {
+        "code": "loinc:8867-4",
+        "start_ms": 1794996520000
+      },
+      "db": "part2.db",
+      "next": null,
+      "wire": "i 0190a000-0000-7000-8000-000000000001 done - 1:689dd9166326336eb3c80456fa687e3fa7bf75d016941dfc6470a279bdc5c7a3\ns source 3:lab 20:實驗室 🧪\nline2 0 0: 100 20:實驗室 🧪\nline2\ns source 3:ocr 5:photo 0 0: 100 5:photo\ns source 5:whoop 2:u1 117637120000000005 32:dddddddddddddddddddddddddddddddd 3 8:My WHOOP\ns source 6:device 3:ecg 0 0: 100 3:ecg\ns source 6:genome 5:kit-1 0 0: 100 5:kit-1\ns source 6:manual 0: 0 0: 0 6:manual\na 9:葡萄糖 6:mmol/l 12:loinc:2345-7\n"
+    },
+    "uid": "0190a000-0000-7000-8000-000000000001"
+  },
+  "profile": {
+    "db": "profile.db",
+    "digest": "61f8d1d7d6bf5f6cfe98ff37a0da2657c3cf4b1097181e3b0698e4fb5a38dbd0",
+    "files_present": [
+      "b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2"
+    ],
+    "fingerprints": {
+      "0190a000-0000-7000-8000-000000000001": "3:32ff24838f9872b79e7c65bc9913db94e507a8124e3abb79b3f4491b89a9d125",
+      "0190a000-0000-7000-8000-000000000002": "1:ed645132ff5751843d1204974b1a79e98028f06b7f9ed3ab3e9e97f9c9cd4c53",
+      "0190a000-0000-7000-8000-000000000003": "1:087bf5727aa54c7805e7c098e5cd8cffa4222ba15b7a57537d504fe79e26cd48",
+      "0190a000-0000-7000-8000-000000000004": "3:7765d87ba50d99e7ba0a145d9956464718300f208a6b6f89ddafdc64545b8e32",
+      "0190a000-0000-7000-8000-000000000005": "1:1dc0e266e50fbeac9337771e47ac14c4d096a1d2f933bfc785eadaa14ae1cdde",
+      "0190a000-0000-7000-8000-000000000006": "1:ee5c499bea3017a9885c2113ff030be6209bd479bcd3b72ba0e901d2680bdafc"
+    },
+    "running": [
+      "0190a000-0000-7000-8000-000000000009"
+    ],
+    "vault": {
+      "profile": {
+        "birth": "1988-07",
+        "ethnicity": "Asian",
+        "gender": "Female",
+        "set_at": "117637120000000009",
+        "set_by": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "whoop_stopped": {
+        "at": 1794999999000,
+        "set_at": "117637120000000002",
+        "set_by": "ffffffffffffffffffffffffffffffff"
+      }
+    },
+    "wire": "i 0190a000-0000-7000-8000-000000000001 done - 3:32ff24838f9872b79e7c65bc9913db94e507a8124e3abb79b3f4491b89a9d125\ni 0190a000-0000-7000-8000-000000000002 done - 1:ed645132ff5751843d1204974b1a79e98028f06b7f9ed3ab3e9e97f9c9cd4c53\ni 0190a000-0000-7000-8000-000000000003 done b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2 1:087bf5727aa54c7805e7c098e5cd8cffa4222ba15b7a57537d504fe79e26cd48\ni 0190a000-0000-7000-8000-000000000004 done - 3:7765d87ba50d99e7ba0a145d9956464718300f208a6b6f89ddafdc64545b8e32\ni 0190a000-0000-7000-8000-000000000005 done - 1:1dc0e266e50fbeac9337771e47ac14c4d096a1d2f933bfc785eadaa14ae1cdde\ni 0190a000-0000-7000-8000-000000000006 done - 1:ee5c499bea3017a9885c2113ff030be6209bd479bcd3b72ba0e901d2680bdafc\ni 0190a000-0000-7000-8000-000000000007 review cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc -\ni 0190a000-0000-7000-8000-000000000008 erased - -\nc 12:loinc:8867-4 5:whoop 2:u1 1794996400000 117637120000000003 real 404e200000000000\nc 12:loinc:8867-4 5:whoop 2:u1 1794996580000 117637120000000004 null n\ns profile 117637120000000009 32:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee 7:1988-07 6:Female 5:Asian\ns source 3:lab 20:實驗室 🧪\nline2 0 0: 100 20:實驗室 🧪\nline2\ns source 3:ocr 5:photo 0 0: 100 5:photo\ns source 5:whoop 2:u1 117637120000000005 32:dddddddddddddddddddddddddddddddd 3 8:My WHOOP\ns source 6:device 3:ecg 0 0: 100 3:ecg\ns source 6:genome 5:kit-1 0 0: 100 5:kit-1\ns source 6:manual 0: 0 0: 0 6:manual\ns whoop/stopped 117637120000000002 32:ffffffffffffffffffffffffffffffff 1794999999000\na 9:葡萄糖 6:mmol/l 12:loinc:2345-7\nb bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\nb cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\n"
+  },
+  "subset": {
+    "corrections": true,
+    "db": "subset.db",
+    "uids": [
+      "0190a000-0000-7000-8000-000000000001",
+      "0190a000-0000-7000-8000-000000000003",
+      "0190a000-0000-7000-8000-000000000007",
+      "0190a000-0000-7000-8000-000000000008"
+    ],
+    "wire": "i 0190a000-0000-7000-8000-000000000001 done - 3:32ff24838f9872b79e7c65bc9913db94e507a8124e3abb79b3f4491b89a9d125\ni 0190a000-0000-7000-8000-000000000003 done b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2 1:087bf5727aa54c7805e7c098e5cd8cffa4222ba15b7a57537d504fe79e26cd48\ni 0190a000-0000-7000-8000-000000000007 review cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc -\ni 0190a000-0000-7000-8000-000000000008 erased - -\nc 12:loinc:8867-4 5:whoop 2:u1 1794996400000 117637120000000003 real 404e200000000000\nc 12:loinc:8867-4 5:whoop 2:u1 1794996580000 117637120000000004 null n\ns source 3:lab 20:實驗室 🧪\nline2 0 0: 100 20:實驗室 🧪\nline2\ns source 3:ocr 5:photo 0 0: 100 5:photo\ns source 5:whoop 2:u1 117637120000000005 32:dddddddddddddddddddddddddddddddd 3 8:My WHOOP\ns source 6:device 3:ecg 0 0: 100 3:ecg\ns source 6:genome 5:kit-1 0 0: 100 5:kit-1\ns source 6:manual 0: 0 0: 0 6:manual\na 9:葡萄糖 6:mmol/l 12:loinc:2345-7\n"
+  }
+}

@@ -1,6 +1,6 @@
 // The UI against a real `health serve` (plan §6: Playwright, no Tauri needed).
 import { expect, test } from "@playwright/test";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -203,21 +203,82 @@ test("the health account: nothing is sent until asked, then linking by check cod
   // the app is open and polling the inbox, yet without an account nothing went to the service
   expect((await relayLog()).length).toBe(before);
 
-  await page.getByRole("button", { name: "Link an existing device…" }).click();
+  // one entry, then which side this computer is (as the web's 连接其他设备)
+  await page.getByRole("button", { name: "Connect another device…" }).click();
+  await expect(page.getByRole("button", { name: "Enter connection code" })).toBeDisabled(); // nothing to hand over yet
+  await page.getByRole("button", { name: "Show connection code" }).click();
   const code = (await page.locator(".link-code").textContent())?.trim() ?? "";
-  expect(code).toMatch(/^SBHL1:/);
+  expect(code).toMatch(/^ZUHL1:/);
   // the other computer hands it over (and answers yes to rule 2's question)
   const given = execFileSync(bin, ["--json", "link", "give", code], { env, input: "y\n" }).toString();
   const check = (JSON.parse(given) as { check: string }).check;
   await expect(page.locator(".check-code")).toHaveText(check, { timeout: 15_000 });
   await page.getByRole("button", { name: "They match" }).click();
-  await expect(page.getByRole("heading", { name: "Your identity code" })).toBeVisible();
+  // connected: on to LAN sync, the reason to connect a device
+  await expect(page.getByRole("heading", { name: "Local network sync" })).toBeVisible();
   const mine = await page.request.post("/v1/op/account.show", { data: {} });
   expect(((await mine.json()) as { value: { account: { identity: string } } }).value.account.identity).toBe(theirs.identity);
-  // the link is in this device's own link history, with the check code both showed
-  const history = page.getByRole("list", { name: "Link history" });
+  // the account page: grouped rows; the link is in this device's own connection history, with the check code
+  await page.getByRole("button", { name: "‹ Health account" }).click();
+  await expect(page.getByRole("button", { name: /^Identity code/ })).toBeVisible();
+  await page.getByRole("button", { name: /^Connection history/ }).click();
+  const history = page.getByRole("dialog").getByRole("list", { name: "Connection history" });
   await expect(history).toContainText("Received from another device");
   await expect(history).toContainText(`Check code ${check}`);
+});
+
+test("LAN sync: another computer with the account on this network asks once, then both hold the same data", async ({ page }) => {
+  test.setTimeout(120_000);
+  const { base, bin } = relayInfo();
+  // this app's account: made here; a second computer takes it by linking, then runs its own serve
+  await page.goto("/");
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Health account" }).click();
+  const acc = await page.request.post("/v1/op/account.show", { data: {} });
+  if (!((await acc.json()) as { value: { account: unknown } }).value.account) {
+    test.skip(true, "runs after the linking test, which gives this app an account");
+  }
+  const other = mkdtempSync(join(tmpdir(), "health-e2e-peer-"));
+  const env = { ...process.env, HEALTH_DATA_DIR: join(other, "data"), HEALTH_ROOT_KEY_FILE: join(other, "root.key"), HEALTH_BACKEND: base, HEALTH_LAN_LOOPBACK: "1", HEALTH_NO_BROWSER: "1" };
+  execFileSync(bin, ["init"], { env });
+  // the other computer joins this account (this app gives it, through its own op)
+  const joiner = spawn(bin, ["--json", "link", "join"], { env, stdio: ["pipe", "pipe", "pipe"] });
+  const code = await new Promise<string>((ok) => {
+    let err = "";
+    joiner.stderr.on("data", (b: Buffer) => {
+      err += b.toString();
+      const m = /ZUHL1:\S+/.exec(err);
+      if (m) ok(m[0]);
+    });
+  });
+  const given = await page.request.post("/v1/op/link.give", { data: { code, confirmed: true } });
+  expect(given.ok()).toBe(true);
+  joiner.stdin.write("y\n");
+  await new Promise((ok) => joiner.on("exit", ok));
+  execFileSync(bin, ["add", "loinc:29463-7", "66.6", "--unit", "kg"], { env }); // now: the newest weight
+  const peer = spawn(bin, ["serve"], { env, stdio: ["ignore", "ignore", "inherit"] });
+  try {
+    // both have never synced: each asks; the app asks in a dialog on its LAN sync page
+    await page.getByRole("button", { name: /^Local network sync/ }).click();
+    const section = page.getByRole("list", { name: "Devices on this network" });
+    const ask = page.getByRole("dialog");
+    await expect(ask).toContainText("Combine with", { timeout: 60_000 });
+    await expect(ask).toContainText("can't be undone");
+    await expect(section.getByText("Waiting for you")).toBeVisible();
+    await ask.getByRole("button", { name: "Combine", exact: true }).click();
+    // the other computer's serve: found as the CLI finds it
+    const { port, token } = JSON.parse(readFileSync(join(other, "data/profiles/default/serve.json"), "utf8")) as { port: number; token: string };
+    const call = async (name: string, data: unknown) =>
+      (await (await fetch(`http://127.0.0.1:${port}/v1/op/${name}`, { method: "POST", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(data) })).json()) as { value: { peers: { device: string; state: string }[] } };
+    await expect.poll(async () => (await call("sync.live", {})).value.peers[0]?.state, { timeout: 60_000 }).toBe("asking");
+    const dev = (await call("sync.live", {})).value.peers[0].device;
+    await call("sync.answer", { device: dev, allow: true });
+    await expect(section.getByText("Up to date")).toBeVisible({ timeout: 60_000 });
+    // the other computer's weight is here now
+    await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Readings" }).click();
+    await expect(page.locator(".tile", { hasText: "Weight" })).toContainText("66.6");
+  } finally {
+    peer.kill();
+  }
 });
 
 test("the profile: sex and birth month kept here, height recorded as a reading", async ({ page }) => {

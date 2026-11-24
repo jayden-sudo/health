@@ -1,0 +1,143 @@
+{
+ "about": "unit_key equality (merge-fixes R4): the same printed unit on both sides. Each pair: [a, b, same, why]. Hand-derived from the rules: NFKC, lower case, JS whitespace removed, µ/μ→u, ^→*, []{}_ dropped, one leading x/×/* dropped, OCR lu/→iu/ at the start or after m/k/u, then the alias table.",
+ "pairs": [
+  [
+   "mmol/L",
+   "mmol/l",
+   true,
+   "case"
+  ],
+  [
+   "mmol / L",
+   "mmol/L",
+   true,
+   "whitespace"
+  ],
+  [
+   "mmol /L",
+   "mmol/L",
+   true,
+   "no-break space is JS \\s"
+  ],
+  [
+   "ｍｇ／ｄＬ",
+   "mg/dL",
+   true,
+   "NFKC folds full-width"
+  ],
+  [
+   "µmol/L",
+   "umol/L",
+   true,
+   "micro sign"
+  ],
+  [
+   "μmol/L",
+   "umol/L",
+   true,
+   "Greek mu"
+  ],
+  [
+   "x10^9/L",
+   "10*3/uL",
+   true,
+   "leading x dropped, ^ to *, alias 10*9/l = 10*3/ul"
+  ],
+  [
+   "×10^12/L",
+   "10*6/uL",
+   true,
+   "leading × dropped, alias 10*12/l = 10*6/ul"
+  ],
+  [
+   "*10^9/L",
+   "10*3/µL",
+   true,
+   "leading * dropped"
+  ],
+  [
+   "10_9/L",
+   "10*9/L",
+   false,
+   "_ is dropped, not read as ^"
+  ],
+  [
+   "mlU/mL",
+   "m[IU]/mL",
+   true,
+   "OCR l for I after m; brackets dropped"
+  ],
+  [
+   "lU/L",
+   "IU/L",
+   true,
+   "OCR l for I at the start"
+  ],
+  [
+   "klU/L",
+   "kIU/L",
+   true,
+   "OCR l for I after k"
+  ],
+  [
+   "elU/L",
+   "eIU/L",
+   false,
+   "l for I only at the start or after m, k, u"
+  ],
+  [
+   "g/100mL",
+   "g/dL",
+   true,
+   "alias"
+  ],
+  [
+   "cells/cumm",
+   "/uL",
+   true,
+   "alias"
+  ],
+  [
+   "/nL",
+   "10*3/uL",
+   true,
+   "alias"
+  ],
+  [
+   "次/分",
+   "/min",
+   true,
+   "alias"
+  ],
+  [
+   "毫米汞柱",
+   "mmHg",
+   true,
+   "alias"
+  ],
+  [
+   "mg/dL",
+   "mg/L",
+   false,
+   "different units"
+  ],
+  [
+   "mg/dL",
+   "mmol/L",
+   false,
+   "different units"
+  ],
+  [
+   "个/HP",
+   "/uL",
+   false,
+   "per high-power field is not per microlitre"
+  ],
+  [
+   "",
+   "",
+   true,
+   "no unit"
+  ]
+ ]
+}

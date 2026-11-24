@@ -1,0 +1,158 @@
+{
+ "name": "08-g1-future-correction",
+ "about": "G1: a correction more than MAX_SKEW_MS in the future is refused by the other device; it stays only where it was made, until the clocks pass it.",
+ "a": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000007",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000007",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 60
+    }
+   }
+  ]
+ },
+ "b": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000007",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000007",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 60
+    }
+   }
+  ],
+  "corrections": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "at": "117659978956800000",
+    "value": {
+     "t": "integer",
+     "v": 50
+    }
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000007",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000007",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 60
+    }
+   }
+  ]
+ },
+ "expect_b": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000007",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000007",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 60
+    }
+   }
+  ],
+  "corrections": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "at": "117659978956800000",
+    "value": {
+     "t": "integer",
+     "v": 50
+    }
+   }
+  ]
+ }
+}

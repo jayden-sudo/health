@@ -3,6 +3,7 @@
 mod account;
 mod client;
 mod keys;
+mod lan;
 mod mcp;
 mod ocr;
 mod render;
@@ -144,9 +145,26 @@ enum Cmd {
     /// WHOOP sync with your own WHOOP developer app
     #[command(subcommand)]
     Whoop(WhoopCmd),
+    /// LAN sync with this account's other devices (runs while `health serve` runs)
+    #[command(subcommand)]
+    Sync(SyncCmd),
     /// Internal: the OCR process `health ocr` and serve start (one request on stdin)
     #[command(hide = true)]
     OcrWorker,
+    /// Debug builds: a LAN sync session over stdin/stdout (frames as a 4-byte big-endian length, then the bytes), for
+    /// testing another implementation against this one. The result goes to stderr as one JSON line.
+    #[command(hide = true)]
+    SyncPipe {
+        /// Answer the join and large-erase questions with yes
+        #[arg(long)]
+        allow: bool,
+        /// Act as a side that keeps no files (as the web)
+        #[arg(long)]
+        no_files: bool,
+        /// Rows per batch and per part of a split import
+        #[arg(long)]
+        batch_rows: Option<u64>,
+    },
     /// Passphrase lock: keep the root key out of the keychain (plan §3.3)
     #[command(subcommand)]
     Passphrase(PassphraseCmd),
@@ -191,6 +209,18 @@ enum AccountCmd {
 }
 
 #[derive(Subcommand)]
+enum SyncCmd {
+    /// On or off, paused, the devices synced with; with serve running, each device's live state too
+    Status,
+    /// Turn sync on this network on
+    On,
+    /// Turn it off
+    Off,
+    /// Continue after a pause ("Not now" on a large erase)
+    Continue,
+}
+
+#[derive(Subcommand)]
 enum WhoopCmd {
     /// Whether WHOOP is connected
     Status,
@@ -209,7 +239,7 @@ enum WhoopCmd {
 enum LinkCmd {
     /// Show a code for your other device to scan, then confirm the check code
     Join,
-    /// Hand this computer's account to the new device showing `code` (SBHL1:…)
+    /// Hand this computer's account to the new device showing `code` (ZUHL1:…)
     Give { code: String },
     /// The links this computer completed, newest first (a local record only)
     List,
@@ -499,6 +529,7 @@ fn request(cmd: &Cmd, now: i64) -> Result<(String, Value)> {
         | Cmd::Unlock
         | Cmd::Lock
         | Cmd::Component(_)
+        | Cmd::SyncPipe { .. }
         | Cmd::OcrWorker => {
             unreachable!("handled before")
         }
@@ -595,6 +626,10 @@ fn request(cmd: &Cmd, now: i64) -> Result<(String, Value)> {
         Cmd::Link(LinkCmd::List) => ("link.devices".into(), json!({})),
         Cmd::Link(_) => return Err(usage("interactive", "link runs interactively")),
         Cmd::Whoop(WhoopCmd::Status) => ("whoop.status".into(), json!({})),
+        Cmd::Sync(SyncCmd::Status) => ("sync.state".into(), json!({})),
+        Cmd::Sync(SyncCmd::On) => ("sync.set".into(), json!({ "enabled": true })),
+        Cmd::Sync(SyncCmd::Off) => ("sync.set".into(), json!({ "enabled": false })),
+        Cmd::Sync(SyncCmd::Continue) => ("sync.set".into(), json!({ "paused": false })),
         Cmd::Whoop(WhoopCmd::Sync) => ("whoop.sync".into(), json!({ "force": true })),
         Cmd::Whoop(WhoopCmd::Disconnect) => ("whoop.disconnect".into(), json!({})),
         Cmd::Whoop(WhoopCmd::Connect { .. }) => return Err(usage("interactive", "whoop connect runs interactively")),
@@ -767,6 +802,16 @@ fn run(cli: &Cli) -> Result<Value> {
             mcp_stdio(&dir, &cli.profile)?;
             return Ok(Value::Null);
         }
+        Cmd::SyncPipe { allow, no_files, batch_rows } => {
+            if !cfg!(debug_assertions) {
+                return Err(usage("debug_only", "sync-pipe is for tests (debug builds)"));
+            }
+            let keys = keys::for_profile(&pdir, cli.passphrase_stdin)?;
+            let p = Profile::open(&dir, &cli.profile, keys.as_ref(), true, now)?;
+            let out = lan::pipe(&p, *allow, !*no_files, *batch_rows)?;
+            eprintln!("{out}");
+            return Ok(Value::Null);
+        }
         Cmd::Unlock | Cmd::Lock => {
             let s = client::probe(&pdir).ok_or_else(|| Error::not_found("no_serve", "no serve is running for this profile"))?;
             let (path, body, headers) = if matches!(cli.cmd, Cmd::Unlock) {
@@ -799,6 +844,11 @@ fn run(cli: &Cli) -> Result<Value> {
                 let (name, mut req) = request(&cli.cmd, now)?;
                 if name == "import.ocr" {
                     ocr::fill(&dir, &mut req, time::year(now))?;
+                }
+                if matches!(cli.cmd, Cmd::Sync(SyncCmd::Status)) {
+                    let mut v = s.op(auth.clone(), &name, &req, false)?.0;
+                    v["live"] = s.op(auth, "sync.live", &json!({}), false)?.0;
+                    return Ok(v);
                 }
                 return Ok(s.op(auth, &name, &req, cli.dry_run)?.0);
             }

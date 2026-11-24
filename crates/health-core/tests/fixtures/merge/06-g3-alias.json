@@ -1,0 +1,31 @@
+{
+ "name": "06-g3-alias",
+ "about": "G3: one printed name mapped to two measures; the smaller metric code wins on both devices.",
+ "a": {
+  "aliases": [
+   {
+    "alias": "glu",
+    "unit": "mg/dl",
+    "code": "loinc:2345-7"
+   }
+  ]
+ },
+ "b": {
+  "aliases": [
+   {
+    "alias": "glu",
+    "unit": "mg/dl",
+    "code": "loinc:2339-0"
+   }
+  ]
+ },
+ "expect": {
+  "aliases": [
+   {
+    "alias": "glu",
+    "unit": "mg/dl",
+    "code": "loinc:2339-0"
+   }
+  ]
+ }
+}

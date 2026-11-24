@@ -254,7 +254,8 @@ fn a_new_device_takes_the_account_only_with_the_check_code_both_show() {
     assert_eq!(got["replaces"], false);
     // not stored before it is confirmed
     assert_eq!(new.show()["account"], Value::Null);
-    assert!(!new.p.dir.join("vault").exists());
+    // the vault may exist (one-time upgrade flags); the account key must not be in it
+    assert!(new.p.vault.load().unwrap().amk.is_none());
     // the relay deleted it on read: polling again shows the kept state and asks nothing
     let n = mock.0.lock().unwrap().log.len();
     assert_eq!(new.op(&mock, &c, "link.poll", json!({})).unwrap()["check"], given["check"]);

@@ -83,7 +83,8 @@ const MAX_SAFE: i64 = 9_007_199_254_740_991;
 
 /// `doc` has passed `health_proto::result::check`.
 pub fn ingest(c: &Db, doc: &Map<String, Json>, now_ms: i64) -> Result<Ingested> {
-    let id = doc.get("id").and_then(Json::as_str).filter(|i| !i.is_empty() && i.len() <= 64).ok_or_else(|| bad("id"))?;
+    // the id becomes the import's uid: refused here if it couldn't sync (merge-fixes P5)
+    let id = doc.get("id").and_then(Json::as_str).filter(|i| crate::write::plain_uid(i)).ok_or_else(|| bad("id"))?;
     let src = doc.get("src").and_then(Json::as_str).ok_or_else(|| bad("src"))?;
     let (kind, device) = src.split_once(':').ok_or_else(|| bad("src"))?;
     let device_ok = (1..=64).contains(&device.len()) && device.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-');

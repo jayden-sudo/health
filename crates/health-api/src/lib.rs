@@ -3,6 +3,7 @@
 
 pub mod account;
 mod ops;
+pub mod sync;
 pub mod whoop;
 
 use health_core::access::{Audit, Grant, WriteLevel};
@@ -36,11 +37,13 @@ pub struct Ctx<'a> {
     pub dry_run: bool,
     /// Blob files to delete once the transaction has committed.
     after_commit: Vec<String>,
+    /// WHOOP's data was deleted: stamp `whoop/stopped` in the vault once the transaction has committed
+    stop_whoop_after_commit: bool,
 }
 
 impl<'a> Ctx<'a> {
     pub fn new(profile: &'a Profile, now_ms: i64, caller: Caller) -> Self {
-        Ctx { profile, now_ms, caller, dry_run: false, after_commit: Vec::new() }
+        Ctx { profile, now_ms, caller, dry_run: false, after_commit: Vec::new(), stop_whoop_after_commit: false }
     }
     pub fn grant(&self) -> Option<&Grant> {
         match &self.caller {
@@ -60,6 +63,9 @@ impl<'a> Ctx<'a> {
     }
     pub(crate) fn delete_blobs_after_commit(&mut self, shas: Vec<String>) {
         self.after_commit.extend(shas);
+    }
+    pub(crate) fn stop_whoop_after_commit(&mut self) {
+        self.stop_whoop_after_commit = true;
     }
 }
 
@@ -200,9 +206,11 @@ fn execute(ctx: &mut Ctx, op: &OpDef, req: Json) -> Result<Json> {
         return (op.run)(ctx, req);
     }
     ctx.after_commit.clear();
+    ctx.stop_whoop_after_commit = false;
     ctx.db().execute_batch("BEGIN IMMEDIATE")?;
     let out = (op.run)(ctx, req);
     let orphans = std::mem::take(&mut ctx.after_commit);
+    let stop_whoop = std::mem::take(&mut ctx.stop_whoop_after_commit);
     if out.is_err() || ctx.dry_run {
         // SQLite may already have rolled back; the op's own error is the one to report.
         let _ = ctx.db().execute_batch("ROLLBACK");
@@ -213,6 +221,11 @@ fn execute(ctx: &mut Ctx, op: &OpDef, req: Json) -> Result<Json> {
         return Err(e.into());
     }
     ctx.profile.blobs.remove(&orphans);
+    if stop_whoop {
+        // the vault isn't in the transaction: only a committed delete stops WHOOP (docs/lan-sync.md §8)
+        let device = ctx.profile.vault.device_id()?;
+        ctx.profile.vault.update(|st| health_core::sync::stop_whoop(ctx.db(), st, &device, ctx.now_ms))?;
+    }
     out
 }
 

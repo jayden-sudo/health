@@ -1,0 +1,160 @@
+{
+ "name": "22-r13-time-bounds",
+ "about": "R13: rows are taken only with 0 <= start_ms <= MAX_TIME_MS (253402041600000, 9999-12-29) and a non-NULL end_ms in the same range: the row at exactly MAX_TIME_MS is taken, MAX_TIME_MS + 1 is skipped, and so is a valid start with end_ms beyond the bound. b keeps its own.",
+ "a": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ]
+ },
+ "b": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000024",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 253402041600000,
+    "uid": "019a0000-0000-7000-8000-000000000024",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 60
+    }
+   },
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 253402041600001,
+    "uid": "019a0000-0000-7000-8000-000000000024",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 61
+    }
+   },
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000024",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 62
+    },
+    "end_ms": 253402041600001
+   }
+  ]
+ },
+ "expect": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000024",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 253402041600000,
+    "uid": "019a0000-0000-7000-8000-000000000024",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 60
+    }
+   }
+  ]
+ },
+ "expect_b": {
+  "sources": [
+   {
+    "connector": "whoop",
+    "external_id": "u1",
+    "name": "WHOOP",
+    "priority": 100
+   }
+  ],
+  "imports": [
+   {
+    "uid": "019a0000-0000-7000-8000-000000000024",
+    "connector": "whoop",
+    "external_id": "u1",
+    "status": "done"
+   }
+  ],
+  "obs": [
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 253402041600000,
+    "uid": "019a0000-0000-7000-8000-000000000024",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 60
+    }
+   },
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 253402041600001,
+    "uid": "019a0000-0000-7000-8000-000000000024",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 61
+    }
+   },
+   {
+    "code": "loinc:40443-4",
+    "connector": "whoop",
+    "external_id": "u1",
+    "start_ms": 1790000000000,
+    "uid": "019a0000-0000-7000-8000-000000000024",
+    "tz_min": 480,
+    "value": {
+     "t": "integer",
+     "v": 62
+    },
+    "end_ms": 253402041600001
+   }
+  ]
+ }
+}

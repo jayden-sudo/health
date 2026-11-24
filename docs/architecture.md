@@ -17,9 +17,13 @@ crates/
   health-core/   data layer: no network, no clock, no OS services
     error.rs  value.rs  db.rs  catalog.rs  units.rs  write.rs  manual.rs  correction.rs
     daily.rs  erase.rs  review.rs  batches.rs  query.rs  merge.rs  aead.rs  pack.rs  blob.rs  keys.rs  profile.rs
+    sync.rs                     LAN sync core: inventory (wire form, parser), fingerprints, digest, wants, synced settings (docs/lan-sync.md §6, §8)
+    syncstate.rs                the profile's sealed `sync` file: joined, paused, peers, negative cache, resume cursors (§9)
     data/metrics.tsv            generated from the web catalog (catalog.data + body + lab)
     tests/fixtures/             web-made backup + expected results (scripts/web-fixture.ts)
+    tests/fixtures/merge/       shared merge cases with the web, hand-derived (docs/merge-fixes.md §9)
   health-api/    operation table: OpDef registry, Ctx, Caller, call(), schemas
+    sync.rs                     LAN sync session, sans-IO: framing, hello → inventories → wants → packs → done (lan-sync §6.3)
   health/        bin: clap CLI, OS keychain KeyStore, clock and timezone
 ```
 
@@ -122,9 +126,13 @@ The API uses UTC ms, with `tz_min` on each item. The CLI resolves `tz_min` for e
 | The 24 spec checks (DB design §8, split into numbered assertions) | `health-core/tests/spec.rs` |
 | Web parity (backup made by the web code → same `v_daily` and `v_observation`) | `health-core/tests/parity.rs` |
 | Merge order independence, idempotent re-import, no rows left after erase | `health-core/tests/merge.rs` |
+| Merge fixes R1–R8, G1–G3 and unit keys, the same cases the web runs | `health-core/tests/merge_fixtures.rs` |
+| Sync convergence: three devices, random changes, subset exchange; erase-after-takeover; a review confirmed twice | `health-core/tests/sync.rs` |
+| Inventory wire form and parser, synced settings; split imports and resume | `health-core/tests/sync_wire.rs`, `sync_part.rs` |
+| Sync sessions: up to date, both ways, join and large-erase questions, resume, negative cache, files, settings, limits; random interleavings and cuts | `health-api/tests/sync_engine.rs`, `sync_random.rs` |
 | Pack: round trip, tamper, truncation, legacy name | `pack.rs` tests |
 | CLI `--json` and exit codes | `health/tests/cli.rs` |
-| Scale: 1M rows, bytes/row, 30-day query, encrypted against plain on the same machine | `health-core/tests/scale.rs` (`--ignored`, release) |
+| Scale: 1M rows, bytes/row, 30-day query, encrypted against plain on the same machine; sync at 1M rows | `health-core/tests/scale.rs` (`--ignored`, release) |
 
 ## CI and release (M0)
 
@@ -264,7 +272,7 @@ Specs: `B/docs/協議.md` §0.1–0.2, §1, §2, §3.1–3.3, §3.5 and §6. Web
 An independent review (2026-11-22) shaped this revision.
 
 - **`health-proto` (done).** Pure: random bytes and the time are arguments.
-  - Contents: `b64`, `account` (AMK → id, Ed25519 key, inbox X25519 pair, JWS `sign`, payload in the web's key order), `sig` (JCS with ES number formatting and UTF-16 key order, did:key, Ed25519 with libsodium's rejection list then `verify_strict`), `hpke`, `codes` (SBH1, SBHL1, check code), `result` (§2.3 steps 1–3 → `Ok | Drop(code) | Later`).
+  - Contents: `b64`, `account` (AMK → id, Ed25519 key, inbox X25519 pair, JWS `sign`, payload in the web's key order), `sig` (JCS with ES number formatting and UTF-16 key order, did:key, Ed25519 with libsodium's rejection list then `verify_strict`), `hpke`, `codes` (SBH1, ZUHL1, check code), `result` (§2.3 steps 1–3 → `Ok | Drop(code) | Later`).
   - Tests: the protocol vectors, the 176 Ed25519 edge cases, and `web-account.json` (`scripts/gen-account-fixture.ts`: what W derives, signs and seals from one fixed AMK).
 - **`vault` (profile file, `health-core::vault`).**
   - AES-256-GCM under `HKDF(root, "health/vault")`, rewritten via `tmp/` + rename.
@@ -293,7 +301,7 @@ An independent review (2026-11-22) shaped this revision.
   |---|---|
   | `account.show` | `{account: null \| {id, registered, drops}}`: no AMK, no request |
   | `account.register` | makes the AMK if none, `POST /h/1/key` when `registered_pk` isn't this pk, returns the SBH1 text (§1: shown only once registered) |
-  | `account.qr {text}` | an SVG of an SBH1/SBHL1 text (on demand, not polled) |
+  | `account.qr {text}` | an SVG of an SBH1/ZUHL1 text (on demand, not polled) |
   | `link.join` | new session; returns `{code, channel, expires_ms}` |
   | `link.poll` | one `GET /h/1/link/<ch>` → `waiting \| received {check, replaces} \| expired \| failed {code}` |
   | `link.adopt {channel, check}` | must match the session. If another account is here: poll its inbox once (failure ignored, as the web does). Write the AMK, clear `registered_pk` (re-registered lazily by `account.register`). |
@@ -311,7 +319,7 @@ An independent review (2026-11-22) shaped this revision.
   - As the web does, no plaintext blob is kept (§2.3 says to keep one; decision row). `meta.by` comes from `att.staff`.
 - **CLI.** `health account [register]`, `health link join` (prints the code as a terminal QR, polls every 2 s, shows the check code and asks y/N), `health inbox`, `health self <device>`, `health link give <code>` (asks the rule-2 question).
 - **GUI.**
-  - An Account page: the identity code and QR, "Link this computer" (SBHL1 QR, then the check code with Confirm/Cancel), and the drop count.
+  - An Account page: the identity code and QR, "Link this computer" (ZUHL1 QR, then the check code with Confirm/Cancel), and the drop count.
   - The inbox is polled when the app opens, every 5 min while it's open, and every 30 s for an hour after the identity code or a self-service code was shown. Nothing polls once an account exists but the app is closed.
 - **WHOOP (§6, decision 67).** `health_api::whoop`, a port of W `whoop/sync.ts`.
   - Ops: `whoop.status` (vault only), `whoop.begin {client_id, client_secret, open?}`, `whoop.complete {query}`, `whoop.sync {force?}` and `whoop.disconnect`.

@@ -1,6 +1,6 @@
 # Automatic full sync between devices on the same LAN
 
-Status: draft v0.3 (2026-11-23), revised after two rounds of independent review (Fable 5.2). Not implemented.
+Status: v0.4 (2026-11-23). Revised after two rounds of independent review (Fable 5.2) and the S0 spike (§13). Not implemented.
 
 Owner decisions so far:
 
@@ -55,7 +55,7 @@ Non-goals (now)
                           │ framed messages                │ framed messages
                  ┌────────┴────────┐               ┌───────┴──────────┐
  desktop/mobile  │ transport: str0m │ private addrs │ RTCPeerConnection│  web
- (Rust)          │ (+ mDNS if need) │◀═════════════▶│ (browser)        │  (TypeScript)
+ (Rust)          │                  │◀═════════════▶│ (browser)        │  (TypeScript)
                  └────────┬────────┘   WebRTC DC    └───────┬──────────┘
                           │ signalling (encrypted, few KB)  │
                           └──────────▶ backend relay ◀──────┘
@@ -65,11 +65,11 @@ Non-goals (now)
 |---|---|---|
 | inventory, fingerprints, subset export, merge fixes | `health-core` | no network, clock as argument |
 | sync engine (messages, planning, negative cache) | `health-api` (`sync.rs`), owner only, like the `account.rs` net ops | the profile is locked only for short steps |
-| signalling client, WebRTC (`str0m`), mDNS if needed, UDP sockets | `health-connect` | the only networking crate; add `str0m` and the mDNS crate to the banned list in `scripts/check-no-net.sh` for every other crate |
+| signalling client, WebRTC (`str0m`, feature `rust-crypto`), a minimal STUN client, UDP sockets | `health-connect` | the only networking crate; add `str0m` to the banned list in `scripts/check-no-net.sh` for every other crate. No mDNS resolver (§13) |
 | the running loop | `health serve` | sync runs only while serve runs (the app is open). CLI: `health sync status` |
 
 `str0m` is a sans-IO WebRTC implementation in pure Rust (MIT/Apache-2.0) with no async runtime, which keeps
-decision 24 (no tokio). Its crypto backend is a feature choice; it and any mDNS crate must pass `cargo deny`.
+decision 24 (no tokio). The spike used `str0m` 0.26 with `default-features = false, features = ["rust-crypto"]` (pure Rust); it must pass `cargo deny`.
 The web side uses the browser's `RTCPeerConnection` and its existing `merge.ts` and `pack.ts`.
 
 ## 4. Keys and identifiers
@@ -86,7 +86,8 @@ Both rotate daily, so the backend can't link one account's presence across days.
 UTC devices also poll and accept the previous day's id and key, and for 2 minutes before it the next day's (a peer
 whose clock runs ahead).
 
-**Device id**: 16 random bytes made once per installation and kept in the vault (the web: in its own store).
+**Device id**: 16 random bytes (32 lower-case hex digits) made once per installation and kept in the vault (the
+web: in its own store). It is the `set_by` of every synced setting this device stamps.
 It isn't synced and isn't in backups. Several tabs of one browser share one device id; only the tab holding a
 Web Lock (`health-lan-sync`) runs sync.
 
@@ -145,11 +146,21 @@ be used to impersonate a device.
 - ICE can still learn peer-reflexive candidates from any address that knows the credentials. Before sending
   anything, each side checks that the selected pair's remote address is private (§5.3 list) or loopback, else it
   closes. Private includes VPN tunnels; that is accepted ("direct, over private addresses").
-- Browsers hide local IPs behind mDNS names. The Rust side may not need to resolve them: the browser connects to
-  the Rust side's real host candidate, and the Rust side learns the browser's address as peer-reflexive. S0 tests this
-  first; an mDNS resolver is added only if it fails.
+- Browsers hide local IPs behind mDNS names. The Rust side doesn't resolve them, and needn't (verified in S0): the
+  browser connects to the Rust side's real host candidate, and `str0m` learns the browser's address as peer-reflexive.
+- **Rules from S0 for the transport code:**
+  - Replies from a STUN server arrive on the ICE socket. They are matched by source address and transaction id, and
+    never passed to `str0m`: a late reply otherwise ended the whole session (`No message integrity …`).
+  - A datagram `str0m` refuses is dropped and counted. It doesn't end the session.
+  - STUN servers may answer with MAPPED-ADDRESS rather than XOR-MAPPED-ADDRESS. Read both.
+  - Local addresses can change during a session (DHCP, the Mac's rotating private Wi-Fi address: three changes in an
+    hour on a public network). An interface change restarts ICE and sends a `hello`.
+  - A transfer that makes no progress for 10 s is a stall. The session ends, and the next one resumes from the last
+    merged batch (§6.5).
 - If no pair connects within 15 s (client isolation on guest Wi-Fi, separate subnets, a firewall), that peer backs
-  off for 5 minutes and the UI says "On the same network but can't connect directly".
+  off for 5 minutes and the UI says "On the same network but can't connect directly". A network that connects but
+  stalls or runs below 50 KB/s gets "This network is too slow to sync. Try a home network", and sync
+  continues in small batches.
 
 ## 6. Sync protocol (over the data channel)
 
@@ -159,31 +170,56 @@ inventory). Back-pressure keeps `bufferedAmount` under 1 MiB.
 
 ### 6.1 Inventory
 
-The inventory is a list of lines, in this order, each sorted bytewise (UTF-8):
+The inventory is a list of lines. Each line ends in `\n`. Sections come in this order, each sorted bytewise:
 
-1. `i <uid> <status> <blob> <fp>` for every import with status `done`, `review` or `erased`. `blob` is the
-   sha it holds or `-`. `fp` is the import's **fingerprint** for `done` (§6.2), else `-`: a `review` with the same
-   uid on two devices comes from the same signed result, and Rust and JS serialise its `meta` differently, so it is
-   not compared. `running` and `failed` imports are left out (`failed` is erased at once, `db.rs`).
-2. `c <code> <connector> <external_id> <start_ms> <at> <value>`: every correction.
-3. `s <key> <at> <by> <value>`: every synced setting (§8).
-4. `b <sha>`: every blob referenced by a non-erased import or a waveform row that this device **lacks**.
+**Field encoding:**
 
-The **digest** is the SHA-256 of lines 1–3. Lines 4 don't enter it (a missing file is a want, not a difference in
-data); `hello` carries their count as `lacks` instead.
+| Field | Written as |
+|---|---|
+| text field `T` | `<UTF-8 byte length>:<bytes>`, e.g. `5:whoop` |
+| integer | decimal |
+| real | 16 lower-case hex digits of its IEEE-754 bits |
+| typed value `V` | `<typeof> <value>`: `integer 5`, `real 4014000000000000`, `text 3:abc`, `null n` |
+| absent | `n` (`-` where stated) |
 
-Values are written exactly, so Rust and JS agree byte for byte: integers in decimal; reals as the 16 hex digits of
-their IEEE-754 bits; text as `<byte length>:<bytes>`; null as `n`. Shared test vectors pin this (S5).
+**Line syntax:**
+
+1. `i <uid> <status> <blob or -> <fp or ->` for every import with status `done`, `review` or `erased`, sorted by
+   uid.
+   - `fp` is the import's **fingerprint** for `done` (§6.2), else `-`. A `review` with the same uid on two devices
+     comes from the same signed result, and Rust and JS serialise its `meta` differently, so it isn't compared.
+   - `running` and `failed` imports are left out (`failed` is erased at once, `db.rs`).
+2. `c T(code) T(connector) T(external_id) <start_ms> <at> V(value)`: every correction.
+3. Settings (§8):
+   - `s source T(connector) T(external_id) <set_at or 0> T(set_by or "") <priority> T(name)`: every source (R3);
+   - `s profile <set_at> T(set_by) T(birth) T(gender) T(ethnicity)`, an absent field as empty text;
+   - `s whoop/stopped <set_at> T(set_by) <at>`.
+
+   The last two are always present; an unset one is `0`, `0:` and empty fields (`s whoop/stopped 0 0: 0`).
+4. `a T(alias) T(unit) T(metric code)`: every alias (`docs/merge-fixes.md` G3). Wanted whole when it differs,
+   like corrections.
+5. `b <sha>`: every file this device **lacks** that a non-erased import references, or a waveform pointer (an
+   `agg = 'none'` text value) names.
+
+Imports that are `running` here aren't listed and are never wanted (§6.4).
+
+The **digest** is the SHA-256 of the lines of sections 1–4. Sorting is by bytes (UTF-8), never by UTF-16 code
+units. Section 5 doesn't enter it (a missing file is a want,
+not a difference in data); `hello` carries its count as `lacks` instead. The reference implementation is
+`crates/health-core/src/sync.rs`. Shared vectors pin the bytes (S5).
 
 ### 6.2 Fingerprints
 
 A `done` import's fingerprint is `<n>:<h>`: `n` the number of rows it owns now and `h` the sum, modulo 2^256, of
 one SHA-256 per row. The sum doesn't depend on order, so no sort is needed. Rows are:
 
-- every observation whose `import_id` is the import: `o ‖ metric code ‖ connector ‖ external_id ‖ start_ms ‖
-  end_ms ‖ tz_min ‖ typeof(value) ‖ value ‖ detail`, encoded as §6.1;
-- its genotypes: `g ‖ chrom ‖ pos ‖ rsid ‖ genotype`;
-- its report text: `t ‖ text`.
+- every observation whose `import_id` is the import:
+  `o T(metric code) T(connector) T(external_id) <start_ms> <end_ms or n> <tz_min> V(value) <T(detail) or n>`;
+- its genotypes: `g T(chrom) <pos> <rsid or n> T(genotype)`;
+- its report text: `t T(text)`.
+
+Fields are separated by single spaces and encoded as in §6.1. Each row's hash is the SHA-256 of that line's UTF-8
+bytes, without a newline.
 
 Why rows and not only uid and status: what an import owns changes after it is written. A newer import takes rows
 over. Erasing that newer import then deletes those rows on the device that erased it, but not on a device that only
@@ -206,18 +242,56 @@ Computing and caching:
 ### 6.3 Exchange
 
 ```
-A ⇄ B  hello {proto: 1, device, digest, lacks}
-       equal digests and no lacks on either side → done ("up to date")
-A ⇄ B  inventory (framed)
-A ⇄ B  want {imports: [uid…], corrections: bool, settings: [key…], blobs: [sha…]}
-A ⇄ B  tombstones first (one small pack), then packs in uid order (§6.5), then blobs
-A ⇄ B  done {digest}
+A ⇄ B  hello {proto: 1, device, name, digest, lacks, max_pack, files}
+       equal digests and no missing files (counted only when both keep files) → done ("up to date")
+A ⇄ B  inventory (frame kind i: the §6.1 text with its b lines)
+A ⇄ B  want {imports: [uid…], after: {uid: {code, start_ms}}, corrections, settings, aliases: bool, blobs: [sha…]}
+A ⇄ B  pack {bytes, password, imports, part?: {uid, next?}} + the pack's bytes, per pack (§6.5); settings {…};
+       then served {}
+A ⇄ B  done {digest, lacks}    (after the peer's served, once its packs are merged)
+       bye {code}              (ends a session early: paused, off, declined, or an error code)
 ```
 
-Both sides pull at once. While the channel is open, any local change (serve's change event; the web's DB change
-notification) sends a new `hello`. If the two digests were equal before, it also sends `changed`, holding only the
-inventory lines added or removed since then, and the peer answers with its own. Otherwise every manual entry
-would resend a megabyte inventory both ways.
+**Framing** (S2, `health-api/src/sync.rs`): every frame is `[kind, last, payload…]`, at most 16 KiB: kind `c` a
+control message (JSON with a `t` tag), `i` the inventory, `p` pack bytes; `last` = 1 on a message's final frame.
+Frames of two messages never interleave: control messages sent while a pack streams wait until it has gone, except
+a `bye`, which cuts it short. Limits: a control message 32 MiB (a first sync's want lists every import), the
+inventory 64 MiB and 500,000 lines, a pack 2 GiB.
+
+Before merging a pack, the receiver checks, inside the merge's transaction and after the schema checks, that it
+holds only imports it asked for (a part: exactly its import), and tombstones only of imports the peer's inventory
+showed erased (the ones the large-erase question counted). A tombstone it didn't show is taken when that import
+owns no rows here **now**, counting earlier packs of the session: the peer's own merge of this side's packs can
+erase one during the session (R7b). Otherwise the session ends (`sync_changed`); the next one sees the tombstone
+and asks if it must. Packs and settings after `served`, a second `settings`, and a part of an import not asked for
+end the session. Corrections, aliases and sources in a pack are merged whenever a pack is (the tables travel whole,
+§6.5), under the merge's own rules.
+
+**Pack size.** `hello.max_pack` is the largest pack a side takes (absent: 256 MiB; at least 1 MiB is honoured).
+The sender builds each pack and, if it is larger, halves the batch, then splits off its files, then drops an
+import's file, and as a last resort leaves the import (or a lone file, or the rest of a split import) out. It never
+ends the session for that; the receiver's negative cache then keeps the left-out item from being asked again.
+
+**Files.** `hello.files` says whether a side keeps files (absent: true; the web: false until it has a file store).
+A fileless side lists no `b` lines and wants no files; towards it no files are sent and none are asked for, and
+missing files don't count against "up to date".
+
+A session is one exchange; the caller starts another when either side has changed since (S4: serve's change
+event). A second `hello` from the same peer within a session means the peer started over: the session ends
+without a `bye` (`restart`) and a new one starts with that hello. A `hello` from another device is refused. A stall
+(§5.4) is 60 s without progress while a pack is moving (10 s was hit by a browser merging in its worker, S6) (being sent or received, or frames queued) and no session call
+(building or merging a pack) is running, or 120 s of silence while waiting for the peer's work (packs after a want,
+until `served`; the peer's `done` after this side's). The peer reading queued data is progress. Waiting for a
+person's answer, here or at the peer, is none (found in the S6 web run, 2026-11-24). A stall closes the data
+channel and the devices connect again from the next hello, so no frame of an old session can reach a new one on
+the same ordered channel. With no session running, only a whole `hello` frame starts one; other frames are left
+over and dropped. An unjoined device asks
+before it sends its `hello` (§10); its peer waits. A device asks about a large erase between the inventories and
+its `want`.
+
+Both sides pull at once. Planned for S4, not built: while the channel is open, a local change could send only the
+inventory lines added or removed since the last session (`changed`), so a manual entry doesn't resend a megabyte
+inventory both ways.
 
 ### 6.4 What a side wants
 
@@ -225,20 +299,36 @@ would resend a megabyte inventory both ways.
 |---|---|---|---|
 | absent | want | want | want (tombstone) |
 | done | want if `fp` or `blob` differs | – | want |
-| review | want (R2) | – | want |
+| review | want (R2) | want if `blob` differs (R6b) | want |
 | erased | – | – | – |
 | running | – | – | – |
 
 - Corrections are wanted whole when any `c` line differs.
-- A setting is wanted when its `s` lines differ and the remote one is larger by `(set_at, set_by, value)`. That
-  comparison is total, so two unstamped values also converge. The values travel in a `settings` message.
-- A blob is wanted when listed as lacking here and present there.
-- **Negative cache, one general rule.** After merging a wanted import, if the local fingerprint still differs from the
-  remote one, `(peer, uid, local fp, remote fp)` is cached and the import isn't wanted again until either changes.
-  The same applies to corrections, keyed by a hash of each side's `c` section. This covers everything the merge
-  refuses or can't apply: an implausible uid, a correction from the future, a skipped metric (R4), and anything not
-  foreseen. Without it a session would never end. The cache lives in the sync state, and the UI shows "partly
-  synced" while it is non-empty for a peer.
+- Settings are wanted whole when any `s` line differs; each side then keeps, per setting, the larger by `(set_at,
+  set_by, value)`. That comparison is total, so two unstamped values also converge. The vault's values travel in a
+  `settings` message, the sources in every pack.
+- A blob is wanted when listed as lacking here and not there (waveform pointers aren't in the other side's lines, so
+  it sends what it has). An import's file travels in the same pack as the import.
+- **Negative cache, one general rule.** When the wanted packs are merged, an import still differing from the
+  peer's line **and left unchanged here by this session's merge** is cached as `(peer, uid, local line, remote
+  line)` and isn't wanted again while both lines stay so. The same applies to the corrections, settings and alias
+  sections (keyed by a hash of each side's section) and to files the peer didn't send (keyed by its digest).
+  - "Unchanged here" matters: the peer's lines are from before it merged what this side sent, so a difference alone
+    may already be gone. A merge that changed nothing proves another round can't either, so a real conflict is
+    cached one round later and a converging one never.
+  - An entry only blocks while both lines match, and then the merge it skips is a no-op; a peer that changes drops it.
+    What an import owns here also depends on the others (erasing a newer import gives its rows back to older ones
+    without changing their lines), so an import's local key includes how many imports are erased here: any erase
+    makes its entries stale.
+  - Entries expire after a day (an hour for refusals from clock skew, merge-fixes G1), because some causes aren't in
+    the inventory: a metric's unit (R4) can be fixed by an app update.
+  - When two devices end a session equal, their entries for each other are cleared.
+  - A split import resumed from a cursor is never cached: if it still differs, its cursor is dropped and it goes
+    whole next time.
+
+  This covers everything the merge refuses or can't apply: an implausible uid, a correction from the future, a
+  skipped metric (R4), and anything not foreseen. Without it a session would never end. The cache lives in the sync
+  state, and the UI shows "partly synced" while it is non-empty for a peer.
 
 ### 6.5 Packs
 
@@ -246,17 +336,24 @@ would resend a megabyte inventory both ways.
   goes alone, split by span into packs of about 50,000 rows each, in `(metric code, start_ms)` order. Every part
   carries the same uid and merges through the `done`/`done` branch, and the fingerprint shows when the import is
   complete.
+  - Each part is a primary-key range scan per metric (`merge::export_part`). A part never splits one `start_ms` of a
+    metric, so it may hold a few more rows. Genotypes and report text travel in the first part only, so a large
+    genotype file is one pack.
   - **Resume:** `want` carries the last `(metric code, start_ms)` received for an import that was split, so an
-    interrupted 1M-row import continues instead of restarting.
+    interrupted 1M-row import continues instead of restarting. The receiver saves the cursor after each part is
+    merged (a crash in between resends a part, never skips one) and drops it with the last part.
   - **Shown as incomplete:** the sync state marks such an import, and the UI shows it as "syncing" until its
     fingerprint matches.
   - **Accepted cost:** an import that differs by one row is resent whole, in both directions, because both want it.
     That is acceptable for typical imports. S0 measures the overlapping Apple Health case; if it is too costly, a
     later version sends per-span fingerprints.
-- The sender builds a **subset** plain database (`merge::export_subset`): the listed imports and their rows,
-  selected by span over the primary key, never by `import_id`, which has no index; their genotypes and report text;
-  every metric, alias and source they reference; when asked, the whole correction table and every metric and
-  source the corrections reference.
+- The sender builds a **subset** plain database (`merge::export_subset`):
+  - the listed imports, and their rows selected by span over the primary key (never by `import_id`, which has no
+    index);
+  - their genotypes and report text;
+  - the **whole** metric, alias and source tables. They are small, and sources carry the R3 settings. The merge
+    then applies G3 and R3 to them even when no import travels;
+  - when asked, the whole correction table.
 - It is wrapped in a pack with a random 32-byte password sent in the `pack` control message and `iter = 1`
   (accepted by both readers), plus the `blobs/<sha>` entries asked for. The pack layer adds nothing over DTLS.
   It is kept because both implementations already restore packs through one well-tested path
@@ -265,10 +362,12 @@ would resend a megabyte inventory both ways.
   untrusted (schema comparison, `quick_check`, `trusted_schema = OFF`, plausible uids, no future corrections).
 
 Limits: the Rust side refuses a pack over 2 GiB; the web buffers a pack in memory (decision 8), so its packs are
-capped at 256 MiB and it asks for smaller batches. An inventory over 500,000 lines ends the session with a logged
+capped at 256 MiB, which it states as `hello.max_pack`. An inventory over 500,000 lines ends the session with a logged
 code.
 
 ## 7. Merge fixes (with shared parity fixtures)
+
+The agreed specification is `docs/merge-fixes.md`, which governs where it differs from this summary.
 
 Each change lands in the Rust core **and** the web's `merge.ts`, with a fixture both must pass, because behaviour
 must match the web (CLAUDE.md).
@@ -313,9 +412,8 @@ must match the web (CLAUDE.md).
 
 ### 7.6 Aliases
 
-`metric_alias` is merged with `INSERT OR IGNORE` while local confirmations replace. The same printed name can map
-to different measures on two devices, which changes only future automatic suggestions, not data. Aliases are merged
-but not in the inventory, and may differ.
+Aliases converge by G3 (`docs/merge-fixes.md`): on a conflict the smaller metric code wins. They are in the
+inventory (§6.1, section 4) and wanted whole when they differ.
 
 ## 8. Synced settings (outside the observation data)
 
@@ -329,9 +427,17 @@ Last writer wins by `(set_at, set_by, value)`. `set_at` is an HLC (`(ms << 16) |
 value more than `MAX_SKEW_MS` (1 day) in the future is refused, as merge refuses future corrections.
 
 - **Device id.** `source_update` takes the device id so it can stamp `set_by`.
-- **Upgrading.** On the version that adds sync, every source whose name or priority differs from the defaults
-  (`write.rs`) gets `set_at` = now, so an edit made before sync existed isn't reverted by an unstamped default
-  elsewhere.
+- **Values.** The `settings` message carries `{profile: {set_at, set_by, birth?, gender?, ethnicity?},
+  whoop_stopped: {at, set_at, set_by}}`. `set_at` is a decimal string (`^(0|[1-9][0-9]*)$`, within i64), as
+  `source.meta.set_at` is: an HLC is above 2^53, which a JSON number in JS would round. A `null` field is absent;
+  birth must match the web's `^(19|20)\d{2}-(0[1-9]|1[0-2])$` exactly. `at` and `connected_at` are wall-clock ms
+  of two devices, so a connection made within the clock skew after a stop elsewhere may still be stopped (accepted). Each is checked like any peer input: `set_at` an HLC within the skew,
+  `set_by` 1–64 printable ASCII bytes (or `0` with empty text: unstamped), birth `YYYY-MM`, gender `Male` or
+  `Female`, ethnicity one of the web's list. A refused one goes into the negative cache. A profile set before sync
+  existed travels unstamped, so two of them still converge by value.
+- **Upgrading, once per profile.** Every source whose **priority** differs from its connector's default gets
+  `set_at` = now, so an edit made before sync existed isn't reverted by an unstamped default elsewhere. Names aren't
+  stamped (merge-fixes R3). The desktop records the upgrade in the vault (decision 76).
 
 `whoop/stopped`: deleting WHOOP's data (decision 72) syncs as tombstones, but another device still connected would
 fetch the last days again an hour later and sync them back. A newer `whoop/stopped` than a device's own WHOOP
@@ -347,13 +453,17 @@ A separate file `sync`, sealed like the vault with its own derived key. It isn't
 and `last_seen` change often, and the vault holds the AMK and is renamed into place without a directory fsync
 (Known gaps), so it should be written rarely. Contents:
 
-- the device id;
-- the negative cache;
-- split-import resume points;
+- the negative cache (`skip`);
+- split-import resume points (`resume`);
 - `peers: {device_id: {name, last_seen, last_synced, up_to_date}}`;
 - `joined` (§10);
 - `paused`;
 - `enabled`.
+
+Losing the file, or a damaged one (it resets), costs only work: the cache and cursors rebuild, and the device asks
+to join again. Cursors of imports no longer done here, and of imports that became equal, are dropped; negative
+cache entries expire for every peer; at most 64 peers are remembered (the least recently seen go, with their
+entries). Known gap: the large-erase threshold is per session, so a peer could erase just under it in each session.
 
 The fingerprint cache is in memory only (§6.2).
 
@@ -407,21 +517,39 @@ Changes arriving from another device refresh the readings through the usual chan
 - Logs: codes, counts and durations only. Never values, uids, report text, SDP or addresses.
 - Every parse of peer input is bounded: frames, reassembled message size, JSON depth, inventory lines, pack size.
 
-## 13. Risks to verify first (S0 spike)
+## 13. S0 spike results (2026-11-23)
 
-1. **Safari** may withhold host candidates without a capture permission. WebKit bug 189503 says it did; mDNS
-   candidates came later. Current behaviour for pages with only a data channel is unverified. If it fails, the owner
-   chooses: Chrome only for the web, or a STUN server.
-2. **Chrome Local Network Access.** Chrome is prototyping a permission prompt for local ICE candidates (an Intent to
-   Prototype in 2025 and a libwebrtc change; shipping milestone unconfirmed). Plan for a "connect to devices on your
-   local network" prompt on the web page, and word the UI around it.
-3. **Native prompts and firewalls**: the macOS and iOS Local Network privacy prompt (and whether ad-hoc-signed
-   builds prompt again), and the Windows inbound firewall prompt for UDP.
-4. **str0m** interop with Chrome, Safari and Firefox data channels: DTLS roles, fingerprint check, SCTP throughput.
-   Also whether peer-reflexive learning makes an mDNS resolver unnecessary (§5.4).
-5. **Scale**: on a 1M-row profile, the inventory and fingerprint time, the subset export time, the merge time per
-   50,000-row batch, and how long serve's lock is held (Known gaps: long operations block). Record the results in
-   `docs/perf.md`.
+Spike: `~/Documents/GitHub/webrtc-spike`, its own repository. It pairs a `str0m` 0.26 peer (pure Rust, no async
+runtime, wrapped as a minimal macOS app) with a plain test page; signalling is an HTTP POST standing in for §5.1.
+
+| Browser | Network | Host only | STUN Google | STUN Cloudflare | Notes |
+|---|---|---|---|---|---|
+| Chromium 159 (same Mac) | any | ✓ 15–37 MB/s | ✓ | ✓ | offers only mDNS host candidates; works without a resolver |
+| Chrome (same Mac) | any | ✓ | ✓ | ✓ | owner's test; no blocking prompt reported |
+| Safari (same Mac) | any | ✓ | ✓ | ✓ | owner's test; no camera permission needed (risk 1 cleared) |
+| Safari, iPhone (iOS 18.7) | public Wi-Fi | ✗ DTLS timeout once | connects, stalls | connects, stalls | the network throttles traffic between devices and changed the Mac's IP three times |
+| Safari, iPhone (iOS 18.7) | small private router | ✓ 5 of 5 connect | ✓ | ✓ | data path always private and stable; throughput 0.2–0.4 MB/s with stalls, RTT 6–106 ms |
+
+Conclusions:
+
+1. **Connectivity, risk 1:** a browser on a phone or a computer reaches a Rust peer on the LAN with host candidates
+   only. The STUN fallback (§14.3) works too, and isn't needed on the networks tried.
+2. **mDNS, risk 4:** no resolver needed.
+3. **DTLS:** `str0m` checks the DTLS fingerprint by default, as §5.3 requires.
+4. **The transport rules in §5.4** come from failures seen in the spike.
+5. **Open: the iPhone throughput.** On the small router it is 0.2–0.4 MB/s while a desktop browser on the same Mac
+   reaches 15–37 MB/s. The spike now measures a TCP baseline over the same path to tell a slow network from a slow
+   SCTP. It doesn't change the design:
+   - everyday increments are a few KB;
+   - a first sync of a large history is slow but resumable;
+   - S3 measures again and tunes SCTP if needed.
+6. **Not yet tried:**
+   - Chrome's Local Network Access prompt on a page served from a public origin (the spike served the page from the
+     LAN, so the real `zuchiangmai.com` origin can still prompt);
+   - the macOS Local Network prompt for a signed app;
+   - Firefox, Windows and Android;
+   - a 1M-row profile (risk 5): measured in S1 (`docs/perf.md`, "Sync at scale"). The inventory with fingerprints
+     takes 0.9 s; the subset export of a 1M-row import takes 0.9 s (32 MB); merging it takes 2.2 s.
 
 ## 14. Owner decisions (2026-11-23)
 
@@ -444,11 +572,11 @@ Changes arriving from another device refresh the readings through the usual chan
 | Step | Content | Tests |
 |---|---|---|
 | S0 | Spike: §13 with a throwaway page, a str0m binary and a local stand-in relay | manual, results recorded here and in `perf.md` |
-| S1 | core: inventory, fingerprints, `export_subset`, R1–R6, settings, sync state | property test with three profiles, synced in random pairings and orders; then compare **table contents** (`v_observation`, genotypes, corrections, sources, `import.blob`, blob files), not digests, and check every session ends. Random steps: imports, overlapping imports, edits then removes, erases, review confirm/discard (also confirmed differently on two devices), corrections, priority changes, duplicate files, NULL `end_ms`/`detail`, 5 vs 5.0. Parity fixtures for R1–R8 with the web |
-| S2 | sync engine in `health-api` over an in-memory transport | interrupted batches, split imports, negative cache, confirmations, limits |
-| S3 | transport: signalling client, str0m, ICE checks in `health-connect`; a stand-in relay in tests, as in `health/tests/account.rs` | two serve processes on loopback reach "up to date" |
-| S4 | serve loop, `health sync status`, UI | Playwright: status rows, the first-sync confirmation |
+| S1 ✓ (2026-11-23) | core: inventory, fingerprints, `export_subset`, R1–R6, R7 on the desktop side (one import per manual entry), G3, R3's stamps and upgrade. Moved to S2, where they have users: the sync state file, the negative cache, using `lacks`/blob wants, splitting and resuming large imports, the `profile` and `whoop/stopped` settings, waveform blobs in `lacks`, not wanting an import that is `running` here | property test with three profiles, synced in random pairings and orders; then compare **table contents** (`v_observation`, genotypes, corrections, sources, `import.blob`, blob files), not digests, and check every session ends. Random steps: imports, overlapping imports, edits then removes, erases, review confirm/discard (also confirmed differently on two devices), corrections, priority changes, duplicate files, NULL `end_ms`/`detail`, 5 vs 5.0. Parity fixtures for R1–R8 with the web |
+| S2 ✓ (2026-11-23) | sync engine in `health-api` over an in-memory transport: the sync state file, device id, framing, sessions, batches, split imports and resume, files, the `profile` and `whoop/stopped` settings, the negative cache, confirmations, limits. Moved to S4, where serve runs sessions: the in-memory fingerprint cache, `changed` messages, ops and UI | `health-api/tests/sync_engine.rs` (each rule) and `sync_random.rs`: the three-device random changes through real sessions with random interleavings, cuts and changes mid-session, then identical tables |
+| S3 ✓ (2026-11-23) | signalling (day keys and rids, sealed messages, checks on receipt, private host candidates) in `health-proto::lan`; the str0m data channel in `health-connect::lan` (host candidates only, data only to private or loopback addresses) | `health-proto` lan tests; `health-connect` two peers on loopback move 5 MB both ways and notice a close |
+| S4 ✓ (2026-11-23) | serve's LAN loop (`health/src/lan.rs`: long-poll, hellos, the smaller id offers, a session per change, stall and connect timeouts, `sync.live` / `sync.answer`), ops `sync.state` / `sync.set`, `health sync status|on|off|continue`, the account page's Sync section. Not built: the in-memory fingerprint cache and `changed` (every session computes the inventory: 0.9 s at 1M rows) | `health/tests/lan.rs`: two linked serves on loopback ask once, then sync both ways; Playwright: the app's question, then a second computer's reading arrives |
 | S5 | the web side (W) | cross-implementation: the web merges Rust-made subset packs (as `web-import-check`); shared inventory and fingerprint vectors |
-| S6 | the endpoint on the dev backend, a live test on a real network | manual |
+| S6 | the endpoint on the dev backend (zuchiangmaiApp 7d02a8f, protocol §3.7), a live test on a real network | manual. 2026-11-24, desktop to desktop: two serves on one Mac over its real LAN address, signalling through the dev relay, link, ask once, up to date, each holds both readings (PASS; LuLu had to be off: a per-app firewall blocks a new unsigned binary). Web to desktop, 2026-11-24: the web (pre-pol 2cde991c, Chrome on localhost:4102) and a throwaway desktop profile on the same Mac, linked by 「连接新设备」, signalling through the dev relay: both reached up to date; the desktop holds the web's readings (142 measures), the web shows the desktop's 69.9 kg and its last sync time (PASS, round 5). Rounds 1–4 found and fixed: a person's answer taken for a stall (26cbe53), frames of a replaced session reaching the next one (606370f, 5b5bb50; web 864092b5, 2c31b69e), a slow peer's merge taken for a stall (cbb1e69, 48572c1, 9a306f0; web 8c027e84), a start race on the web (2cde991c), a closed channel taken for one that never connected (85d9719) |
 
 Each step lands as its own commit, with its decisions recorded in `docs/decisions.md`.

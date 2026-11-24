@@ -90,10 +90,11 @@ pub fn rebuild_all(c: &Db, now_ms: i64) -> Result<()> {
 
 fn rebuild_window(c: &Db, s: &Scope) -> Result<()> {
     // One extra day each side: a re-import with another tz_min can move a row from the neighbouring day.
-    let lo = iso_day(s.from - TZ_PAD - DAY);
-    let hi = iso_day(s.to + TZ_PAD + DAY);
-    let a = day_start(&lo).unwrap_or(0) - TZ_PAD;
-    let b = day_start(&hi).unwrap_or(0) + DAY + TZ_PAD;
+    // saturating: a time from an untrusted pack must not overflow (merge-fixes R13 skips such rows anyway)
+    let lo = iso_day(s.from.saturating_sub(TZ_PAD + DAY));
+    let hi = iso_day(s.to.saturating_add(TZ_PAD + DAY));
+    let a = day_start(&lo).unwrap_or(0).saturating_sub(TZ_PAD);
+    let b = day_start(&hi).unwrap_or(0).saturating_add(DAY + TZ_PAD);
     c.execute(
         "DELETE FROM daily WHERE metric_id = ? AND source_id = ? AND day BETWEEN ? AND ?",
         rusqlite::params![s.metric_id, s.source_id, lo, hi],

@@ -3,7 +3,7 @@
 # crate; the binary may reach one only through health-connect (pruned from its tree here).
 # zbus (Linux Secret Service) talks D-Bus over a local socket; that is IPC, not network.
 set -euo pipefail
-banned='^(reqwest|hyper|ureq|isahc|curl|surf|attohttpc|tokio|async-std|mio|socket2|h2|rustls|native-tls|openssl-probe|tungstenite) '
+banned='^(reqwest|hyper|ureq|isahc|curl|surf|attohttpc|tokio|async-std|mio|socket2|h2|rustls|native-tls|openssl-probe|tungstenite|str0m|if-addrs) '
 for crate in health-core health-api health-ocr health-proto health; do
   prune=()
   [ "$crate" = health ] && prune=(--prune health-connect)

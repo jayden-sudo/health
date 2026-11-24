@@ -15,6 +15,7 @@ import {
   agentClients,
   connectAgent,
   onChange,
+  onSync,
   chooseImportFile,
   chooseSavePath,
   corePath,
@@ -108,6 +109,34 @@ const ICON: Record<string, ReactNode> = {
     <>
       <circle cx="8" cy="8" r="5.5" />
       <path d="M8 5v3.5l2 1.5" />
+    </>
+  ),
+  id: (
+    <>
+      <rect x="2.5" y="2.5" width="4" height="4" rx="1" />
+      <rect x="9.5" y="2.5" width="4" height="4" rx="1" />
+      <rect x="2.5" y="9.5" width="4" height="4" rx="1" />
+      <path d="M9.5 9.5h1.5v1.5M13.5 9.5v4h-4" />
+    </>
+  ),
+  inbox: <path d="M2.5 9.5 4 3.5h8l1.5 6v3.5h-11zM2.5 9.5h3.2l.8 1.5h3l.8-1.5h3.2" />,
+  wifi: (
+    <>
+      <path d="M2 6.5a8.5 8.5 0 0 1 12 0M4.2 8.8a5.4 5.4 0 0 1 7.6 0M6.4 11a2.3 2.3 0 0 1 3.2 0" />
+      <circle cx="8" cy="13" r=".6" />
+    </>
+  ),
+  list: <path d="M2.5 4.5l1 1 2-2M2.5 10.5l1 1 2-2M7.5 4.5h6M7.5 10.5h6" />,
+  link: (
+    <>
+      <rect x="2" y="4" width="5" height="8" rx="1.2" />
+      <path d="M9.5 6.5a2 2 0 0 1 0 3M11.5 5a4 4 0 0 1 0 6" />
+    </>
+  ),
+  device: (
+    <>
+      <rect x="2" y="3" width="12" height="8" rx="1.2" />
+      <path d="M6 13.5h4M8 11v2.5" />
     </>
   ),
 };
@@ -229,6 +258,7 @@ export function App() {
   const [metric, setMetric] = useState<string>();
   useInbox();
   const [status, statusErr, reload] = useOp(() => op<Status>("status"), []);
+  const syncLive = useSyncLive();
   const [latest, latestErr] = useOp(() => op<Point[]>("obs.latest"), []);
   const [cats, setCats] = useState(true);
   // the category scrolled into view on Readings (null: its top)
@@ -317,6 +347,7 @@ export function App() {
     );
   const open = (code: string) => setMetric(code);
   const present = GROUPS.filter((g) => latest?.some((p) => p.group === g.key));
+  const syncAsking = !!syncLive?.peers.some((x) => x.state === "asking");
   const navItem = (p: { key: Page; label: string }, hint?: string, quiet = false) => (
     <li key={p.key}>
       <button
@@ -329,6 +360,7 @@ export function App() {
         <Icon k={p.key} />
         <span className="label">{t(p.label)}</span>
         {p.key === "review" && status && status.reviews > 0 && <span className="count">{status.reviews}</span>}
+        {p.key === "account" && syncAsking && <span className="dot" role="img" aria-label={t("Waiting for you")} />}
       </button>
     </li>
   );
@@ -2801,14 +2833,21 @@ function Qr({ text, label }: { text: string; label: string }) {
   return svg ? <div className="qr" role="img" aria-label={label} dangerouslySetInnerHTML={{ __html: svg }} /> : <div className="qr" />;
 }
 
+type AccountSheet = "identity" | "results" | "history";
+
+/** The health account, as the web's 更多 groups it: the identity, results, and other devices, each a row with its
+ *  state; details in a sheet, connecting and LAN sync on their own pages. */
 function HealthAccount({ go }: { go: (p: Page) => void }) {
   const [acc, setAcc] = useState<AccountInfo | null>();
   const [err, setErr] = useState<string>();
   const [busy, setBusy] = useState(false);
-  const [linking, setLinking] = useState(false);
-  const [giving, setGiving] = useState(false);
+  const [view, setView] = useState<"main" | "connect" | "join" | "give" | "sync">("main");
+  const [sheet, setSheet] = useState<AccountSheet>();
   const [polled, setPolled] = useState<string>();
   const [waiting, setWaiting] = useState(false);
+  const [history] = useOp(() => op<{ state: "ok"; entries: LinkEntry[] } | { state: "unreadable" }>("link.devices"), []);
+  const [sync] = useOp(() => op<SyncShown>("sync.state"), []);
+  const live = useSyncLive();
   const load = useCallback(() => {
     op<{ account: AccountInfo | null }>("account.show").then((r) => setAcc(r.account), (e) => setErr(errText(e)));
   }, []);
@@ -2846,77 +2885,174 @@ function HealthAccount({ go }: { go: (p: Page) => void }) {
     }
   };
   if (acc === undefined) return <section className="page narrow" aria-busy="true"><h2>{t("Health account")}</h2></section>;
-  if (linking) return <LinkThis done={() => { setLinking(false); load(); }} />;
-  if (giving) return <GiveAccount done={() => { setGiving(false); load(); }} />;
+  const back = () => {
+    setView("main");
+    load();
+  };
+  if (view === "connect")
+    return <ConnectDevice hasAccount={!!acc} back={back} join={() => setView("join")} give={() => setView("give")} />;
+  // joined: on to sync, the reason most people connect a device
+  if (view === "join") return <LinkThis done={(ok) => { load(); setView(ok ? "sync" : "connect"); }} />;
+  if (view === "give") return <GiveAccount done={() => setView("connect")} />;
+  if (view === "sync") return <SyncPage back={back} />;
+  const entries = history?.state === "ok" ? history.entries.length : undefined;
   return (
     <section className="page narrow">
       <h2>{t("Health account")}</h2>
       <p className="lede">
-        {t("Labs and service desks send results to your health account, sealed so only your devices can open them. Your account key stays on your devices; Health sends no readings anywhere.")}
+        {t("Labs and service desks send results to your health account, sealed so only your devices can open them. Your account key stays on your devices, and your readings only travel between your own devices.")}
       </p>
-      {acc?.identity ? (
-        <div className="group identity">
-          <Qr text={acc.identity} label={t("Your identity code")} />
-          <div>
-            <h3>{t("Your identity code")}</h3>
-            <p className="fine">{t("Show it at a lab or service desk so they can send your results here.")}</p>
-            <p className="fine mono">{t("Account {{id}}…", { id: acc.id.slice(0, 8) })}</p>
-          </div>
-        </div>
-      ) : (
+      {!acc && (
         <div className="group form">
-          <p>{acc ? t("This computer has an account, but its identity code hasn't been shown yet.") : t("There is no health account on this computer yet.")}</p>
+          <p>{t("There is no health account on this computer yet.")}</p>
           <div className="actions">
             <button type="button" className="primary" disabled={busy} onClick={show}>
-              {busy ? t("Contacting the service…") : acc ? t("Show my identity code") : t("Create my account")}
+              {busy ? t("Contacting the service…") : t("Create my account")}
             </button>
-            <button type="button" disabled={busy} onClick={() => setLinking(true)}>
-              {t("Link an existing device…")}
+            <button type="button" disabled={busy} onClick={() => setView("connect")}>
+              {t("Connect another device…")}
             </button>
           </div>
         </div>
       )}
       <Problem text={err} />
       {acc && (
-        <div className="group form">
-          <h3>{t("Results")}</h3>
-          <p className="fine">{t("Health checks for new results when it opens and every few minutes while it's open.")}</p>
-          {acc.drops > 0 && <p className="fine">{t("{{count}} results were discarded because they failed a check.", { count: acc.drops })}</p>}
-          <div className="actions">
-            <button type="button" disabled={busy || !acc.registered} onClick={check}>
-              {t("Check for results now")}
-            </button>
-            {waiting && (
-              <button type="button" className="link" onClick={() => go("review")}>
-                {t("Check them now")}
-              </button>
-            )}
-          </div>
-          {polled && <p role="status" className="fine">{polled}</p>}
-        </div>
-      )}
-      {acc && (
-        <div className="group form">
-          <h3>{t("Devices")}</h3>
+        <>
+          <h3 className="rows-head">{t("Health identity")}</h3>
           <ul className="rows-card">
-            <Row icon={<Icon k="account" />} label={t("Link an existing device")} sub={t("Use the account from your other device on this computer")} onClick={() => setLinking(true)} />
-            <Row icon={<Icon k="account" />} label={t("Link a new device")} sub={t("Hand this computer's account to a new device")} onClick={() => setGiving(true)} />
+            <Row
+              icon={<Icon k="id" />}
+              label={t("Identity code")}
+              sub={t("Show it at a lab or service desk so they can send your results here")}
+              value={acc.identity ? `${acc.id.slice(0, 4)}…${acc.id.slice(-4)}` : busy ? t("Contacting the service…") : t("Show")}
+              onClick={() => (acc.identity ? setSheet("identity") : show())}
+            />
           </ul>
-          <LinkHistoryList />
-        </div>
+          <h3 className="rows-head">{t("Results")}</h3>
+          <ul className="rows-card">
+            <Row
+              icon={<Icon k="inbox" />}
+              label={t("Lab results")}
+              sub={t("Checked when Health opens and every few minutes")}
+              value={waiting ? t("Waiting for you") : acc.drops > 0 ? t("{{count}} discarded", { count: acc.drops }) : undefined}
+              onClick={() => setSheet("results")}
+            />
+          </ul>
+        </>
+      )}
+      <h3 className="rows-head">{t("Other devices")}</h3>
+      <ul className="rows-card">
+        {acc && (
+          <Row
+            icon={<Icon k="wifi" />}
+            label={t("Local network sync")}
+            value={<SyncValue st={sync} live={live} />}
+            onClick={() => setView("sync")}
+          />
+        )}
+        {acc && (
+          <Row icon={<Icon k="list" />} label={t("Connection history")} value={entries} onClick={() => setSheet("history")} />
+        )}
+        <Row icon={<Icon k="link" />} label={t("Connect another device")} onClick={() => setView("connect")} />
+      </ul>
+      {sheet && (
+        <Sheet
+          label={{ identity: t("Your identity code"), results: t("Lab results"), history: t("Connection history") }[sheet]}
+          close={() => setSheet(undefined)}
+        >
+          {sheet === "identity" && acc?.identity && (
+            <div className="identity">
+              <h3>{t("Your identity code")}</h3>
+              <Qr text={acc.identity} label={t("Your identity code")} />
+              <p className="fine">{t("Show it at a lab or service desk so they can send your results here.")}</p>
+              <p className="fine mono">{t("Account {{id}}…", { id: acc.id.slice(0, 8) })}</p>
+            </div>
+          )}
+          {sheet === "results" && acc && (
+            <div className="form">
+              <h3>{t("Lab results")}</h3>
+              <p className="fine">{t("Health checks for new results when it opens and every few minutes while it's open.")}</p>
+              {acc.drops > 0 && <p className="fine">{t("{{count}} results were discarded because they failed a check.", { count: acc.drops })}</p>}
+              <div className="actions">
+                <button type="button" className="primary" disabled={busy || !acc.registered} onClick={check}>
+                  {busy ? t("Checking…") : t("Check for results now")}
+                </button>
+                {waiting && (
+                  <button type="button" className="link" onClick={() => go("review")}>
+                    {t("Check them now")}
+                  </button>
+                )}
+              </div>
+              {polled && <p role="status" className="fine">{polled}</p>}
+            </div>
+          )}
+          {sheet === "history" && <LinkHistoryList history={history} />}
+        </Sheet>
       )}
     </section>
   );
 }
 
-/** This computer joins an account on another device: the code to scan, then the check code (protocol 3.5). */
-function LinkThis({ done }: { done: () => void }) {
+/** The value on the LAN sync row: off, paused, waiting for you, syncing, or how many devices are up to date. */
+function SyncValue({ st, live }: { st?: SyncShown; live?: SyncLive }) {
+  if (!st) return null;
+  const asking = live?.peers.some((p) => p.state === "asking");
+  const text = !st.enabled
+    ? t("Off")
+    : st.paused
+      ? t("Paused")
+      : asking
+        ? t("Waiting for you")
+        : live?.peers.some((p) => p.state === "syncing")
+          ? t("Syncing")
+          : st.peers.some((p) => p.up_to_date)
+            ? t("Up to date · {{count}} devices", { count: st.peers.filter((p) => p.up_to_date).length })
+            : t("No devices yet");
+  return (
+    <>
+      {asking && <span className="dot" aria-hidden="true" />}
+      {text}
+    </>
+  );
+}
+
+/** One entry for connecting devices (as the web's 连接其他设备): which side is this one? */
+function ConnectDevice({ hasAccount, back, join, give }: { hasAccount: boolean; back: () => void; join: () => void; give: () => void }) {
+  return (
+    <section className="page narrow">
+      <button type="button" className="link back" onClick={back}>
+        ‹ {t("Health account")}
+      </button>
+      <h2>{t("Connect another device")}</h2>
+      <p className="lede">{t("Your devices can sync data with each other on the same local network.")}</p>
+      <div className="role-card">
+        <h3>{t("This is a new device")}</h3>
+        <p className="fine">{t("Get data from another device.")}</p>
+        <button type="button" className="primary wide" onClick={join}>
+          {t("Show connection code")}
+        </button>
+      </div>
+      <div className="role-card">
+        <h3>{t("This one is already in use")}</h3>
+        <p className="fine">{t("Send data to another device.")}</p>
+        <button type="button" className="tonal wide" disabled={!hasAccount} onClick={give}>
+          {t("Enter connection code")}
+        </button>
+        {!hasAccount && <p className="fine">{t("There's no health identity on this computer yet, so there's nothing to hand over.")}</p>}
+      </div>
+    </section>
+  );
+}
+
+/** This computer joins an account on another device: the code to show, then the check code (protocol 3.5). */
+function LinkThis({ done }: { done: (joined: boolean) => void }) {
   const [code, setCode] = useState<string>();
   // the link this screen started: adopt only that one
   const [channel, setChannel] = useState<string>();
   const [st, setSt] = useState<LinkState>({ state: "none" });
   const [err, setErr] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
   const start = useCallback(async () => {
     setErr(undefined);
     try {
@@ -2952,22 +3088,36 @@ function LinkThis({ done }: { done: () => void }) {
       await op("link.adopt", { channel, check: st.check });
       await op("account.register").catch(() => {});
       pollFast();
-      done();
+      done(true);
     } catch (e) {
       setErr(errText(e));
       setBusy(false);
     }
   };
+  const copy = () => {
+    if (!code) return;
+    navigator.clipboard?.writeText(code).then(
+      () => setCopied(true),
+      () => {},
+    );
+  };
   return (
     <section className="page narrow">
-      <h2>{t("Link an existing device")}</h2>
+      <button type="button" className="link back" disabled={busy} onClick={() => done(false)}>
+        ‹ {t("Connect another device")}
+      </button>
+      <h2>{t("Show connection code")}</h2>
       {st.state === "waiting" && code && (
         <div className="group identity">
-          <Qr text={code} label={t("Link code")} />
+          <Qr text={code} label={t("Connection code")} />
           <div>
-            <p>{t("On the device that has your account, open Health › Link a new device and scan this code.")}</p>
-            <p className="fine">{t("From another computer, paste this code instead:")}</p>
+            <p>{t("Use your earlier device to scan or paste this code and connect this new one. Once connected, data moves between them on the same network with Local network sync, or with Backup.")}</p>
             <p className="fine mono link-code">{code}</p>
+            <div className="actions">
+              <button type="button" onClick={copy}>
+                {copied ? t("Copied") : t("Copy code")}
+              </button>
+            </div>
             <p className="fine">{t("Waiting… The code works for 10 minutes.")}</p>
           </div>
         </div>
@@ -2981,9 +3131,9 @@ function LinkThis({ done }: { done: () => void }) {
           )}
           <div className="actions">
             <button type="button" className="primary" disabled={busy} onClick={adopt}>
-              {busy ? t("Linking…") : t("They match")}
+              {busy ? t("Connecting…") : t("They match")}
             </button>
-            <button type="button" disabled={busy} onClick={done}>
+            <button type="button" disabled={busy} onClick={() => done(false)}>
               {t("They don't match")}
             </button>
           </div>
@@ -2992,7 +3142,7 @@ function LinkThis({ done }: { done: () => void }) {
       {(st.state === "expired" || st.state === "failed") && (
         <div className="group form">
           <p>
-            {st.state === "expired" ? t("The code expired.") : t("The link failed.")} {t("Nothing was changed on this computer.")}
+            {st.state === "expired" ? t("The code expired.") : t("Connecting failed.")} {t("Nothing was changed on this computer.")}
           </p>
           <div className="actions">
             <button type="button" className="primary" onClick={start}>
@@ -3002,16 +3152,11 @@ function LinkThis({ done }: { done: () => void }) {
         </div>
       )}
       <Problem text={err} />
-      <div className="actions">
-        <button type="button" className="link" disabled={busy} onClick={done}>
-          {t("Cancel")}
-        </button>
-      </div>
     </section>
   );
 }
 
-/** This computer hands its account to a new device showing a link code (protocol 3.5 rule 2). */
+/** This computer hands its account to a new device showing a connection code (protocol 3.5 rule 2). */
 function GiveAccount({ done }: { done: () => void }) {
   const [code, setCode] = useState("");
   const [sure, setSure] = useState(false);
@@ -3032,7 +3177,11 @@ function GiveAccount({ done }: { done: () => void }) {
   };
   return (
     <section className="page narrow">
-      <h2>{t("Link a new device")}</h2>
+      <button type="button" className="link back" disabled={busy} onClick={done}>
+        ‹ {t("Connect another device")}
+      </button>
+      <h2>{t("Enter connection code")}</h2>
+      <p className="lede">{t("Connect a new device. Once connected, data moves between them on the same network with Local network sync, or with Backup.")}</p>
       {check ? (
         <div className="group form">
           <p>{t("The new device must show the same code:")}</p>
@@ -3052,8 +3201,8 @@ function GiveAccount({ done }: { done: () => void }) {
           }}
         >
           <label>
-            {t("Link code shown on the new device")}
-            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="SBHL1:…" spellCheck={false} autoComplete="off" />
+            {t("Connection code shown on the new device")}
+            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="ZUHL1:…" spellCheck={false} autoComplete="off" autoFocus />
           </label>
           <label className="check">
             <input type="checkbox" checked={sure} onChange={(e) => setSure(e.target.checked)} />
@@ -3063,9 +3212,6 @@ function GiveAccount({ done }: { done: () => void }) {
           <div className="actions">
             <button type="submit" className="primary" disabled={busy || !sure || !code.trim()}>
               {busy ? t("Sending…") : t("Hand over my account")}
-            </button>
-            <button type="button" onClick={done}>
-              {t("Cancel")}
             </button>
           </div>
         </form>
@@ -3495,15 +3641,14 @@ function ProfileEdit({ field, me, done }: { field: ProfileField; me: Personal; d
 
 type LinkEntry = { id: string; dir: "gave" | "got"; at: number; check: string };
 
-/** Link history (owner, 2026-11-22: a local record of the links this device completed; list only, as the web's
- *  连接记录). Newest first, after this device itself. */
-function LinkHistoryList() {
-  const [h] = useOp(() => op<{ state: "ok"; entries: LinkEntry[] } | { state: "unreadable" }>("link.devices"), []);
-  if (!h) return null;
+/** Connection history (owner, 2026-11-22: a local record of the links this device completed; list only, as the
+ *  web's 连接记录). Newest first, after this device itself. */
+function LinkHistoryList({ history }: { history?: { state: "ok"; entries: LinkEntry[] } | { state: "unreadable" } }) {
+  if (!history) return null;
   return (
     <>
-      <h3 className="rows-head">{t("Link history")}</h3>
-      <ul className="rows-card" aria-label={t("Link history")}>
+      <h3>{t("Connection history")}</h3>
+      <ul className="rows-card" aria-label={t("Connection history")}>
         <li className="row-static">
           <Icon k="account" />
           <span className="row-l">
@@ -3511,12 +3656,12 @@ function LinkHistoryList() {
           </span>
           <span className="tag">{t("This one")}</span>
         </li>
-        {h.state === "unreadable" ? (
-          <li className="row-static fine">{t("Can't read the link history")}</li>
-        ) : h.entries.length === 0 ? (
-          <li className="row-static fine">{t("No links recorded on this device")}</li>
+        {history.state === "unreadable" ? (
+          <li className="row-static fine">{t("Can't read the connection history")}</li>
+        ) : history.entries.length === 0 ? (
+          <li className="row-static fine">{t("No connections recorded on this device")}</li>
         ) : (
-          h.entries.map((x) => (
+          history.entries.map((x) => (
             <li key={x.id} className="row-static">
               <Icon k="account" />
               <span className="row-l">
@@ -3529,5 +3674,247 @@ function LinkHistoryList() {
         )}
       </ul>
     </>
+  );
+}
+
+type SyncQuestion = { ask: "join"; imports: number } | { ask: "erase"; imports: number; rows: number };
+type LivePeer = {
+  device: string;
+  name: string;
+  state: "connecting" | "syncing" | "up_to_date" | "partly" | "asking" | "cant_connect" | "ended";
+  received?: number;
+  wanted?: number;
+  skipped?: number;
+  asking?: SyncQuestion;
+  code?: string;
+  last_synced?: number;
+};
+type SyncLive = { idle?: string; clock_off: boolean; peers: LivePeer[] };
+type SyncShown = {
+  enabled: boolean;
+  joined: boolean;
+  paused: boolean;
+  account: boolean;
+  device: string;
+  peers: { device: string; name: string; last_seen: number; last_synced?: number; up_to_date: boolean; skipped: number }[];
+};
+
+/** LAN sync's live state, kept fresh by the core's events. */
+function useSyncLive(): SyncLive | undefined {
+  const [live, setLive] = useState<SyncLive>();
+  useEffect(() => {
+    let on = true;
+    const load = () => op<SyncLive>("sync.live").then((l) => on && setLive(l), () => {});
+    load();
+    const stop = onSync(load);
+    return () => {
+      on = false;
+      stop();
+    };
+  }, []);
+  return live;
+}
+
+/** A device as people know it: the name another Health sends ("Health for Mac", "Health web · Chrome"). */
+function deviceName(n: string): string {
+  if (!n) return t("Another device");
+  const web = /^Health web · (.+)$/.exec(n);
+  if (web) return t("Web · {{browser}}", { browser: web[1] });
+  if (n === "Health web") return t("Web");
+  const os = /^Health for (Mac|Windows|Linux)$/.exec(n) ?? /^Health [\d.]+ · (macos|windows|linux)$/i.exec(n);
+  if (os) {
+    const k = os[1]!.toLowerCase();
+    return k.startsWith("mac") ? t("Health for Mac") : k === "windows" ? t("Health for Windows") : t("Health for Linux");
+  }
+  return n;
+}
+
+/** Why a session ended, in words; the code itself is kept for "Details". */
+function endedText(code?: string): string {
+  switch (code) {
+    case "paused":
+      return t("Sync paused");
+    case "declined":
+      return t("You chose Not now. Health asks again next time.");
+    case "off":
+      return t("Sync is off on that device");
+    case "sync_changed":
+      return t("That device changed during the sync. Health syncs again shortly.");
+    case "sync_proto":
+      return t("That device needs an update to sync with this one.");
+    case "stall":
+    case "restart":
+    case "closed":
+    case "disconnected":
+    case "webrtc":
+      return t("The connection dropped. Health tries again shortly.");
+    default:
+      return t("Sync stopped. Health tries again shortly.");
+  }
+}
+
+function peerState(p: LivePeer): string {
+  switch (p.state) {
+    case "up_to_date":
+      return t("Up to date");
+    case "syncing":
+      return p.wanted ? t("Syncing · {{received}} of {{wanted}} imports", { received: p.received ?? 0, wanted: p.wanted }) : t("Syncing");
+    case "partly":
+      return t("Partly synced");
+    case "asking":
+      return t("Waiting for you");
+    case "cant_connect":
+      return t("On the same network but can't connect directly");
+    case "ended":
+      return endedText(p.code);
+    default:
+      return t("Connecting…");
+  }
+}
+
+/** LAN sync (docs/lan-sync.md §11) on its own page: the switch, a row per device with its state, and the two
+ *  questions as a dialog that says what happens. */
+function SyncPage({ back }: { back: () => void }) {
+  const [st, err, reload] = useOp(() => op<SyncShown>("sync.state"), []);
+  const live = useSyncLive();
+  const [busy, setBusy] = useState(false);
+  // a question put aside with Esc comes back when it changes
+  const [dismissed, setDismissed] = useState<string>();
+  const run = (f: () => Promise<unknown>) => {
+    setBusy(true);
+    f().finally(() => {
+      setBusy(false);
+      reload();
+    });
+  };
+  const livePeers = live?.peers ?? [];
+  const known = (st?.peers ?? []).filter((p) => !livePeers.some((l) => l.device === p.device));
+  const asking = livePeers.find((p) => p.asking);
+  const askKey = asking ? `${asking.device}:${JSON.stringify(asking.asking)}` : undefined;
+  const answer = (device: string, allow: boolean) => run(() => op("sync.answer", { device, allow }));
+  return (
+    <section className="page narrow">
+      <button type="button" className="link back" onClick={back}>
+        ‹ {t("Health account")}
+      </button>
+      <h2>{t("Local network sync")}</h2>
+      <Problem text={err} />
+      {st?.paused && (
+        <div className="notice banner">
+          <span>{t("Sync is paused: you chose Not now when another device would delete data here.")}</span>
+          <button type="button" className="primary" disabled={busy} onClick={() => run(() => op("sync.set", { paused: false }))}>
+            {t("Continue syncing")}
+          </button>
+        </div>
+      )}
+      {live?.clock_off && <p className="notice">{t("This computer's clock is off by more than 2 minutes, so other devices can't be reached.")}</p>}
+      {st && (
+        <ul className="rows-card">
+          <SwitchRow
+            icon={<Icon k="wifi" />}
+            label={t("Sync on this network")}
+            sub={t("Devices you've connected sync automatically when Health is open on the same local network.")}
+            on={st.enabled}
+            set={(on) => run(() => op("sync.set", { enabled: on }))}
+          />
+        </ul>
+      )}
+      {st?.enabled && live?.idle === "offline" && <p className="fine">{t("Health is offline, so it doesn't sync.")}</p>}
+      {st?.enabled && (
+        <>
+          <h3 className="rows-head">{t("Devices")}</h3>
+          <ul className="rows-card" aria-label={t("Devices on this network")}>
+            {livePeers.length === 0 && known.length === 0 && (
+              <li className="row-static fine">{t("No other device seen yet. Open Health on your other device on this network.")}</li>
+            )}
+            {livePeers.map((p) => (
+              <li key={p.device} className="row-static sync-peer">
+                <Icon k="device" />
+                <span className="row-l">
+                  <strong>{deviceName(p.name)}</strong>
+                  <span className="fine" role="status">
+                    {peerState(p)}
+                    {p.last_synced ? ` · ${t("Last synced {{date}}", { date: when(p.last_synced) })}` : ""}
+                  </span>
+                  {p.state === "syncing" && p.wanted ? (
+                    <progress max={p.wanted} value={p.received ?? 0} aria-label={t("Syncing")} />
+                  ) : null}
+                  {p.state === "partly" && (
+                    <span className="fine">
+                      {t("{{count}} items can't be merged, for example a measure whose unit differs between the two devices. Health tries again every day.", { count: p.skipped ?? 0 })}
+                    </span>
+                  )}
+                  {p.state === "asking" && (
+                    <button type="button" className="link" onClick={() => setDismissed(undefined)}>
+                      {t("Answer")}
+                    </button>
+                  )}
+                  {p.state === "ended" && p.code && (
+                    <details className="fine">
+                      <summary>{t("Details")}</summary>
+                      <span className="mono">{p.code}</span>
+                    </details>
+                  )}
+                </span>
+                <span className={`tag state-${p.state}`}>{p.state === "up_to_date" ? "✓" : ""}</span>
+              </li>
+            ))}
+            {known.map((p) => (
+              <li key={p.device} className="row-static">
+                <Icon k="device" />
+                <span className="row-l">
+                  <strong>{deviceName(p.name)}</strong>
+                  <span className="fine">
+                    {t("Not on this network now")}
+                    {p.last_synced ? ` · ${t("Last synced {{date}}", { date: when(p.last_synced) })}` : ""}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {asking?.asking && askKey !== dismissed && (
+        <Sheet label={t("Sync")} close={() => setDismissed(askKey)}>
+          {asking.asking.ask === "join" ? (
+            <div className="form">
+              <h3>{t("Combine with {{device}}?", { device: deviceName(asking.name) })}</h3>
+              <p>
+                {t("This computer's data and that device's data are combined, and both then hold the same. This computer has {{count}} imports. Combining can't be undone.", {
+                  count: asking.asking.imports,
+                })}
+              </p>
+              <div className="actions">
+                <button type="button" className="primary" disabled={busy} onClick={() => answer(asking.device, true)}>
+                  {t("Combine")}
+                </button>
+                <button type="button" disabled={busy} onClick={() => answer(asking.device, false)}>
+                  {t("Not now")}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="form">
+              <h3>{t("Delete here too?")}</h3>
+              <p>
+                {t("{{device}} deleted {{imports}} imports. Syncing deletes their {{rows}} readings on this computer too.", {
+                  device: deviceName(asking.name),
+                  imports: asking.asking.imports,
+                  rows: asking.asking.rows,
+                })}
+              </p>
+              <div className="actions">
+                <button type="button" className="danger" disabled={busy} onClick={() => answer(asking.device, true)}>
+                  {t("Delete here too")}
+                </button>
+                <button type="button" disabled={busy} onClick={() => answer(asking.device, false)}>
+                  {t("Not now (pauses sync)")}
+                </button>
+              </div>
+            </div>
+          )}
+        </Sheet>
+      )}
+    </section>
   );
 }

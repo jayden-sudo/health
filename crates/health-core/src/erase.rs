@@ -31,7 +31,7 @@ pub fn erase(c: &Db, import_id: i64, now_ms: i64) -> Result<EraseResult> {
         if status == "erased" {
             return Ok(EraseResult::default());
         }
-        let mut candidates: Vec<String> = blob.into_iter().collect();
+        let mut candidates: Vec<String> = blob.clone().into_iter().collect();
         let mut scopes = Vec::new();
         let mut deleted = 0u64;
         for (metric_id, (from, to)) in span_of(&parse_meta(meta)) {
@@ -58,6 +58,21 @@ pub fn erase(c: &Db, import_id: i64, now_ms: i64) -> Result<EraseResult> {
             "UPDATE import SET status = 'erased', blob = NULL, meta = NULL, id = (SELECT max(id) + 1 FROM import) WHERE id = ?",
             [import_id],
         )?;
+        // the file passes to the import with the smallest uid that also brought it, rather than being deleted
+        // (merge-fixes R6b: a pending review keeps its photo)
+        if let Some(sha) = &blob {
+            let heir: Option<i64> = one(
+                c,
+                "SELECT id FROM import
+                  WHERE status IN ('done', 'review') AND blob IS NULL
+                    AND (CASE WHEN json_valid(meta) THEN json_extract(meta, '$.file') END) = ?
+                  ORDER BY uid LIMIT 1",
+                [sha],
+            )?;
+            if let Some(h) = heir {
+                c.execute("UPDATE import SET blob = ? WHERE id = ?", rusqlite::params![sha, h])?;
+            }
+        }
         crate::daily::rebuild(c, &scopes, now_ms)?;
         let mut orphan_blobs = Vec::new();
         for sha in candidates {

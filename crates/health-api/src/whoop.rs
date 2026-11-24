@@ -256,6 +256,7 @@ pub(crate) fn complete(net: &Net, r: Complete) -> Result<Connected> {
             expires: Some(t.expires),
             user_id: Some(uid),
             last_sync: if same { s.last_sync } else { None },
+            connected_at: Some(net.now_ms),
             ..Default::default()
         },
     )?;
@@ -402,6 +403,13 @@ pub(crate) fn sync(net: &Net, r: SyncReq) -> Result<Synced> {
 }
 
 pub(crate) fn disconnect(net: &Net, _: crate::account::Empty) -> Result<Json> {
-    update(net, &mut |s| s.whoop = None)?;
+    (net.locked)(&mut |ctx| {
+        if !ctx.profile.is_writer() {
+            return Err(Error::other("not_writer", "write op on a read-only profile"));
+        }
+        let device = ctx.profile.vault.device_id()?;
+        ctx.profile.vault.update(|st| health_core::sync::stop_whoop(ctx.db(), st, &device, net.now_ms))?;
+        Ok(Json::Null)
+    })?;
     Ok(json!({}))
 }

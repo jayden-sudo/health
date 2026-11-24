@@ -227,7 +227,7 @@ export function explain(code: string, message = ""): string {
     auth: tk("The health service refused this device's signature."),
     link_changed: tk("This link is no longer the one shown. Start again."),
     link_busy: tk("The link failed. Start again on the new device."),
-    not_link_code: tk("That isn't a link code. It starts with SBHL1:."),
+    not_link_code: tk("That isn't a connection code. It starts with ZUHL1:."),
     bad_device: tk("That isn't a device id."),
     whoop_reauth: tk("WHOOP needs you to sign in again."),
     whoop_client: tk("WHOOP refused the Client ID or Secret."),
