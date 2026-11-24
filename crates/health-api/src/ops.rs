@@ -122,6 +122,8 @@ fn twenty() -> i64 {
 
 #[derive(Serialize, JsonSchema)]
 pub struct Status {
+    /// The core's version (the app's)
+    pub version: String,
     pub profile: String,
     pub key_store: String,
     pub schema_version: i64,
@@ -137,6 +139,7 @@ fn status(ctx: &mut Ctx, _: Empty) -> Result<Status> {
     let c = ctx.db();
     let n = |sql: &str| -> Result<i64> { Ok(c.query_row(sql, [], |r| r.get(0))?) };
     Ok(Status {
+        version: env!("CARGO_PKG_VERSION").into(),
         profile: ctx.profile.name.clone(),
         key_store: ctx.profile.key_store.into(),
         schema_version: n("PRAGMA user_version")?,

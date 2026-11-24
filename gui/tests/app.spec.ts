@@ -359,3 +359,20 @@ test("data sources: one row per source with its status; a table exports as CSV",
   await expect(page.getByRole("status")).toContainText("rows");
   expect(readFileSync(file, "utf8").split("\n").length).toBeGreaterThan(10);
 });
+
+test("about: privacy says where the data is; licenses list the components, the LOINC notice and every crate", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "About" }).click();
+  await expect(page.getByText(/^Health \d+\.\d+\.\d+$/)).toBeVisible();
+  await page.getByRole("button", { name: /^Privacy/ }).click();
+  await expect(page.getByRole("region", { name: "Where your data is" })).toContainText("encrypted file on this computer");
+  await expect(page.getByRole("region", { name: "How it's protected" })).toContainText("Local network sync");
+  await page.getByRole("button", { name: "‹ About" }).click();
+  await page.getByRole("button", { name: /^Open-source licenses/ }).click();
+  const main = page.getByRole("list", { name: "Components" });
+  await expect(main).toContainText("SQLCipher");
+  await expect(main).toContainText("Copyright (c) 2025, ZETETIC LLC");
+  await expect(page.getByText(/LOINC® table/)).toBeVisible();
+  await page.getByText(/^\d+ Rust crates$/).click();
+  await expect(page.getByRole("link", { name: "str0m", exact: true }).first()).toBeVisible();
+});

@@ -21,6 +21,7 @@ bun scripts/gen-ocr-data.ts                   # OCR tables and fixtures from the
 bun scripts/gen-zh-hant.ts                    # zh-Hant from zh-Hans (zh-Hant.json, names-desktop.json) after editing either
 bun scripts/gen-names-i18n.ts                 # Chinese measure names from the web code
 (cd gui && node scripts/i18n.mjs)             # every UI text translated (also in CI)
+bun scripts/gen-licenses.ts                   # About › Open-source licenses: every shipped crate and npm package (after dependency changes)
 HEALTH_OCR_MODELS=<dir> cargo test --all      # also runs the OCR parity/pipeline tests (pinned model files in <dir>)
 scripts/demo-profile.sh /tmp/demo [<models>]  # a profile with synthetic data (screenshots, trying things)
 ```

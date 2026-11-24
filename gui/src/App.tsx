@@ -63,7 +63,7 @@ import {
   resultText,
 } from "./format";
 
-type Page = "readings" | "data" | "backup" | "profile" | "account" | "agents" | "review";
+type Page = "readings" | "data" | "backup" | "profile" | "account" | "agents" | "about" | "review";
 /** The sections, in shortcut order (⌘1…⌘6). */
 const PAGES: { key: Page; label: string }[] = [
   { key: "readings", label: tk("Readings") },
@@ -72,6 +72,7 @@ const PAGES: { key: Page; label: string }[] = [
   { key: "profile", label: tk("Profile") },
   { key: "account", label: tk("Health account") },
   { key: "agents", label: tk("Agent access") },
+  { key: "about", label: tk("About") },
 ];
 const MAC = typeof navigator !== "undefined" && /Mac/.test(navigator.userAgent);
 const MOD = MAC ? "⌘" : "Ctrl+";
@@ -133,6 +134,14 @@ const ICON: Record<string, ReactNode> = {
       <path d="M9.5 6.5a2 2 0 0 1 0 3M11.5 5a4 4 0 0 1 0 6" />
     </>
   ),
+  about: (
+    <>
+      <circle cx="8" cy="8" r="5.5" />
+      <path d="M8 7.2v3.8M8 5h0" />
+    </>
+  ),
+  shield: <path d="M8 2.2 3.2 4v3.6c0 3 2.1 5.2 4.8 6.2 2.7-1 4.8-3.2 4.8-6.2V4z" />,
+  scale: <path d="M8 2.5v11M4.5 13.5h7M3 5h10M3 5 1.5 9h3zM13 5l-1.5 4h3z" />,
   device: (
     <>
       <rect x="2" y="3" width="12" height="8" rx="1.2" />
@@ -433,6 +442,9 @@ export function App() {
           <p className="rail-head">{t("Sharing")}</p>
           <ul>{navItem(PAGES[5]!, hint("agents"))}</ul>
         </div>
+        <div className="rail-section">
+          <ul>{navItem(PAGES[6]!, hint("about"))}</ul>
+        </div>
         <div className="rail-foot">
           {status && (
             <p className="fine">
@@ -474,6 +486,7 @@ export function App() {
           {page === "backup" && <Backup />}
           {page === "profile" && <ProfilePage />}
           {page === "account" && <HealthAccount go={setPage} />}
+          {page === "about" && <About version={status?.version} />}
         </div>
       </main>
       {metric && <Sheet label={t("History")} close={() => setMetric(undefined)}>
@@ -3915,6 +3928,173 @@ function SyncPage({ back }: { back: () => void }) {
           )}
         </Sheet>
       )}
+    </section>
+  );
+}
+
+// ---- About: privacy and open-source licenses (as the web's 更多 › 关于) --------------------------------------------
+
+/** Every sentence matches what the desktop does (checked 2026-11-24): data in the encrypted profile (SQLCipher, key in
+ *  the keychain or from the passphrase); OCR on this computer, models downloaded once from Hugging Face and GitHub
+ *  (health-ocr components); lab results sealed to the account's key, the lab's device history kept by the backend
+ *  (as on the web); WHOOP relayed, not kept; LAN sync direct and encrypted, the relay sees sealed signalling only;
+ *  agents only through grants, every call audited. Change the page when any of that changes. */
+function Privacy() {
+  const sections: [string, string[]][] = [
+    [
+      t("Where your data is"),
+      [
+        t("Your health data is kept in one encrypted file on this computer. Its key is in your system keychain, or comes from your passphrase if you set one."),
+        t("Nothing is uploaded to a cloud. If this computer is lost or the data deleted, it can't be recovered: save a backup now and then in Backup."),
+      ],
+    ],
+    [
+      t("How it's protected"),
+      [
+        t("Lab reports are read entirely on this computer; photos and PDFs aren't uploaded. The first use downloads the recognition models from Hugging Face and GitHub."),
+        t("Lab results arrive encrypted (some PDF files aren't, but random file names keep others from finding them), and only your devices can open them. The lab records the devices and dates you used, for its staff to see."),
+        t("When WHOOP is connected, its data passes through the health service on its way here and isn't kept."),
+        t("Local network sync sends data directly between your own devices on the same network, encrypted. The health service only passes on sealed connection details: it can't read them or tell whose they are."),
+        t("AI assistants (MCP) read your health data only within the access you grant in Agent access, and every read is recorded there."),
+      ],
+    ],
+    [t("Coming later"), [t("Android and iOS versions will follow.")]],
+  ];
+  return (
+    <>
+      {sections.map(([title, lines]) => (
+        <section key={title} aria-label={title}>
+          <h3 className="rows-head">{title}</h3>
+          <ul className="rows-card">
+            {lines.map((line) => (
+              <li key={line} className="row-static">
+                <span className="row-l">{line}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </>
+  );
+}
+
+type LicenseEntry = { name: string; versions: string[]; license: string; url?: string };
+/** The main components by hand, with the copyright lines from their own license files (checked 2026-11-24); the
+ *  full list is generated (scripts/gen-licenses.ts). License texts, copyright lines and the LOINC notice stay in
+ *  English, as written. */
+const MAIN_COMPONENTS: { name: string; license: string; by: string; url: string }[] = [
+  { name: "Tauri", license: "MIT OR Apache-2.0", by: "Copyright (c) 2017 - Present Tauri Apps Contributors", url: "https://tauri.app" },
+  { name: "React", license: "MIT", by: "Copyright (c) Meta Platforms, Inc. and affiliates.", url: "https://react.dev" },
+  { name: "i18next, react-i18next", license: "MIT", by: "Copyright (c) 2025 i18next", url: "https://www.i18next.com" },
+  { name: "SQLCipher", license: "BSD-3-Clause", by: "Copyright (c) 2025, ZETETIC LLC", url: "https://www.zetetic.net/sqlcipher/" },
+  { name: "SQLite", license: "Public domain", by: "SQLite Consortium", url: "https://sqlite.org/copyright.html" },
+  { name: "LibTomCrypt", license: "Public domain or WTFPL", by: "Tom St Denis and contributors", url: "https://github.com/libtom/libtomcrypt" },
+  { name: "OpenSSL", license: "Apache-2.0", by: "The OpenSSL Project Authors", url: "https://www.openssl.org" },
+  { name: "rusqlite", license: "MIT", by: "Copyright (c) 2014 The rusqlite developers", url: "https://github.com/rusqlite/rusqlite" },
+  { name: "tract", license: "MIT OR Apache-2.0", by: "Sonos, Inc. and Mathieu Poumeyrol", url: "https://github.com/sonos/tract" },
+  { name: "hayro", license: "Apache-2.0 OR MIT", by: "Copyright (c) The Hayro Authors", url: "https://github.com/LaurenzV/hayro" },
+  { name: "str0m", license: "MIT OR Apache-2.0", by: "Martin Algesten", url: "https://github.com/algesten/str0m" },
+  { name: "RustCrypto", license: "MIT OR Apache-2.0", by: "Copyright (c) 2019-2026 The RustCrypto Project Developers", url: "https://github.com/RustCrypto" },
+  { name: "dalek-cryptography", license: "BSD-3-Clause", by: "Copyright (c) 2016-2021 isis agora lovecruft", url: "https://github.com/dalek-cryptography" },
+  { name: "rustls", license: "Apache-2.0 OR ISC OR MIT", by: "Copyright (c) 2016, Joseph Birr-Pixton", url: "https://github.com/rustls/rustls" },
+  { name: "PP-OCRv5", license: "Apache-2.0", by: "PaddlePaddle Authors", url: "https://github.com/PaddlePaddle/PaddleOCR" },
+  { name: "multilingual-e5-small", license: "MIT", by: "intfloat", url: "https://huggingface.co/intfloat/multilingual-e5-small" },
+  {
+    name: "LOINC",
+    license: "LOINC License",
+    by: "Copyright (c) 1995 Regenstrief Institute, Inc. and the Logical Observation Identifiers Names and Codes (LOINC) Committee",
+    url: "https://loinc.org/license/",
+  },
+  { name: "UCUM", license: "UCUM License", by: "Copyright 1999-2024 Regenstrief Institute, Inc.", url: "https://unitsofmeasure.org/license" },
+];
+
+/** The attribution the LOINC license asks for, verbatim (as the web shows it). */
+const LOINC_NOTICE =
+  "This product includes all or a portion of the LOINC® table, LOINC panels and forms file, LOINC document ontology file, and/or LOINC hierarchies file, or is derived from one or more of the foregoing, subject to a license from Regenstrief Institute, Inc. LOINC is a registered United States trademark of Regenstrief Institute, Inc. Full license: https://loinc.org/license/";
+
+function Licenses() {
+  const [all, setAll] = useState<{ crates: LicenseEntry[]; npm: LicenseEntry[]; texts: Record<string, string> }>();
+  useEffect(() => {
+    import("./licenses.json").then((m) => setAll(m.default as typeof all));
+  }, []);
+  const list = (items: LicenseEntry[]) => (
+    <ul className="lic-all">
+      {items.map((c) => (
+        <li key={c.name}>
+          {c.url ? <WebLink url={c.url} label={c.name} /> : c.name} <span className="fine">{c.versions.join(", ")}</span>{" "}
+          <span className="fine mono">{c.license}</span>
+        </li>
+      ))}
+    </ul>
+  );
+  return (
+    <>
+      <p className="lede">{t("Health is free software under the GNU General Public License v3.0. It uses these open-source components and data, with thanks to their authors.")}</p>
+      <ul className="rows-card" aria-label={t("Components")}>
+        {MAIN_COMPONENTS.map((c) => (
+          <li key={c.name} className="row-static lic-row">
+            <span className="row-l">
+              <strong>
+                <WebLink url={c.url} label={c.name} />
+              </strong>
+              <span className="fine">{c.by}</span>
+            </span>
+            <span className="tag">{c.license}</span>
+          </li>
+        ))}
+      </ul>
+      <h3 className="rows-head">LOINC</h3>
+      <p className="fine lic-notice">{LOINC_NOTICE}</p>
+      {all && (
+        <>
+          <h3 className="rows-head">{t("All components")}</h3>
+          <details className="lic-texts">
+            <summary>{t("{{count}} Rust crates", { count: all.crates.length })}</summary>
+            {list(all.crates)}
+          </details>
+          <details className="lic-texts">
+            <summary>{t("{{count}} JavaScript packages", { count: all.npm.length })}</summary>
+            {list(all.npm)}
+          </details>
+          <h3 className="rows-head">{t("License texts")}</h3>
+          {Object.entries(all.texts).map(([name, text]) => (
+            <details key={name} className="lic-texts">
+              <summary>{name}</summary>
+              <pre>{text}</pre>
+            </details>
+          ))}
+          <p className="fine">
+            {t("Other licenses named above:")} <WebLink url="https://www.gnu.org/licenses/gpl-3.0.html" label="GPL-3.0" />,{" "}
+            <WebLink url="https://www.mozilla.org/MPL/2.0/" label="MPL-2.0" />, <WebLink url="https://cdla.dev/permissive-2-0/" label="CDLA-Permissive-2.0" />,{" "}
+            <WebLink url="https://www.boost.org/LICENSE_1_0.txt" label="BSL-1.0" />
+          </p>
+        </>
+      )}
+    </>
+  );
+}
+
+/** About (as the web's 更多 › 关于): the version, privacy and open-source licenses. */
+function About({ version }: { version?: string }) {
+  const [view, setView] = useState<"privacy" | "licenses">();
+  if (view)
+    return (
+      <section className="page narrow">
+        <button type="button" className="link back" onClick={() => setView(undefined)}>
+          ‹ {t("About")}
+        </button>
+        <h2>{view === "privacy" ? t("Privacy") : t("Open-source licenses")}</h2>
+        {view === "privacy" ? <Privacy /> : <Licenses />}
+      </section>
+    );
+  return (
+    <section className="page narrow">
+      <h2>{t("About")}</h2>
+      <p className="lede">{version ? t("Health {{version}}", { version }) : "Health"}</p>
+      <ul className="rows-card">
+        <Row icon={<Icon k="shield" />} label={t("Privacy")} onClick={() => setView("privacy")} />
+        <Row icon={<Icon k="scale" />} label={t("Open-source licenses")} onClick={() => setView("licenses")} />
+      </ul>
     </section>
   );
 }

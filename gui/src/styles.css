@@ -1573,3 +1573,39 @@ button.tonal:disabled {
 .tag:empty {
   display: none;
 }
+
+/* ---- About › Open-source licenses ---- */
+.lic-row .tag {
+  white-space: nowrap;
+}
+.lic-notice {
+  margin: 0 0 1.25rem;
+  line-height: 1.45;
+}
+.lic-texts {
+  margin: 0 0 0.6rem;
+}
+.lic-texts summary {
+  cursor: pointer;
+  padding: 0.35rem 0;
+}
+.lic-texts pre {
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--graphite);
+  max-height: 24rem;
+  overflow: auto;
+}
+.lic-all {
+  list-style: none;
+  margin: 0.3rem 0 0.8rem;
+  padding: 0;
+  columns: 2;
+  column-gap: 1.5rem;
+  font-size: 12px;
+}
+.lic-all li {
+  break-inside: avoid;
+  padding: 0.12rem 0;
+}

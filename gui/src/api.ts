@@ -198,6 +198,7 @@ export interface Audit {
   denied: boolean;
 }
 export interface Status {
+  version: string;
   profile: string;
   key_store: string;
   metrics: number;

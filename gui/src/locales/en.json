@@ -64,5 +64,9 @@
  "{{count}} items can't be merged, for example a measure whose unit differs between the two devices. Health tries again every day._one": "{{count}} item can't be merged, for example a measure whose unit differs between the two devices. Health tries again every day.",
  "{{count}} items can't be merged, for example a measure whose unit differs between the two devices. Health tries again every day._other": "{{count}} items can't be merged, for example a measure whose unit differs between the two devices. Health tries again every day.",
  "This computer's data and that device's data are combined, and both then hold the same. This computer has {{count}} imports. Combining can't be undone._one": "This computer's data and that device's data are combined, and both then hold the same. This computer has {{count}} import. Combining can't be undone.",
- "This computer's data and that device's data are combined, and both then hold the same. This computer has {{count}} imports. Combining can't be undone._other": "This computer's data and that device's data are combined, and both then hold the same. This computer has {{count}} imports. Combining can't be undone."
+ "This computer's data and that device's data are combined, and both then hold the same. This computer has {{count}} imports. Combining can't be undone._other": "This computer's data and that device's data are combined, and both then hold the same. This computer has {{count}} imports. Combining can't be undone.",
+ "{{count}} Rust crates_one": "{{count}} Rust crate",
+ "{{count}} Rust crates_other": "{{count}} Rust crates",
+ "{{count}} JavaScript packages_one": "{{count}} JavaScript package",
+ "{{count}} JavaScript packages_other": "{{count}} JavaScript packages"
 }
