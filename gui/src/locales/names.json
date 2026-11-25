@@ -1,5 +1,5 @@
 {
- "about": "From the web code (pre-pol 36d6288b) by scripts/gen-names-i18n.ts; do not edit",
+ "about": "From the web code (pre-pol 138567cd) by scripts/gen-names-i18n.ts; do not edit",
  "names": {
   "x:hrv_rmssd": {
    "zh-Hans": "心率变异性（RMSSD）",
@@ -456,6 +456,66 @@
   "loinc:8247-9": {
    "zh-Hans": "尿黏液",
    "zh-Hant": "尿黏液"
+  },
+  "x:fd/cmj/jump_height_imp_mom": {
+   "zh-Hans": "跳跃高度（冲量-动量法）",
+   "zh-Hant": "跳躍高度（衝量-動量法）"
+  },
+  "x:fd/cmj/jump_height_flight_time": {
+   "zh-Hans": "跳跃高度（腾空时间法）",
+   "zh-Hant": "跳躍高度（騰空時間法）"
+  },
+  "x:fd/cmj/rsi_modified": {
+   "zh-Hans": "改良反应力量指数（RSI-mod）",
+   "zh-Hant": "改良反應力量指數（RSI-mod）"
+  },
+  "x:fd/cmj/flight_time": {
+   "zh-Hans": "腾空时间",
+   "zh-Hant": "騰空時間"
+  },
+  "x:fd/cmj/contraction_time": {
+   "zh-Hans": "收缩时间",
+   "zh-Hant": "收縮時間"
+  },
+  "x:fd/cmj/eccentric_duration": {
+   "zh-Hans": "离心阶段时长",
+   "zh-Hant": "離心階段時長"
+  },
+  "x:fd/cmj/concentric_duration": {
+   "zh-Hans": "向心阶段时长",
+   "zh-Hant": "向心階段時長"
+  },
+  "x:fd/cmj/peak_power": {
+   "zh-Hans": "峰值功率",
+   "zh-Hant": "峰值功率"
+  },
+  "x:fd/cmj/peak_power_bm": {
+   "zh-Hans": "相对峰值功率（每公斤体重）",
+   "zh-Hant": "相對峰值功率（每公斤體重）"
+  },
+  "x:fd/cmj/concentric_mean_force_bm": {
+   "zh-Hans": "向心平均力（每公斤体重）",
+   "zh-Hant": "向心平均力（每公斤體重）"
+  },
+  "x:fd/cmj/concentric_impulse": {
+   "zh-Hans": "向心冲量",
+   "zh-Hant": "向心衝量"
+  },
+  "x:fd/cmj/countermovement_depth": {
+   "zh-Hans": "下蹲深度",
+   "zh-Hant": "下蹲深度"
+  },
+  "x:fd/cmj/concentric_peak_velocity": {
+   "zh-Hans": "向心峰值速度",
+   "zh-Hant": "向心峰值速度"
+  },
+  "x:fd/cmj/eccentric_braking_rfd": {
+   "zh-Hans": "离心制动发力率",
+   "zh-Hant": "離心制動發力率"
+  },
+  "x:fd/cmj/body_mass": {
+   "zh-Hans": "ForceDecks 测得体重",
+   "zh-Hant": "ForceDecks 測得體重"
   },
   "weakly positive": {
    "zh-Hans": "弱阳性",

@@ -68,5 +68,11 @@
  "{{count}} Rust crates_one": "{{count}} Rust crate",
  "{{count}} Rust crates_other": "{{count}} Rust crates",
  "{{count}} JavaScript packages_one": "{{count}} JavaScript package",
- "{{count}} JavaScript packages_other": "{{count}} JavaScript packages"
+ "{{count}} JavaScript packages_other": "{{count}} JavaScript packages",
+ "{{count}} jumps_one": "{{count}} jump",
+ "{{count}} jumps_other": "{{count}} jumps",
+ "Trend over {{count}} tests_one": "Trend over {{count}} test",
+ "Trend over {{count}} tests_other": "Trend over {{count}} tests",
+ "Trend over {{count}} measurements_one": "Trend over {{count}} measurement",
+ "Trend over {{count}} measurements_other": "Trend over {{count}} measurements"
 }

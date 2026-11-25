@@ -45,6 +45,9 @@ pub struct Point {
     pub unit: String,
     pub agg: String,
     pub group: String,
+    /// Where the home page shows it: the group, except lab device results with a card of their own (ForceDecks:
+    /// `force`, as the web's model.ts). Exports and grants go by `group`.
+    pub category: String,
     pub start_ms: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end_ms: Option<i64>,
@@ -178,6 +181,7 @@ fn point(r: &Row) -> rusqlite::Result<Point> {
     let metric: String = r.get(0)?;
     Ok(Point {
         group: crate::catalog::group_of(&metric).into(),
+        category: crate::labs::category_of(&metric).into(),
         name: r.get(9)?,
         unit: r.get(10)?,
         agg: r.get(11)?,

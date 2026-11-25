@@ -16,6 +16,7 @@ pub mod erase;
 pub mod error;
 pub mod import;
 pub mod keys;
+pub mod labs;
 pub mod manual;
 pub mod merge;
 pub mod ocr;

@@ -32,8 +32,9 @@ for (const [lang, pack] of Object.entries({ en, ...packs })) {
   const extra = Object.keys(pack).filter((k) => !all.has(k));
   if (extra.length) unused[lang] = extra;
 }
-// words the owner ruled out (2026-11): "读数" is inaccurate; a reading is 数据 (or 指标 for a measure)
-const banned = { "zh-Hans": ["读数"], "zh-Hant": ["讀數"] };
+// words the owner ruled out (2026-11), as the web's copy-words test: "读数" is inaccurate (a reading is 数据, or 指标
+// for a measure); staff are 工作人员, never 服务人员; device names stay English (ForceDecks, never 力板)
+const banned = { "zh-Hans": ["读数", "服务人员", "力板"], "zh-Hant": ["讀數", "服務人員", "力板"] };
 const bad = Object.entries(banned).flatMap(([l, ws]) =>
   Object.entries(packs[l]).filter(([, v]) => ws.some((w) => v.includes(w))).map(([k]) => `${l}: ${k}`),
 );

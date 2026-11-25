@@ -8,8 +8,8 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 const P = join(homedir(), "Documents/GitHub/pre-pol");
-const { hashId } = await import(join(P, "packages/ui/src/locale/i18n.js"));
-const hant = JSON.parse(readFileSync(join(P, "packages/ui/src/locale/l10n/packs/zh-Hant.json"), "utf8")).health as Record<string, string>;
+const { hashId } = await import(join(P, "packages/locale/src/locale/i18n.ts"));
+const hant = JSON.parse(readFileSync(join(P, "packages/locale/src/locale/l10n/packs/zh-Hant.json"), "utf8")).health as Record<string, string>;
 const src = readFileSync(join(P, "market/health/src/client/names.ts"), "utf8");
 
 const out: Record<string, { "zh-Hans": string; "zh-Hant": string }> = {};

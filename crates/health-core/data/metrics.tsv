@@ -977,3 +977,18 @@ loinc:32356-8	Yeast [Presence] in Urine sediment by Light microscopy		none	lab
 loinc:8247-9	Mucus [Presence] in Urine sediment by Light microscopy		none	lab
 loinc:49755-2	Crystals [Presence] in Urine sediment by Light microscopy		none	lab
 loinc:24124-0	Casts [Presence] in Urine sediment by Light microscopy		none	lab
+x:fd/cmj/jump_height_imp_mom	Jump Height (Imp-Mom)	cm	instant	activity
+x:fd/cmj/jump_height_flight_time	Jump Height (Flight Time)	cm	instant	activity
+x:fd/cmj/rsi_modified	RSI-modified	m/s	instant	activity
+x:fd/cmj/flight_time	Flight Time	ms	instant	activity
+x:fd/cmj/contraction_time	Contraction Time	ms	instant	activity
+x:fd/cmj/eccentric_duration	Eccentric Duration	ms	instant	activity
+x:fd/cmj/concentric_duration	Concentric Duration	ms	instant	activity
+x:fd/cmj/peak_power	Peak Power	W	instant	activity
+x:fd/cmj/peak_power_bm	Peak Power / BM	W/kg	instant	activity
+x:fd/cmj/concentric_mean_force_bm	Concentric Mean Force / BM	N/kg	instant	activity
+x:fd/cmj/concentric_impulse	Concentric Impulse	N.s	instant	activity
+x:fd/cmj/countermovement_depth	Countermovement Depth	cm	instant	activity
+x:fd/cmj/concentric_peak_velocity	Concentric Peak Velocity	m/s	instant	activity
+x:fd/cmj/eccentric_braking_rfd	Eccentric Braking RFD	N/s	instant	activity
+x:fd/cmj/body_mass	Bodyweight in Kilograms	kg	instant	activity

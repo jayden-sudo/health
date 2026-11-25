@@ -118,6 +118,8 @@ export interface Point {
   unit: string;
   agg: string;
   group: string;
+  /** Where the home page shows it (group, or force for VALD ForceDecks) */
+  category: string;
   start_ms: number;
   end_ms?: number;
   tz_min: number;
@@ -315,4 +317,19 @@ export async function installOcr(matching: boolean): Promise<void> {
     const err = e as ApiError;
     throw new OpError(err.code ?? "error", err.message ?? String(e));
   }
+}
+
+/** A lab device's values at one time (labs.forcedecks / labs.body_scans) */
+export interface Measurement {
+  start_ms: number;
+  tz_min: number;
+  device: string;
+  values: Record<string, number | string | null>;
+}
+/** One time on the VALD ForceDecks plates: its jumps, oldest first, and the best one */
+export interface FdSession {
+  device: string;
+  test: string;
+  trials: Measurement[];
+  best: number;
 }

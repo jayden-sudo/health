@@ -376,3 +376,106 @@ test("about: privacy says where the data is; licenses list the components, the L
   await page.getByText(/^\d+ Rust crates$/).click();
   await expect(page.getByRole("link", { name: "str0m", exact: true }).first()).toBeVisible();
 });
+
+test("VALD ForceDecks: the card shows the latest test's best jump; the record compares with the previous best and trends from three tests", async ({ page }) => {
+  // synthetic sessions as the core groups them (labs.forcedecks; grouping is tested in health-core): three tests, the
+  // latest with three jumps, the best being the second
+  const h = "x:fd/cmj/jump_height_imp_mom";
+  const now = Date.now();
+  const jump = (at: number, v: number) => ({ start_ms: at, tz_min: 480, device: "forcedecks-01", values: { [h]: v, "x:fd/cmj/peak_power": 3000 + v } });
+  const sessions = [
+    { device: "forcedecks-01", test: "cmj", best: 1, trials: [jump(now - 300_000, 31.2), jump(now - 240_000, 34.6), jump(now - 180_000, 32.0)] },
+    { device: "forcedecks-01", test: "cmj", best: 0, trials: [jump(now - 7 * 86_400_000, 33.1)] },
+    { device: "forcedecks-01", test: "cmj", best: 0, trials: [jump(now - 14 * 86_400_000, 30.4)] },
+  ];
+  await page.route("**/v1/op/labs.forcedecks", (r) => r.fulfill({ json: { value: sessions, withheld: null } }));
+  // the lab source and the latest points of its jump (the last jump's value: the card must show the best one)
+  await page.route("**/v1/op/source.list", async (r) => {
+    const res = await r.fetch();
+    const body = (await res.json()) as { value: unknown[] };
+    body.value.push({ id: 9999, connector: "lab", external_id: "forcedecks-01", name: "VALD ForceDecks", priority: 50 });
+    await r.fulfill({ response: res, json: body });
+  });
+  await page.route("**/v1/op/obs.latest", async (r) => {
+    const res = await r.fetch();
+    const body = (await res.json()) as { value: unknown[] };
+    for (const [metric, v, unit] of [[h, 32.0, "cm"], ["x:fd/cmj/peak_power", 3032, "W"]] as const)
+      body.value.push({ metric, name: metric, unit, agg: "instant", group: "activity", category: "force", start_ms: now - 180_000, tz_min: 480, value: v, source_id: 9999, import_id: 1, corrected: false });
+    await r.fulfill({ response: res, json: body });
+  });
+  await page.goto("/");
+  const card = page.locator("section.section#g-force");
+  await expect(card.getByRole("heading", { name: "Strength and jumps" })).toBeVisible();
+  // the best jump (34.6), not the last (32)
+  await expect(card).toContainText("34.6");
+  await card.getByRole("button", { name: /VALD ForceDecks test record/ }).click();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet).toContainText("3 jumps");
+  await expect(sheet).toContainText("Below is this test's best jump (jump 2)");
+  // against the previous test's best (33.1): up 1.5
+  await expect(sheet.getByRole("img", { name: /Compared with last time: \+1\.5 cm/ })).toBeVisible();
+  await expect(sheet.getByRole("figure", { name: "Trend over 3 tests" })).toBeVisible();
+  // another jump: no comparison or trend for it
+  await sheet.getByRole("button", { name: /^Jump 1/ }).click();
+  await expect(sheet).toContainText("Below is jump 1");
+  await expect(sheet.getByRole("figure")).toHaveCount(0);
+  // an older test from History, then back to the latest
+  await sheet.getByRole("button", { name: "History" }).click();
+  await sheet.getByRole("list", { name: "Test history" }).getByRole("button").nth(1).click();
+  await expect(sheet.getByRole("status")).toContainText("Viewing the test of");
+  await sheet.getByRole("button", { name: "Back to the latest" }).click();
+  await expect(sheet).toContainText("3 jumps");
+});
+
+test("seca mBCA Pro: a report row on the body card replaces the measurement's loose values; the report compares with last time", async ({ page }) => {
+  const now = Date.now();
+  const scan = (at: number, fmp: number, smm: number) => ({
+    start_ms: at,
+    tz_min: 480,
+    device: "seca-mbca-01",
+    values: {
+      "loinc:41982-0": fmp,
+      "x:body_skeletal_muscle_mass": smm,
+      "loinc:29463-7": 70.4,
+      "x:skeletal_muscle_mass_torso": 12.31,
+      "x:seca/biva_z_r_h": -0.8,
+      "x:seca/biva_z_xc_h": 0.5,
+      "x:seca/bcc": "Athletic",
+      "x:seca/bcc_weight": "NormalWeight",
+      "x:seca/bcc_muscle": "HighMuscle",
+    },
+  });
+  const scans = [scan(now - 3_600_000, 18.2, 31.4), scan(now - 30 * 86_400_000, 19.6, 30.9)];
+  await page.route("**/v1/op/labs.body_scans", (r) => r.fulfill({ json: { value: scans, withheld: null } }));
+  await page.route("**/v1/op/source.list", async (r) => {
+    const res = await r.fetch();
+    const body = (await res.json()) as { value: unknown[] };
+    body.value.push({ id: 9998, connector: "lab", external_id: "seca-mbca-01", name: "seca mBCA Pro", priority: 50 });
+    await r.fulfill({ response: res, json: body });
+  });
+  await page.route("**/v1/op/obs.latest", async (r) => {
+    const res = await r.fetch();
+    const body = (await res.json()) as { value: { metric: string }[] };
+    // the measurement's body fat as a loose latest point: the card must leave it to the report
+    body.value = body.value.filter((p) => p.metric !== "loinc:41982-0");
+    body.value.push({ metric: "loinc:41982-0", name: "Body fat", unit: "%", agg: "instant", group: "body", category: "body", start_ms: now - 3_600_000, tz_min: 480, value: 18.2, source_id: 9998, import_id: 1, corrected: false } as never);
+    await r.fulfill({ response: res, json: body });
+  });
+  await page.goto("/");
+  const card = page.locator("section.section#g-body");
+  const row = card.getByRole("button", { name: /Body composition report/ });
+  await expect(row).toContainText("Body fat 18.2 %");
+  await expect(card.locator(".tile", { hasText: "Body fat" })).toHaveCount(0);
+  await row.click();
+  const sheet = page.getByRole("dialog");
+  const fat = sheet.getByRole("region", { name: "Body fat percentage" });
+  await expect(fat).toContainText("18.2");
+  await expect(fat.getByRole("img", { name: /Compared with last time: −1\.4 %/ })).toBeVisible();
+  await expect(sheet.getByRole("region", { name: "Body composition chart" })).toContainText("Athletic");
+  await expect(sheet.getByRole("img", { name: /Z\(R\/H\) -0\.80/ })).toBeVisible();
+  await sheet.getByRole("button", { name: "History" }).click();
+  await sheet.getByRole("list", { name: "Measurement history" }).getByRole("button").nth(1).click();
+  await expect(sheet.getByRole("status")).toContainText("Viewing the measurement of");
+  await sheet.getByRole("button", { name: "Back to the latest" }).click();
+  await expect(sheet.getByRole("region", { name: "Body fat percentage" })).toContainText("18.2");
+});

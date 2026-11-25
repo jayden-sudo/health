@@ -6,7 +6,7 @@ import { locale, t, tk } from "./i18n";
 const UNITS: Record<string, string> = {
   "mm[Hg]": "mmHg", Cel: "°C", "[lb_av]": "lb", "[oz_av]": "oz", "[stone_av]": "st", "[in_i]": "in", "[ft_i]": "ft",
   "[mi_i]": "mi", "[degF]": "°F", "[IU]/L": "IU/L", "m[IU]/L": "mIU/L", "u[IU]/mL": "uIU/mL", "meq/L": "mEq/L",
-  "1": "", "/uL": "/µL", "/min": "/min", "mL/min/{1.73_m2}": "mL/min/1.73m²",
+  "1": "", "/uL": "/µL", "/min": "/min", "mL/min/{1.73_m2}": "mL/min/1.73m²", "N.s": "N·s",
 };
 const SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹";
 export function unitLabel(u: string): string {
@@ -143,6 +143,13 @@ export const GROUPS: { key: string; label: string; sensitive: boolean }[] = [
   { key: "lab_other", label: tk("Other lab tests"), sensitive: true },
   { key: "other", label: tk("Other"), sensitive: true },
   { key: "derived", label: tk("Computed by agents"), sensitive: true },
+];
+/** The home page's categories: the groups, with lab devices that have a card of their own (VALD ForceDecks: force,
+ *  after activity, as the web's model.ts). Exports and grants keep using GROUPS. */
+export const HOME_GROUPS: { key: string; label: string; sensitive: boolean }[] = [
+  ...GROUPS.slice(0, 4),
+  { key: "force", label: tk("Strength and jumps"), sensitive: false },
+  ...GROUPS.slice(4),
 ];
 export const groupLabel = (k: string) => t(GROUPS.find((g) => g.key === k)?.label ?? k);
 

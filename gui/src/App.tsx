@@ -10,6 +10,8 @@ import {
   type OcrItem,
   OpError,
   type Point,
+  type FdSession,
+  type Measurement,
   type Source,
   type Status,
   agentClients,
@@ -39,6 +41,7 @@ import { CLIENTS, type Client } from "./agents";
 import { KEY, codesNamed, nameOf } from "./names";
 import {
   GROUPS,
+  HOME_GROUPS,
   type ImportKind,
   KIND_LABEL,
   ago,
@@ -355,7 +358,7 @@ export function App() {
       </main>
     );
   const open = (code: string) => setMetric(code);
-  const present = GROUPS.filter((g) => latest?.some((p) => p.group === g.key));
+  const present = HOME_GROUPS.filter((g) => latest?.some((p) => p.category === g.key));
   const syncAsking = !!syncLive?.peers.some((x) => x.state === "asking");
   const navItem = (p: { key: Page; label: string }, hint?: string, quiet = false) => (
     <li key={p.key}>
@@ -1114,6 +1117,7 @@ const GROUP_ICON: Record<string, ReactNode> = {
   cardio: <path d="M8 13.5S2.5 10 2.5 6.2A2.7 2.7 0 0 1 8 5a2.7 2.7 0 0 1 5.5 1.2C13.5 10 8 13.5 8 13.5z" />,
   sleep: <path d="M12.5 10A5.5 5.5 0 0 1 6 3.5a5.5 5.5 0 1 0 6.5 6.5z" />,
   activity: <path d="M9 2L4 9h4l-1 5 5-7H8z" />,
+  force: <path d="M8 12V3M4.5 6.5 8 3l3.5 3.5M3 14h10" />,
   lab: <path d="M6 2h4M6.5 2v4L3 13a1 1 0 0 0 .9 1.4h8.2A1 1 0 0 0 13 13L9.5 6V2" />,
   infectious: <path d="M8 2l5 2v4c0 3-2.2 5.2-5 6-2.8-.8-5-3-5-6V4z" />,
   tumor: (
@@ -1212,7 +1216,14 @@ function useColumns(): [React.RefObject<HTMLDivElement>, number] {
   return [ref, cols];
 }
 
-function Section({ g, rows, sources, open, all }: { g: (typeof GROUPS)[number]; rows: Point[]; sources: Source[]; open: (code: string) => void; all: boolean }) {
+function Section({
+  g,
+  rows,
+  sources,
+  open,
+  all,
+  report,
+}: { g: (typeof GROUPS)[number]; rows: Point[]; sources: Source[]; open: (code: string) => void; all: boolean; report?: ReactNode }) {
   const [more, setMore] = useState(false);
   const [grid, cols] = useColumns();
   const key = KEY[g.key] ?? [];
@@ -1252,6 +1263,7 @@ function Section({ g, rows, sources, open, all }: { g: (typeof GROUPS)[number]; 
           <AnyTile key={p.metric} p={p} open={open} lab={lab} />
         ))}
       </div>
+      {report}
       {from.length > 0 && (
         <p className="fine from">
           {new Set(from).size > 3
@@ -1285,6 +1297,10 @@ function Readings({
 }) {
   const search = useRef<HTMLInputElement>(null);
   const [sources] = useOp(() => op<Source[]>("source.list"), []);
+  const [fd] = useOp(() => op<FdSession[]>("labs.forcedecks"), []);
+  const [fdOpen, setFdOpen] = useState(false);
+  const [scans] = useOp(() => op<Measurement[]>("labs.body_scans"), []);
+  const [secaOpen, setSecaOpen] = useState(false);
   const [q, setQ] = useState("");
   useEffect(() => {
     if (find && search.current) {
@@ -1299,7 +1315,7 @@ function Readings({
     const io = new IntersectionObserver(
       (entries) => {
         for (const x of entries) seen.set(x.target.id.slice(2), x.isIntersecting);
-        const first = GROUPS.find((g) => seen.get(g.key));
+        const first = HOME_GROUPS.find((g) => seen.get(g.key));
         onSection(window.scrollY < 40 ? null : (first?.key ?? null));
       },
       { rootMargin: "-80px 0px -60% 0px" },
@@ -1331,7 +1347,16 @@ function Readings({
     );
   const needle = q.trim().toLowerCase();
   const match = (p: Point) => !needle || nameOf(p.metric, p.name).toLowerCase().includes(needle) || p.name.toLowerCase().includes(needle);
-  const groups = GROUPS.map((g) => ({ g, rows: latest.filter((p) => p.group === g.key && match(p)) })).filter((x) => x.rows.length);
+  // the latest time on the VALD ForceDecks plates shows its best jump, not its last one (the web's withBestJump)
+  const fdLatest = fd?.[0];
+  // values a seca measurement gave are in its report, not loose on the body card (weight, height, BMI stay)
+  const unscanned = scans?.length ? withoutScans(latest, scans, sources ?? []) : latest;
+  const rowsOf = fdLatest ? withBestJump(unscanned, fdLatest, sources ?? []) : unscanned;
+  // a body composition measurement keeps the body card even when it holds nothing else (as the web's home)
+  const withReport = (key: string) => (key === "body" && !!scans?.length && !needle) || (key === "force" && !!fdLatest && !needle);
+  const groups = HOME_GROUPS.map((g) => ({ g, rows: rowsOf.filter((p) => p.category === g.key && match(p)) })).filter(
+    (x) => x.rows.length || withReport(x.g.key),
+  );
   const newest = Math.max(...latest.map((p) => p.start_ms));
   return (
     <section className="page wide">
@@ -1366,8 +1391,32 @@ function Readings({
       )}
       {!groups.length && <p className="empty">{t("No measure matches “{{q}}”.", { q })}</p>}
       {groups.map(({ g, rows }) => (
-        <Section key={g.key} g={g} rows={rows} sources={sources ?? []} open={open} all={!!needle} />
+        <Section
+          key={g.key}
+          g={g}
+          rows={rows}
+          sources={sources ?? []}
+          open={open}
+          all={!!needle}
+          report={
+            g.key === "force" && fdLatest ? (
+              <FdReportRow session={fdLatest} open={() => setFdOpen(true)} />
+            ) : g.key === "body" && scans?.[0] ? (
+              <SecaReportRow scan={scans[0]} open={() => setSecaOpen(true)} />
+            ) : undefined
+          }
+        />
       ))}
+      {secaOpen && scans && (
+        <Sheet label={t("Body composition")} close={() => setSecaOpen(false)}>
+          <SecaReport scans={scans} />
+        </Sheet>
+      )}
+      {fdOpen && fd && (
+        <Sheet label={t("VALD ForceDecks tests")} close={() => setFdOpen(false)}>
+          <FdReport sessions={fd} />
+        </Sheet>
+      )}
     </section>
   );
 }
@@ -4096,5 +4145,693 @@ function About({ version }: { version?: string }) {
         <Row icon={<Icon k="scale" />} label={t("Open-source licenses")} onClick={() => setView("licenses")} />
       </ul>
     </section>
+  );
+}
+
+// ---- VALD ForceDecks (as the web's fd-report.tsx; grouping and the best jump come from the core, labs.rs) ----------
+
+/** The figure each test's best jump is picked by (the core's labs::key_of) */
+const FD_KEY: Record<string, string> = { cmj: "x:fd/cmj/jump_height_imp_mom" };
+/** A test's rows, in the web's order (FD_BY_TEST), with their unit */
+const FD_ROWS: Record<string, [string, string][]> = {
+  cmj: [
+    ["x:fd/cmj/jump_height_imp_mom", "cm"],
+    ["x:fd/cmj/jump_height_flight_time", "cm"],
+    ["x:fd/cmj/rsi_modified", "m/s"],
+    ["x:fd/cmj/flight_time", "ms"],
+    ["x:fd/cmj/contraction_time", "ms"],
+    ["x:fd/cmj/eccentric_duration", "ms"],
+    ["x:fd/cmj/concentric_duration", "ms"],
+    ["x:fd/cmj/peak_power", "W"],
+    ["x:fd/cmj/peak_power_bm", "W/kg"],
+    ["x:fd/cmj/concentric_mean_force_bm", "N/kg"],
+    ["x:fd/cmj/concentric_impulse", "N.s"],
+    ["x:fd/cmj/countermovement_depth", "cm"],
+    ["x:fd/cmj/concentric_peak_velocity", "m/s"],
+    ["x:fd/cmj/eccentric_braking_rfd", "N/s"],
+    ["x:fd/cmj/body_mass", "kg"],
+  ],
+};
+/** Trends need this many sessions: two points look like a broken divider (the web's TREND_MIN) */
+const TREND_MIN = 3;
+
+const fdStart = (s: FdSession) => s.trials[0]!.start_ms;
+const fdBest = (s: FdSession) => s.trials[s.best]!;
+const testLabel = (test: string) => (test === "cmj" ? t("Countermovement jump (CMJ)") : test.toUpperCase());
+const figure = (m: Measurement | undefined, code: string): number | null => {
+  const v = m?.values[code];
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+};
+
+/** The home page's rows with the latest time on the plates' best jump in place of the latest jump (same device) */
+function withBestJump(rows: Point[], s: FdSession, sources: Source[]): Point[] {
+  const best = fdBest(s);
+  const device = (id: number) => sources.find((x) => x.id === id);
+  return rows.map((p) => {
+    const src = device(p.source_id);
+    return src?.connector === "lab" && src.external_id === s.device && p.metric in best.values
+      ? { ...p, value: best.values[p.metric] ?? null, start_ms: best.start_ms, tz_min: best.tz_min }
+      : p;
+  });
+}
+
+/** A jump's key figure with its unit, as lists tell jumps apart */
+function keyText(s: FdSession, k: number): string {
+  const code = FD_KEY[s.test];
+  const v = code ? figure(s.trials[k], code) : null;
+  const unit = FD_ROWS[s.test]?.find(([c]) => c === code)?.[1] ?? "";
+  return v === null ? "–" : `${num(v)} ${unitLabel(unit)}`.trim();
+}
+
+/** The session before session i of the same test and device (sessions newest first) */
+const previousOf = (list: FdSession[], i: number) => list.slice(i + 1).find((p) => p.test === list[i]!.test && p.device === list[i]!.device);
+
+function deltaOf(list: FdSession[], i: number, code: string): number | null {
+  const p = previousOf(list, i);
+  const a = figure(fdBest(list[i]!), code);
+  const b = p ? figure(fdBest(p), code) : null;
+  return a === null || b === null ? null : a - b;
+}
+
+function trendOf(list: FdSession[], i: number, code: string): { v: number; at: number }[] {
+  const s = list[i]!;
+  const out: { v: number; at: number }[] = [];
+  for (let k = list.length - 1; k >= i; k--) {
+    const p = list[k]!;
+    if (p.test !== s.test || p.device !== s.device) continue;
+    const v = figure(fdBest(p), code);
+    if (v !== null) out.push({ v, at: fdStart(p) });
+  }
+  return out;
+}
+
+/** On the home page's Strength and jumps card: the latest time on the plates, its jumps and its best jump. */
+function FdReportRow({ session, open }: { session: FdSession; open: () => void }) {
+  return (
+    <ul className="rows-card report-row">
+      <Row
+        icon={<GroupIcon k="force" />}
+        label={t("VALD ForceDecks test record")}
+        sub={`${shortDate(fdStart(session))} · ${t("{{count}} jumps", { count: session.trials.length })}`}
+        value={t("Best jump {{v}}", { v: keyText(session, session.best) })}
+        onClick={open}
+      />
+    </ul>
+  );
+}
+
+function Delta({ d, unit }: { d: number | null; unit: string }) {
+  if (d === null || num(Math.abs(d)).replace(/[0.,\s]/g, "") === "") return null;
+  const text = `${d > 0 ? "↑" : "↓"} ${num(Math.abs(d))}`;
+  return (
+    <span className="fd-delta" role="img" aria-label={t("Compared with last time: {{d}}", { d: `${d > 0 ? "+" : "−"}${num(Math.abs(d))} ${unit}`.trim() })}>
+      {t("vs last time")} {text}
+    </span>
+  );
+}
+
+function FdTrend({ list, i, code }: { list: FdSession[]; i: number; code: string }) {
+  const pts = trendOf(list, i, code);
+  if (pts.length < TREND_MIN) return null;
+  const lo = Math.min(...pts.map((p) => p.v));
+  const hi = Math.max(...pts.map((p) => p.v));
+  const xy = pts.map((p, k) => ({ x: (k / (pts.length - 1)) * 100, y: hi === lo ? 50 : 90 - ((p.v - lo) / (hi - lo)) * 80 }));
+  return (
+    <figure className="fd-trend" aria-label={t("Trend over {{count}} tests", { count: pts.length })}>
+      <div className="fd-plot">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <polyline points={xy.map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+        </svg>
+        {/* round dots over the stretched line, this test's filled */}
+        {xy.map((p, k) => (
+          <span key={pts[k]!.at} className={`fd-dot${k === xy.length - 1 ? " now" : ""}`} style={{ left: `${p.x}%`, top: `${p.y}%` }} />
+        ))}
+      </div>
+      <figcaption className="fine">
+        <span>{shortDate(pts[0]!.at)}</span>
+        <span>{t("This test")}</span>
+      </figcaption>
+    </figure>
+  );
+}
+
+/** VALD ForceDecks tests: the latest by default; each jump can be opened; the best jump against the previous
+ *  best of the same test; a trend from three tests; every test in History. */
+function FdReport({ sessions }: { sessions: FdSession[] }) {
+  const [i, setI] = useState(0);
+  const [jump, setJump] = useState<number | null>(null);
+  const [hist, setHist] = useState(false);
+  const at = Math.min(i, Math.max(0, sessions.length - 1));
+  const cur = sessions[at];
+  if (!cur)
+    return (
+      <div className="form">
+        <h3>{t("No VALD ForceDecks tests yet")}</h3>
+        <p className="fine">{t("After a test on VALD ForceDecks at the lab, the results show here.")}</p>
+      </div>
+    );
+  const k = jump !== null && jump < cur.trials.length ? jump : cur.best;
+  const tr = cur.trials[k]!;
+  const onBest = k === cur.best;
+  const pick = (n: number) => {
+    setI(n);
+    setJump(null);
+    setHist(false);
+  };
+  return (
+    <div className="fd">
+      <header className="fd-head">
+        <div>
+          <h3>{t("VALD ForceDecks tests")}</h3>
+          <p className="fine">VALD ForceDecks · {when(fdStart(cur))}</p>
+        </div>
+        <button type="button" aria-expanded={hist} onClick={() => setHist(!hist)}>
+          {t("History")}
+        </button>
+      </header>
+      {hist && (
+        <ul className="rows-card" aria-label={t("Test history")}>
+          {sessions.map((s, n) => (
+            <li key={`${s.device}|${s.test}|${fdStart(s)}`}>
+              <button type="button" className="row-btn" aria-current={n === at ? "true" : undefined} onClick={() => pick(n)}>
+                <span className="row-l">
+                  <strong>{when(fdStart(s))}</strong>
+                  <span className="fine">
+                    {testLabel(s.test)} · {t("{{count}} jumps", { count: s.trials.length })} · {keyText(s, s.best)}
+                  </span>
+                </span>
+                {n === 0 && <span className="tag">{t("Latest")}</span>}
+                {n === at && <span aria-hidden="true">✓</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {at > 0 && (
+        <p className="notice banner" role="status">
+          <span>{t("Viewing the test of {{date}}", { date: when(fdStart(cur)) })}</span>
+          <button type="button" onClick={() => pick(0)}>
+            {t("Back to the latest")}
+          </button>
+        </p>
+      )}
+      <section aria-label={testLabel(cur.test)}>
+        <h4>
+          {testLabel(cur.test)} <span className="fine">{t("{{count}} jumps", { count: cur.trials.length })}</span>
+        </h4>
+        <p className="fine">
+          {onBest
+            ? cur.trials.length > 1
+              ? t("Below is this test's best jump (jump {{k}})", { k: k + 1 })
+              : t("One jump this time")
+            : t("Below is jump {{k}}, at {{time}}", { k: k + 1, time: new Date(tr.start_ms).toLocaleTimeString([], { timeStyle: "short" }) })}
+        </p>
+        {cur.trials.length > 1 && (
+          <div className="fd-jumps" role="group" aria-label={t("Each jump")}>
+            {cur.trials.map((x, n) => (
+              <button key={x.start_ms} type="button" aria-pressed={n === k} className={n === k ? "on" : ""} onClick={() => setJump(n === cur.best ? null : n)}>
+                {t("Jump {{k}}", { k: n + 1 })} · {keyText(cur, n)}
+                {n === cur.best && <span className="tag">{t("Best")}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+      <dl className="fd-vals" aria-label={t("Each measure")}>
+        {(FD_ROWS[cur.test] ?? []).map(([code, unit]) => {
+          const v = figure(tr, code);
+          const u = unitLabel(unit);
+          return (
+            <div key={code} className={code === FD_KEY[cur.test] ? "key" : ""}>
+              <dt>{nameOf(code, code)}</dt>
+              <dd>
+                {v === null ? "–" : num(v)}
+                {v !== null && u ? <small> {u}</small> : null}
+                {onBest && <Delta d={deltaOf(sessions, at, code)} unit={u} />}
+              </dd>
+              {onBest && code === FD_KEY[cur.test] && <FdTrend list={sessions} i={at} code={code} />}
+            </div>
+          );
+        })}
+      </dl>
+      <p className="fine">{t("Each test is compared by its best jump with the previous test's best jump.")}</p>
+    </div>
+  );
+}
+
+// ---- seca mBCA Pro body composition report (as the web's seca.tsx and seca-model.ts) ------------------------------
+// Values only: seca's reference ranges, ratings and age percentiles aren't in the exported data, so none are drawn.
+
+const C = {
+  weight: "loinc:29463-7",
+  height: "loinc:8302-2",
+  bmi: "loinc:39156-5",
+  fmp: "loinc:41982-0",
+  smm: "x:body_skeletal_muscle_mass",
+  wc: "x:waist_circumference",
+  r: "x:bia_resistance",
+  xc: "x:bia_reactance",
+  fm: "x:fat_mass",
+  fmi: "x:fat_mass_index",
+  ffm: "x:fat_free_mass",
+  ffmp: "x:fat_free_mass_percentage",
+  ffmi: "x:fat_free_mass_index",
+  tbw: "x:total_body_water",
+  tbwp: "x:total_body_water_percentage",
+  ecw: "x:extracellular_water",
+  ecwp: "x:extracellular_water_percentage",
+  wr: "x:ecw_tbw_ratio",
+  smmp: "x:skeletal_muscle_mass_percentage",
+  smi: "x:skeletal_muscle_index",
+  asmm: "x:appendicular_skeletal_muscle_mass",
+  asmi: "x:appendicular_skeletal_muscle_index",
+  asmp: "x:appendicular_skeletal_muscle_percentage",
+  pha: "x:phase_angle",
+  vat: "x:visceral_adipose_tissue",
+  ree: "x:resting_energy_expenditure",
+  tee: "x:total_energy_expenditure",
+  smoa: "x:seca/smm_over_age",
+  smoaBi: "x:seca/smm_over_age_bmi_independent",
+  zsmi: "x:seca/zsmi",
+  bivaR: "x:seca/biva_z_r_h",
+  bivaXc: "x:seca/biva_z_xc_h",
+  tbs: "x:seca/tbs",
+  tbsMuscle: "x:seca/tbs_muscle",
+  tbsFat: "x:seca/tbs_fat",
+  bcc: "x:seca/bcc",
+  bccWeight: "x:seca/bcc_weight",
+  bccMuscle: "x:seca/bcc_muscle",
+} as const;
+type Seg = "torso" | "rightArm" | "leftArm" | "rightLeg" | "leftLeg";
+const SSMM: Record<Seg, string> = {
+  torso: "x:skeletal_muscle_mass_torso",
+  rightArm: "x:skeletal_muscle_mass_right_arm",
+  leftArm: "x:skeletal_muscle_mass_left_arm",
+  rightLeg: "x:skeletal_muscle_mass_right_leg",
+  leftLeg: "x:skeletal_muscle_mass_left_leg",
+};
+const SSMM_BI: Record<Seg, string> = {
+  torso: "x:seca/ssmm_torso_bmi_independent",
+  rightArm: "x:seca/ssmm_right_arm_bmi_independent",
+  leftArm: "x:seca/ssmm_left_arm_bmi_independent",
+  rightLeg: "x:seca/ssmm_right_leg_bmi_independent",
+  leftLeg: "x:seca/ssmm_left_leg_bmi_independent",
+};
+const WEIGHT_LEVELS = ["LowWeight", "NormalWeight", "HighWeight", "VeryHighWeight"];
+const MUSCLE_LEVELS = ["LowMuscle", "NormalMuscle", "HighMuscle", "VeryHighMuscle"];
+const KCAL_TO_MJ = 0.004184;
+/* weight, height and BMI stay on the body card even when seca measured them last */
+const BASIC = new Set([C.weight, C.height, C.bmi]);
+
+const fixed = (v: number, digits: number) => v.toLocaleString(i18nLocale(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const textOf = (m: Measurement | undefined, code: string): string | null => {
+  const v = m?.values[code];
+  return typeof v === "string" && v.trim() ? v.trim() : null;
+};
+
+/** The home page's rows without the values a seca measurement gave (they're in its report); weight, height, BMI stay */
+function withoutScans(rows: Point[], scans: Measurement[], sources: Source[]): Point[] {
+  const keys = new Set(scans.map((s) => `${s.device}|${s.start_ms}`));
+  return rows.filter((p) => {
+    if (BASIC.has(p.metric as (typeof C)["weight"])) return true;
+    const src = sources.find((x) => x.id === p.source_id);
+    return !(src?.connector === "lab" && keys.has(`${src.external_id}|${p.start_ms}`));
+  });
+}
+
+type SecaCtx = { scans: Measurement[]; i: number };
+
+function SecaDelta({ ctx, code, digits, scale = 1, unit, label = true }: { ctx: SecaCtx; code: string; digits: number; scale?: number; unit?: string; label?: boolean }) {
+  const now = figure(ctx.scans[ctx.i], code);
+  const before = figure(ctx.scans[ctx.i + 1], code);
+  const d = now === null || before === null ? null : Number(((now - before) * scale).toFixed(digits));
+  if (d === null || d === 0) return null;
+  return (
+    <span className="fd-delta" role="img" aria-label={t("Compared with last time: {{d}}", { d: `${d > 0 ? "+" : "−"}${fixed(Math.abs(d), digits)} ${unit ?? ""}`.trim() })}>
+      {label ? `${t("vs last time")} ` : ""}
+      {d > 0 ? "↑" : "↓"} {fixed(Math.abs(d), digits)}
+    </span>
+  );
+}
+
+function SecaTrend({ ctx, code }: { ctx: SecaCtx; code: string }) {
+  const pts: { v: number; at: number }[] = [];
+  for (let k = ctx.scans.length - 1; k >= ctx.i; k--) {
+    const v = figure(ctx.scans[k], code);
+    if (v !== null) pts.push({ v, at: ctx.scans[k]!.start_ms });
+  }
+  if (pts.length < TREND_MIN) return null;
+  const lo = Math.min(...pts.map((p) => p.v));
+  const hi = Math.max(...pts.map((p) => p.v));
+  const xy = pts.map((p, k) => ({ x: (k / (pts.length - 1)) * 100, y: hi === lo ? 50 : 90 - ((p.v - lo) / (hi - lo)) * 80 }));
+  return (
+    <figure className="fd-trend" aria-label={t("Trend over {{count}} measurements", { count: pts.length })}>
+      <div className="fd-plot">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <polyline points={xy.map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+        </svg>
+        {xy.map((p, k) => (
+          <span key={pts[k]!.at} className={`fd-dot${k === xy.length - 1 ? " now" : ""}`} style={{ left: `${p.x}%`, top: `${p.y}%` }} />
+        ))}
+      </div>
+      <figcaption className="fine">
+        <span>{shortDate(pts[0]!.at)}</span>
+        <span>{t("This measurement")}</span>
+      </figcaption>
+    </figure>
+  );
+}
+
+type SecaMain = { code: string; unit: string; digits: number; scale?: number };
+type SecaSub = { label: string; code: string; unit: string; digits: number; scale?: number; pct?: string };
+
+function SecaCard({ ctx, title, abbr, main, subs = [], missing, children }: { ctx: SecaCtx; title: string; abbr: string; main?: SecaMain; subs?: SecaSub[]; missing?: string; children?: ReactNode }) {
+  const s = ctx.scans[ctx.i];
+  const v = main ? figure(s, main.code) : null;
+  return (
+    <section className="seca-card" aria-label={title}>
+      <header>
+        <h4>{title}</h4>
+        <span className="fine">{abbr}</span>
+      </header>
+      {main &&
+        (v !== null ? (
+          <p className="seca-v">
+            <b>{fixed(v * (main.scale ?? 1), main.digits)}</b>
+            {main.unit && <small> {main.unit}</small>}
+            <SecaDelta ctx={ctx} code={main.code} digits={main.digits} scale={main.scale ?? 1} unit={main.unit} />
+          </p>
+        ) : (
+          <p className="fine">{missing ?? t("No data")}</p>
+        ))}
+      {children}
+      {subs.length > 0 && (
+        <dl className="seca-sub">
+          {subs.map((x) => {
+            const sv = figure(s, x.code);
+            const pv = x.pct ? figure(s, x.pct) : null;
+            return (
+              <div key={x.code}>
+                <dt>{x.label}</dt>
+                <dd>
+                  {sv === null ? "–" : `${fixed(sv * (x.scale ?? 1), x.digits)}${x.unit ? ` ${x.unit}` : ""}`}
+                  {pv !== null ? ` (${fixed(pv, 1)} %)` : ""}
+                </dd>
+              </div>
+            );
+          })}
+        </dl>
+      )}
+      {main && v !== null && <SecaTrend ctx={ctx} code={main.code} />}
+    </section>
+  );
+}
+
+function ZScale({ z }: { z: number | null }) {
+  if (z === null) return null;
+  const pos = Math.min(1, Math.max(0, (z + 3) / 6));
+  return (
+    <div className="seca-scale" role="img" aria-label={t("Muscle mass z-score {{z}}", { z: fixed(z, 2) })}>
+      <div className="seca-track">
+        <span style={{ left: `${pos * 100}%` }} />
+      </div>
+      <div className="seca-ends fine">
+        <span>{t("Less muscle")}</span>
+        <span>{t("More muscle")}</span>
+      </div>
+    </div>
+  );
+}
+
+function Segments({ ctx, codes }: { ctx: SecaCtx; codes: Record<Seg, string> }) {
+  const s = ctx.scans[ctx.i];
+  const label: Record<Seg, string> = { torso: t("Torso"), rightArm: t("Right arm"), leftArm: t("Left arm"), rightLeg: t("Right leg"), leftLeg: t("Left leg") };
+  // the right limbs on the left, as when facing the person
+  const order: Seg[] = ["rightArm", "leftArm", "torso", "rightLeg", "leftLeg"];
+  return (
+    <div className="seca-segs">
+      {order.map((seg) => {
+        const v = figure(s, codes[seg]);
+        return (
+          <div key={seg} className={`seca-limb seg-${seg}`}>
+            <span className="fine">{label[seg]}</span>
+            <b>
+              {v === null ? "–" : fixed(v, 2)}
+              {v !== null && <small> kg</small>}
+            </b>
+            <SecaDelta ctx={ctx} code={codes[seg]} digits={2} unit="kg" label={false} />
+          </div>
+        );
+      })}
+      <svg className="seca-fig" viewBox="0 0 120 200" aria-hidden="true">
+        <circle cx="60" cy="18" r="13" />
+        <rect x="38" y="36" width="44" height="74" rx="10" />
+        <rect x="18" y="38" width="16" height="72" rx="8" />
+        <rect x="86" y="38" width="16" height="72" rx="8" />
+        <rect x="40" y="114" width="18" height="82" rx="9" />
+        <rect x="62" y="114" width="18" height="82" rx="9" />
+      </svg>
+    </div>
+  );
+}
+
+function WaterBar({ tbw, ecw }: { tbw: number | null; ecw: number | null }) {
+  if (tbw === null || ecw === null || tbw <= 0 || ecw < 0 || ecw > tbw) return null;
+  const share = (ecw / tbw) * 100;
+  return (
+    <div className="seca-water">
+      <div className="seca-bar" role="img" aria-label={t("Extracellular water is {{p}} % of total body water", { p: fixed(share, 1) })}>
+        <span className="ecw" style={{ width: `${share}%` }} />
+        <span className="icw" style={{ width: `${100 - share}%` }} />
+      </div>
+      <div className="seca-ends fine">
+        <span>
+          {t("Extracellular water")} {fixed(ecw, 1)} L
+        </span>
+        <span>
+          {t("Intracellular water")} {fixed(tbw - ecw, 1)} L
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function Biva({ zr, zxc }: { zr: number | null; zxc: number | null }) {
+  if (zr === null || zxc === null) return null;
+  const S = 160;
+  const clip = (z: number) => Math.min(4, Math.max(-4, z));
+  const x = ((clip(zr) + 4) / 8) * S;
+  const y = (1 - (clip(zxc) + 4) / 8) * S;
+  const g = (z: number) => ((z + 4) / 8) * S;
+  return (
+    <svg className="seca-biva" viewBox={`-24 -8 ${S + 32} ${S + 30}`} role="img" aria-label={`Z(R/H) ${fixed(zr, 2)}, Z(Xc/H) ${fixed(zxc, 2)}`}>
+      <rect x="0" y="0" width={S} height={S} className="bg" />
+      {[-2, 2].map((z) => (
+        <g key={z} className="grid">
+          <line x1={g(z)} y1="0" x2={g(z)} y2={S} />
+          <line x1="0" y1={S - g(z)} x2={S} y2={S - g(z)} />
+        </g>
+      ))}
+      <line className="axis" x1={S / 2} y1="0" x2={S / 2} y2={S} />
+      <line className="axis" x1="0" y1={S / 2} x2={S} y2={S / 2} />
+      <circle cx={x} cy={y} r="5" className="pt" />
+      <text x={S / 2} y={S + 18} textAnchor="middle">
+        Z(R/H)
+      </text>
+      <text x="-14" y={S / 2} textAnchor="middle" transform={`rotate(-90 -14 ${S / 2})`}>
+        Z(Xc/H)
+      </text>
+    </svg>
+  );
+}
+
+function bccLabel(v: string): string {
+  switch (v.replace(/[\s_-]+/g, "").toLowerCase()) {
+    case "average":
+      return t("Average build");
+    case "overweight":
+      return t("Overweight");
+    case "underweight":
+      return t("Underweight");
+    case "active":
+      return t("Active");
+    case "athletic":
+      return t("Athletic");
+    case "obese":
+    case "obesity":
+      return t("Obese");
+    case "sarcopenic":
+    case "sarcopenia":
+      return t("Sarcopenic");
+    case "sarcopenicobesity":
+      return t("Sarcopenic obesity");
+    default:
+      // a type not seen before: split the camel case so it reads
+      return v.replace(/([a-z])([A-Z])/g, "$1 $2");
+  }
+}
+
+function Bcc({ ctx }: { ctx: SecaCtx }) {
+  const s = ctx.scans[ctx.i];
+  const cls = textOf(s, C.bcc);
+  const w = textOf(s, C.bccWeight);
+  const m = textOf(s, C.bccMuscle);
+  if (!cls && !w && !m) return <p className="fine">{t("No data")}</p>;
+  const levels = [t("Low"), t("Normal"), t("High"), t("Very high")];
+  const row = (label: string, all: string[], v: string | null) => {
+    const k = v === null ? -1 : all.indexOf(v);
+    return (
+      <div className="seca-bcc-row">
+        <span className="fine">{label}</span>
+        {k >= 0 ? (
+          <ol className="seca-steps">
+            {all.map((lv, j) => (
+              <li key={lv} aria-current={j === k ? "true" : undefined}>
+                {levels[j]}
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <b>{v ?? "–"}</b>
+        )}
+      </div>
+    );
+  };
+  return (
+    <div>
+      {cls && <p className="seca-v">{bccLabel(cls)}</p>}
+      {row(t("Weight"), WEIGHT_LEVELS, w)}
+      {row(t("Muscle"), MUSCLE_LEVELS, m)}
+    </div>
+  );
+}
+
+function SecaCards({ ctx }: { ctx: SecaCtx }) {
+  const s = ctx.scans[ctx.i];
+  const ree = figure(s, C.ree);
+  const kg = "kg";
+  const kgm2 = "kg/m²";
+  const L = "L";
+  const kcal = "kcal/d";
+  const pts = t("points");
+  return (
+    <div className="seca-cards">
+      <SecaCard ctx={ctx} title={t("Fat mass index")} abbr="FMI" main={{ code: C.fmi, unit: kgm2, digits: 1 }} subs={[{ label: t("Fat mass"), code: C.fm, unit: kg, digits: 2 }, { label: t("Body fat percentage"), code: C.fmp, unit: "%", digits: 1 }]} />
+      <SecaCard ctx={ctx} title={t("Fat-free mass index")} abbr="FFMI" main={{ code: C.ffmi, unit: kgm2, digits: 1 }} subs={[{ label: t("Fat-free mass"), code: C.ffm, unit: kg, digits: 2, pct: C.ffmp }]} />
+      <SecaCard ctx={ctx} title={t("Body fat percentage")} abbr="FM %" main={{ code: C.fmp, unit: "%", digits: 1 }} subs={[{ label: t("Fat mass"), code: C.fm, unit: kg, digits: 2 }, { label: t("Fat mass index"), code: C.fmi, unit: kgm2, digits: 1 }]} />
+      <SecaCard ctx={ctx} title={t("Skeletal muscle mass")} abbr="SMM" main={{ code: C.smm, unit: kg, digits: 2 }} subs={[{ label: t("Skeletal muscle share of weight"), code: C.smmp, unit: "%", digits: 1 }, { label: t("Body mass index"), code: C.bmi, unit: kgm2, digits: 1 }]}>
+        <ZScale z={figure(s, C.zsmi)} />
+      </SecaCard>
+      <SecaCard ctx={ctx} title={t("Skeletal muscle index (MRI)")} abbr="SMI" main={{ code: C.smi, unit: kgm2, digits: 1 }} subs={[{ label: t("Skeletal muscle mass"), code: C.smm, unit: kg, digits: 2 }]} />
+      <SecaCard ctx={ctx} title={t("Skeletal muscle mass for age")} abbr="SMM" main={{ code: C.smoa, unit: kg, digits: 2 }} />
+      <SecaCard ctx={ctx} title={t("Phase angle")} abbr="PhA" main={{ code: C.pha, unit: "°", digits: 1 }} />
+      <SecaCard ctx={ctx} title={t("Water ratio")} abbr="ECW / TBW" main={{ code: C.wr, unit: "%", digits: 1 }} subs={[{ label: t("Total body water"), code: C.tbw, unit: L, digits: 1, pct: C.tbwp }, { label: t("Extracellular water"), code: C.ecw, unit: L, digits: 1, pct: C.ecwp }]} />
+      <SecaCard ctx={ctx} title={t("Visceral fat")} abbr="VAT" main={{ code: C.vat, unit: L, digits: 1 }} missing={t("No waist measurement, so it can't be calculated")} />
+      <SecaCard ctx={ctx} title={t("Appendicular skeletal muscle index (DXA)")} abbr="ASMI" main={{ code: C.asmi, unit: kgm2, digits: 1 }} subs={[{ label: t("Appendicular skeletal muscle mass"), code: C.asmm, unit: kg, digits: 2, pct: C.asmp }]} />
+      <SecaCard ctx={ctx} title={t("Waist circumference")} abbr="WC" main={{ code: C.wc, unit: "cm", digits: 1, scale: 100 }} />
+      <SecaCard ctx={ctx} title={t("Body composition chart")} abbr="BCC">
+        <Bcc ctx={ctx} />
+      </SecaCard>
+      <SecaCard ctx={ctx} title={t("Segmental skeletal muscle")} abbr="SSMM" subs={[{ label: t("Total skeletal muscle"), code: C.smm, unit: kg, digits: 2 }]}>
+        <Segments ctx={ctx} codes={SSMM} />
+      </SecaCard>
+      <SecaCard ctx={ctx} title={t("Body water")} abbr="TBW / ECW" subs={[{ label: t("Total body water"), code: C.tbw, unit: L, digits: 1, pct: C.tbwp }, { label: t("Extracellular water"), code: C.ecw, unit: L, digits: 1, pct: C.ecwp }]}>
+        <WaterBar tbw={figure(s, C.tbw)} ecw={figure(s, C.ecw)} />
+      </SecaCard>
+      <SecaCard ctx={ctx} title={t("Skeletal muscle mass for age (BMI-independent)")} abbr="SMM" main={{ code: C.smoaBi, unit: kg, digits: 2 }} />
+      <SecaCard ctx={ctx} title={t("Segmental skeletal muscle (BMI-independent)")} abbr="SSMM">
+        <Segments ctx={ctx} codes={SSMM_BI} />
+      </SecaCard>
+      <SecaCard ctx={ctx} title={t("Bioelectrical impedance vector analysis")} abbr="BIVA" subs={[{ label: t("Resistance"), code: C.r, unit: "Ω", digits: 1 }, { label: t("Reactance"), code: C.xc, unit: "Ω", digits: 1 }]}>
+        <Biva zr={figure(s, C.bivaR)} zxc={figure(s, C.bivaXc)} />
+      </SecaCard>
+      <SecaCard ctx={ctx} title={t("TRU body score")} abbr="TBS" main={{ code: C.tbs, unit: pts, digits: 0 }} subs={[{ label: t("Muscle score"), code: C.tbsMuscle, unit: pts, digits: 0 }, { label: t("Fat score"), code: C.tbsFat, unit: pts, digits: 0 }]} />
+      <SecaCard ctx={ctx} title={t("Resting energy expenditure")} abbr="REE" main={{ code: C.ree, unit: kcal, digits: 0 }} subs={[{ label: t("Total energy expenditure"), code: C.tee, unit: kcal, digits: 0 }]}>
+        {ree !== null && <p className="fine">{t("About {{mj}} MJ a day", { mj: fixed(ree * KCAL_TO_MJ, 2) })}</p>}
+        {figure(s, C.tee) === null && <p className="fine">{t("No activity level (PAL), so total energy expenditure can't be calculated")}</p>}
+      </SecaCard>
+      <SecaCard ctx={ctx} title={t("Body mass index")} abbr="BMI" main={{ code: C.bmi, unit: kgm2, digits: 1 }} subs={[{ label: t("Weight"), code: C.weight, unit: kg, digits: 1 }, { label: t("Height"), code: C.height, unit: "cm", digits: 1, scale: 100 }]} />
+      <SecaCard ctx={ctx} title={t("Weight")} abbr="Weight" main={{ code: C.weight, unit: kg, digits: 1 }} />
+    </div>
+  );
+}
+
+/** seca mBCA Pro body composition (as the web's seca.tsx): the latest measurement, History for the others. */
+function SecaReport({ scans }: { scans: Measurement[] }) {
+  const [i, setI] = useState(0);
+  const [hist, setHist] = useState(false);
+  const at = Math.min(i, Math.max(0, scans.length - 1));
+  const cur = scans[at];
+  if (!cur)
+    return (
+      <div className="form">
+        <h3>{t("No body composition data yet")}</h3>
+        <p className="fine">{t("After a seca mBCA Pro measurement at the lab, the results show here.")}</p>
+      </div>
+    );
+  return (
+    <div className="fd">
+      <header className="fd-head">
+        <div>
+          <h3>{t("Body composition")}</h3>
+          <p className="fine">seca mBCA Pro · {when(cur.start_ms)}</p>
+        </div>
+        <button type="button" aria-expanded={hist} onClick={() => setHist(!hist)}>
+          {t("History")}
+        </button>
+      </header>
+      {hist && (
+        <ul className="rows-card" aria-label={t("Measurement history")}>
+          {scans.map((s, k) => (
+            <li key={`${s.device}|${s.start_ms}`}>
+              <button
+                type="button"
+                className="row-btn"
+                aria-current={k === at ? "true" : undefined}
+                onClick={() => {
+                  setI(k);
+                  setHist(false);
+                }}
+              >
+                <span className="row-l">
+                  <strong>{when(s.start_ms)}</strong>
+                </span>
+                {k === 0 && <span className="tag">{t("Latest")}</span>}
+                {k === at && <span aria-hidden="true">✓</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {at > 0 && (
+        <p className="notice banner" role="status">
+          <span>{t("Viewing the measurement of {{date}}", { date: when(cur.start_ms) })}</span>
+          <button type="button" onClick={() => setI(0)}>
+            {t("Back to the latest")}
+          </button>
+        </p>
+      )}
+      <SecaCards ctx={{ scans, i: at }} />
+      <p className="fine">{t("For reference ranges and ratings, go by the report the lab gives you.")}</p>
+    </div>
+  );
+}
+
+/** On the home page's body card: the latest body composition measurement, its body fat and skeletal muscle. */
+function SecaReportRow({ scan, open }: { scan: Measurement; open: () => void }) {
+  const v = (code: string, unit: string, digits: number) => {
+    const x = figure(scan, code);
+    return x === null ? "–" : `${fixed(x, digits)} ${unit}`;
+  };
+  return (
+    <ul className="rows-card report-row">
+      <Row
+        icon={<GroupIcon k="body" />}
+        label={t("Body composition report")}
+        sub={`seca mBCA Pro · ${shortDate(scan.start_ms)}`}
+        value={`${t("Body fat")} ${v(C.fmp, "%", 1)} · ${t("Skeletal muscle")} ${v(C.smm, "kg", 1)}`}
+        onClick={open}
+      />
+    </ul>
   );
 }

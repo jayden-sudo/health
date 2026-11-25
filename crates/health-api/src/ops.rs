@@ -53,6 +53,8 @@ pub static OPS: &[OpDef] = &[
     op!("manual.edit", "Replace a manual entry", write: true, delegate: Never, manual_tx: false, manual_edit, ManualEdit, Entered),
     op!("manual.remove", "Delete a manual entry", write: true, delegate: Never, manual_tx: false, manual_remove, PointReq, Done),
     op!("obs.query", "Points of one metric in a time range (UTC ms, [from, to))", write: false, delegate: Read, manual_tx: false, obs_query, ObsQuery, Vec<Point>),
+    op!("labs.forcedecks", "ForceDecks jumps grouped into times on the plates, newest first, each with its best jump", write: false, delegate: Never, manual_tx: false, labs_forcedecks, Empty, Vec<health_core::labs::FdSession>),
+    op!("labs.body_scans", "seca body composition measurements, newest first", write: false, delegate: Never, manual_tx: false, labs_body_scans, Empty, Vec<health_core::labs::Measurement>),
     op!("obs.latest", "Newest point per metric", write: false, delegate: Read, manual_tx: false, obs_latest, Latest, Vec<Point>),
     op!("daily.query", "Daily summaries of one metric (one elected source per day)", write: false, delegate: Read, manual_tx: false, daily_query, DailyQuery, Vec<Day>),
     op!("daily.rebuild", "Rebuild every daily summary", write: true, delegate: Never, manual_tx: false, daily_rebuild, Empty, Done),
@@ -916,4 +918,12 @@ fn sync_set(ctx: &mut Ctx, r: SyncSet) -> Result<SyncShown> {
         Ok(())
     })?;
     sync_shown(ctx)
+}
+
+fn labs_forcedecks(ctx: &mut Ctx, _: Empty) -> Result<Vec<health_core::labs::FdSession>> {
+    health_core::labs::fd_sessions(ctx.db())
+}
+
+fn labs_body_scans(ctx: &mut Ctx, _: Empty) -> Result<Vec<health_core::labs::Measurement>> {
+    health_core::labs::body_scans(ctx.db())
 }

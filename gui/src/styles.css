@@ -295,6 +295,9 @@ body {
 .tint-activity {
   color: #e0742a;
 }
+.tint-force {
+  color: #c25a2f;
+}
 .tint-lab {
   color: #2a8db6;
 }
@@ -759,6 +762,29 @@ a.link:hover {
 button.link:focus-visible,
 a.link:focus-visible {
   outline: 2px solid var(--focus);
+}
+/* "‹ Parent" above a sub-page's title: a small control of its own, clear of the title (as a macOS back button) */
+button.link.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  margin: 0 0 0.75rem -0.45rem;
+  padding: 0.3rem 0.55rem 0.3rem 0.45rem;
+  border-radius: var(--r-control);
+}
+button.link.back:hover {
+  text-decoration: none;
+  background: color-mix(in srgb, var(--link) 10%, transparent);
+}
+button.link.back:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+button.link.back + h2 {
+  margin-top: 0;
 }
 input,
 select,
@@ -1608,4 +1634,280 @@ button.tonal:disabled {
 .lic-all li {
   break-inside: avoid;
   padding: 0.12rem 0;
+}
+
+/* ---- VALD ForceDecks: the home card's report row and the test record (as the web's fd-report) ---- */
+.report-row {
+  margin: 0.75rem 0 0;
+}
+.fd-head {
+  /* room for the sheet's close button */
+  padding-inline-end: 2.5rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+.fd-head h3,
+.fd-head p {
+  margin: 0;
+}
+.fd h4 {
+  margin: 0.75rem 0 0.25rem;
+}
+.fd-jumps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.6rem 0;
+}
+.fd-jumps button.on {
+  background: color-mix(in srgb, var(--accent-fill) 14%, transparent);
+  color: var(--link);
+}
+.fd-jumps .tag {
+  margin-inline-start: 0.35rem;
+}
+.fd-vals {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+.fd-vals > div {
+  background: var(--glass);
+  border: 0.5px solid var(--edge);
+  border-radius: var(--r-group);
+  box-shadow: var(--shadow);
+  padding: 0.6rem 0.8rem;
+}
+.fd-vals > div.key {
+  grid-column: 1 / -1;
+}
+.fd-vals dt {
+  font-size: 12px;
+  color: var(--graphite);
+}
+.fd-vals dd {
+  margin: 0.15rem 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.fd-vals dd small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--graphite);
+}
+.fd-delta {
+  margin-inline-start: 0.6rem;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--graphite);
+}
+.fd-trend {
+  margin: 0.5rem 0 0;
+  color: var(--pulse);
+}
+.fd-plot {
+  position: relative;
+  height: 64px;
+  margin: 0 4px;
+}
+.fd-plot svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.fd-dot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: var(--glass);
+  border: 1.5px solid currentColor;
+}
+.fd-dot.now {
+  background: currentColor;
+}
+.fd-trend figcaption {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ---- seca mBCA Pro body composition report (as the web's seca.tsx) ---- */
+.seca-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: 0.6rem;
+  margin: 0.75rem 0;
+}
+.seca-card {
+  background: var(--glass);
+  border: 0.5px solid var(--edge);
+  border-radius: var(--r-group);
+  box-shadow: var(--shadow);
+  padding: 0.7rem 0.9rem;
+}
+.seca-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.seca-card h4 {
+  margin: 0;
+  font-size: 13px;
+}
+.seca-v {
+  margin: 0.3rem 0;
+  font-variant-numeric: tabular-nums;
+}
+.seca-v b {
+  font-size: 20px;
+}
+.seca-v small {
+  color: var(--graphite);
+}
+.seca-sub {
+  margin: 0.4rem 0 0;
+  display: grid;
+  gap: 0.15rem;
+  font-size: 12px;
+}
+.seca-sub div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.seca-sub dt {
+  color: var(--graphite);
+}
+.seca-sub dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.seca-scale {
+  margin: 0.5rem 0;
+}
+.seca-track {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--pulse) 20%, transparent), var(--pulse));
+}
+.seca-track span {
+  position: absolute;
+  top: -3px;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 50%;
+  background: var(--glass);
+  border: 2px solid var(--pulse);
+}
+.seca-ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+}
+.seca-segs {
+  display: grid;
+  grid-template-columns: 1fr 5rem 1fr;
+  grid-template-areas: "ra fig la" "tr fig ." "rl fig ll";
+  align-items: center;
+  gap: 0.3rem 0.6rem;
+  margin: 0.5rem 0;
+}
+.seca-limb {
+  display: flex;
+  flex-direction: column;
+  font-variant-numeric: tabular-nums;
+}
+.seca-limb small {
+  color: var(--graphite);
+}
+.seg-rightArm {
+  grid-area: ra;
+}
+.seg-leftArm {
+  grid-area: la;
+}
+.seg-torso {
+  grid-area: tr;
+}
+.seg-rightLeg {
+  grid-area: rl;
+}
+.seg-leftLeg {
+  grid-area: ll;
+}
+.seca-fig {
+  grid-area: fig;
+  width: 5rem;
+  fill: color-mix(in srgb, var(--pulse) 22%, transparent);
+}
+.seca-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  margin: 0.5rem 0 0.25rem;
+}
+.seca-bar .ecw {
+  background: var(--pulse);
+}
+.seca-bar .icw {
+  background: color-mix(in srgb, var(--pulse) 30%, transparent);
+}
+.seca-biva {
+  width: 100%;
+  max-width: 14rem;
+  display: block;
+  margin: 0.4rem auto;
+}
+.seca-biva .bg {
+  fill: color-mix(in srgb, var(--graphite) 6%, transparent);
+}
+.seca-biva .grid line {
+  stroke: var(--rule);
+  stroke-dasharray: 3 3;
+}
+.seca-biva .axis {
+  stroke: var(--graphite);
+  stroke-width: 0.6;
+}
+.seca-biva .pt {
+  fill: var(--pulse);
+}
+.seca-biva text {
+  font-size: 10px;
+  fill: var(--graphite);
+}
+.seca-bcc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0.3rem 0;
+}
+.seca-steps {
+  display: flex;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+}
+.seca-steps li {
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--graphite) 8%, transparent);
+  color: var(--graphite);
+}
+.seca-steps li[aria-current="true"] {
+  background: var(--accent-fill);
+  color: var(--on-accent);
 }
