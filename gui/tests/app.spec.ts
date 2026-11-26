@@ -479,3 +479,47 @@ test("seca mBCA Pro: a report row on the body card replaces the measurement's lo
   await sheet.getByRole("button", { name: "Back to the latest" }).click();
   await expect(sheet.getByRole("region", { name: "Body fat percentage" })).toContainText("18.2");
 });
+
+test("Clear data: a quiet row under Backup; the button waits for DELETE (any case), runs once, then reloads", async ({ page }) => {
+  let calls = 0;
+  await page.route("**/shell/clear-data", async (r) => {
+    calls++;
+    expect(r.request().postDataJSON()).toEqual({ confirm: " delete " });
+    await new Promise((ok) => setTimeout(ok, 300));
+    await r.fulfill({ json: {} });
+  });
+  await page.goto("/");
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Backup" }).click();
+  await page.getByRole("button", { name: "Clear data" }).click();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet).toContainText("This can't be undone.");
+  const go = sheet.locator("form").getByRole("button", { name: "Clear data" });
+  const word = sheet.getByLabel("Type “DELETE” to confirm");
+  for (const wrong of ["", "DELET", "DELETE NOW"]) {
+    await word.fill(wrong);
+    await expect(go).toBeDisabled();
+  }
+  await word.fill(" delete ");
+  await expect(go).toBeEnabled();
+  await page.evaluate(() => localStorage.setItem("health.test", "1"));
+  await go.click();
+  await expect(sheet.getByRole("status")).toHaveText("Cleared. Reloading…");
+  await page.waitForEvent("load");
+  expect(calls).toBe(1);
+  expect(await page.evaluate(() => localStorage.getItem("health.test"))).toBeNull();
+});
+
+test("Clear data: when another program holds the data, it says so and the app keeps working", async ({ page }) => {
+  await page.route("**/shell/clear-data", (r) => r.fulfill({ status: 409, json: { error: { code: "busy", message: "" } } }));
+  await page.goto("/");
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Backup" }).click();
+  await page.getByRole("button", { name: "Clear data" }).click();
+  const sheet = page.getByRole("dialog");
+  await sheet.getByLabel("Type “DELETE” to confirm").fill("DELETE");
+  await sheet.locator("form").getByRole("button", { name: "Clear data" }).click();
+  await expect(sheet.getByRole("alert")).toContainText("in use by another program");
+  await expect(sheet.locator("form").getByRole("button", { name: "Clear data" })).toBeEnabled();
+  await sheet.getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Readings" }).click();
+  await expect(page.locator("section.section").first()).toBeVisible();
+});

@@ -263,3 +263,16 @@ fn health_op_paths_are_made_absolute_before_forwarding() {
         .unwrap();
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stdout));
 }
+
+#[test]
+fn wipe_refuses_while_serve_runs_and_keeps_everything() {
+    let e = Env::new();
+    e.seed_rhr();
+    let (s, _) = e.serve();
+    let (code, v) = e.run(&["wipe", "--confirm", "DELETE"], "");
+    assert_eq!(v["error"]["code"], "busy", "{v}");
+    assert_ne!(code, 0);
+    assert_eq!(e.run(&["status"], "").1["observations"], 5);
+    drop(s);
+    assert_eq!(e.run(&["wipe", "--confirm", "DELETE"], "").1["cleared"], true);
+}

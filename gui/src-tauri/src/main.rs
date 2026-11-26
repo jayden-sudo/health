@@ -25,6 +25,8 @@ struct Shell {
     conn: Mutex<Option<Conn>>,
     child: Mutex<Option<Child>>,
     quitting: AtomicBool,
+    /// Set while "Clear data" runs: the core stays stopped and the UI isn't told it went down
+    paused: AtomicBool,
     /// Why the core is not up (shown by the UI), e.g. "no_profile: …"
     last_error: Mutex<Option<String>>,
 }
@@ -122,6 +124,54 @@ fn init_profile() -> Result<(), Value> {
     }
 }
 
+/// "Clear data": stops the core (closing its stdin, as on quit), deletes the profile and its key with
+/// `health wipe` (the database first; nothing deleted while another process such as `health mcp` writes), then
+/// lets the supervisor start the core again: on success it finds no profile and the UI shows the first run.
+#[tauri::command(async)]
+fn clear_data(shell: tauri::State<'_, Arc<Shell>>, confirm: String) -> Result<(), Value> {
+    if !confirm.trim().eq_ignore_ascii_case("DELETE") {
+        return Err(json!({ "code": "not_confirmed", "message": "type DELETE" }));
+    }
+    shell.paused.store(true, Ordering::SeqCst);
+    stop_core(&shell);
+    let out = wipe();
+    shell.paused.store(false, Ordering::SeqCst);
+    out
+}
+
+fn stop_core(shell: &Shell) {
+    if let Some(c) = shell.child.lock().unwrap().as_mut() {
+        drop(c.stdin.take()); // --exit-with-parent: the core exits cleanly
+    }
+    let t = std::time::Instant::now();
+    let running = || shell.child.lock().unwrap().is_some();
+    while running() && t.elapsed() < Duration::from_secs(10) {
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    if let Some(c) = shell.child.lock().unwrap().as_mut() {
+        let _ = c.kill();
+    }
+    while running() && t.elapsed() < Duration::from_secs(15) {
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
+/// Runs `health wipe`; its error code (`busy`: another process holds the profile) for the UI.
+fn wipe() -> Result<(), Value> {
+    let out = core_command()
+        .args(["--json", "wipe", "--confirm", "DELETE"])
+        .output()
+        .map_err(|e| json!({ "code": "clear_failed", "message": e.to_string() }))?;
+    if out.status.success() {
+        return Ok(());
+    }
+    let v: Value = serde_json::from_slice(&out.stdout).unwrap_or(Value::Null);
+    Err(json!({
+        "code": v["error"]["code"].as_str().unwrap_or("clear_failed"),
+        "message": v["error"]["message"].as_str().map_or_else(|| String::from_utf8_lossy(&out.stderr).trim().to_string(), String::from),
+    }))
+}
+
 /// Where the core binary lives (for the MCP config an agent needs).
 /** Agents with a one-click connect that look installed here. */
 #[tauri::command]
@@ -200,6 +250,10 @@ fn status(app: &AppHandle, shell: &Shell, up: bool, extra: Value) {
 fn supervise(app: AppHandle, shell: Arc<Shell>) {
     let mut backoff = 1;
     while !shell.quitting.load(Ordering::SeqCst) {
+        if shell.paused.load(Ordering::SeqCst) {
+            std::thread::sleep(Duration::from_millis(100));
+            continue;
+        }
         let spawned = core_command()
             .args(["serve", "--exit-with-parent"])
             .stdin(Stdio::piped())
@@ -276,6 +330,11 @@ fn supervise(app: AppHandle, shell: Arc<Shell>) {
         std::thread::sleep(Duration::from_millis(200)); // let the stderr reader catch the last line
         let err = shell.last_error.lock().unwrap().clone().unwrap_or_default();
         let need_init = err.starts_with("no_profile");
+        if shell.paused.load(Ordering::SeqCst) {
+            // stopped for "Clear data": start again as soon as it's done, without a "starting" screen meanwhile
+            backoff = 1;
+            continue;
+        }
         status(&app, &shell, false, json!({ "need_init": need_init }));
         // a core that ran a good while gets a fresh start; one that dies at once backs off further each time
         if ran >= Duration::from_secs(30) {
@@ -462,6 +521,7 @@ fn main() {
             op,
             unlock,
             init_profile,
+            clear_data,
             core_path,
             agent_clients,
             connect_agent,

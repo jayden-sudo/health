@@ -44,6 +44,17 @@ pub fn from_env() -> Box<dyn KeyStore> {
     }
 }
 
+/// Deletes the key file named by HEALTH_ROOT_KEY_FILE (after its profile was cleared).
+pub fn forget_file() -> Result<()> {
+    match std::env::var_os("HEALTH_ROOT_KEY_FILE") {
+        Some(p) if !p.is_empty() => match std::fs::remove_file(p) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.into()),
+            _ => Ok(()),
+        },
+        _ => Ok(()),
+    }
+}
+
 fn store_err(e: impl std::fmt::Display) -> Error {
     Error::new(Kind::Locked, "keystore", e.to_string())
 }

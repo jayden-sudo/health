@@ -68,6 +68,51 @@ pub fn profile_dir(data_dir: &Path, name: &str) -> Result<PathBuf> {
     Ok(data_dir.join("profiles").join(name))
 }
 
+/// Everything in a profile directory but `lock` (a writer may be waiting on it).
+fn clear_leftovers(dir: &Path) -> Result<()> {
+    for e in std::fs::read_dir(dir)? {
+        let e = e?;
+        if e.file_name() == "lock" {
+            continue;
+        }
+        if e.file_type()?.is_dir() { std::fs::remove_dir_all(e.path())? } else { std::fs::remove_file(e.path())? }
+    }
+    Ok(())
+}
+
+fn remove_if_there(p: &Path) -> std::io::Result<()> {
+    match std::fs::remove_file(p) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
+        _ => Ok(()),
+    }
+}
+
+/// The owner's "Clear data": deletes the profile so the next start is a fresh install. Returns the profile's id
+/// (its root key is the caller's to forget), `None` when there was nothing to delete.
+///
+/// The database goes first: a profile whose database is gone just starts a new empty one under the same key,
+/// but a database whose key is gone can never be opened again. When the database can't be deleted (another
+/// process is writing, or on Windows still has it open) nothing is deleted. Needs no network and never opens
+/// the database, so it also works when the database no longer opens.
+pub fn wipe(data_dir: &Path, name: &str) -> Result<Option<String>> {
+    let dir = profile_dir(data_dir, name)?;
+    if !dir.exists() {
+        return Ok(None);
+    }
+    let busy = || Error::conflict("busy", "another Health process is using this profile: quit it, then try again");
+    let lock = OpenOptions::new().create(true).truncate(false).write(true).open(dir.join("lock"))?;
+    lock.try_lock().map_err(|_| busy())?;
+    let id = std::fs::read_to_string(dir.join("id")).ok().map(|s| s.trim().to_string());
+    remove_if_there(&dir.join("health.db")).map_err(|_| busy())?;
+    for f in ["health.db-wal", "health.db-shm"] {
+        remove_if_there(&dir.join(f))?;
+    }
+    clear_leftovers(&dir)?;
+    drop(lock);
+    let _ = std::fs::remove_dir_all(&dir); // the lock file (gone from Unix only once unlocked)
+    Ok(id)
+}
+
 impl Profile {
     /// Creates a profile: new root key in `keys`, empty database with the catalog.
     pub fn init(data_dir: &Path, name: &str, keys: &dyn KeyStore) -> Result<Profile> {
@@ -80,6 +125,10 @@ impl Profile {
         }
         let fresh = !dir.exists();
         create_private_dir(&dir)?;
+        // what an earlier profile left here is sealed under a key about to be replaced: it could never be opened
+        if !fresh {
+            clear_leftovers(&dir)?;
+        }
         let id = hex::encode(crate::aead::random::<16>());
         if let Err(e) = keys.store(&id, &new_root()) {
             if fresh {

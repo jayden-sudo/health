@@ -21,6 +21,7 @@ import {
   chooseImportFile,
   chooseSavePath,
   corePath,
+  clearData,
   initProfile,
   installOcr,
   openLink,
@@ -355,6 +356,8 @@ export function App() {
       <main className="gate" role="status">
         <h2>{t("Starting the health core…")}</h2>
         <p className="lede">{core.error ?? t("This takes a moment. Your data is safe on disk.")}</p>
+        {/* a database that no longer opens: starting over is one way out */}
+        {core.error && isDesktop && <ClearDataRow />}
       </main>
     );
   const open = (code: string) => setMetric(code);
@@ -2679,6 +2682,7 @@ function Backup() {
         <Row icon={<Icon k="data" />} label={titles.restore} sub={t("Merges; nothing is overwritten")} onClick={() => setSheet("restore")} />
         <Row icon={<GroupIcon k="other" />} label={titles.csv} sub={t("Unencrypted, for spreadsheets and other tools")} onClick={() => setSheet("csv")} />
       </ul>
+      <ClearDataRow />
       {sheet && (
         <Sheet label={titles[sheet]} close={() => (setSheet(undefined), setFile(undefined))}>
           {sheet === "save" && <BackupSave />}
@@ -4833,5 +4837,96 @@ function SecaReportRow({ scan, open }: { scan: Measurement; open: () => void }) 
         onClick={open}
       />
     </ul>
+  );
+}
+
+/** The confirm word for "Clear data": the same in every language (the owner's choice, as on the web). */
+const CLEAR_WORD = "DELETE";
+
+/** "Clear data" (as the web's): a quiet red text button on its own line; the confirm form opens in a sheet. Works
+ *  when the database no longer opens too (the shell stops the core and deletes the files without opening them). */
+function ClearDataRow() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <p className="clear-row">
+        <button type="button" className="link danger" onClick={() => setOpen(true)}>
+          {t("Clear data")}
+        </button>
+      </p>
+      {open && (
+        <Sheet label={t("Clear data")} close={() => setOpen(false)}>
+          <ClearData cancel={() => setOpen(false)} />
+        </Sheet>
+      )}
+    </>
+  );
+}
+
+function ClearData({ cancel }: { cancel: () => void }) {
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string>();
+  const [done, setDone] = useState(false);
+  const ok = typed.trim().toUpperCase() === CLEAR_WORD;
+  const run = async () => {
+    if (!ok || busy) return;
+    setBusy(true);
+    setErr(undefined);
+    try {
+      await clearData(typed);
+      setDone(true);
+      // settings kept in this window go too: a fresh install
+      try {
+        localStorage.clear();
+      } catch {}
+      setTimeout(() => location.reload(), 600);
+    } catch (e) {
+      setErr(
+        e instanceof OpError && e.code === "busy"
+          ? t("Health data is in use by another program (such as a connected AI assistant). Quit it, then try again.")
+          : t("Couldn't clear the data"),
+      );
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="record">
+      <h2>{t("Clear data")}</h2>
+      <form
+        className="form"
+        aria-busy={busy}
+        onSubmit={(e) => {
+          e.preventDefault();
+          run();
+        }}
+      >
+        <p className="warn">
+          {t("This deletes all Health data on this device: every record, your health account and identity code, links to other devices, and settings. This can't be undone.")}
+        </p>
+        <p className="fine">
+          {t("To keep your data, save a backup first. Data on your other devices isn't affected; to sync again, link them again.")}
+        </p>
+        <label>
+          {t("Type “{{words}}” to confirm", { words: CLEAR_WORD })}
+          <input value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} disabled={busy || done} />
+        </label>
+        <Problem text={err} />
+        {done ? (
+          <p className="notice" role="status">
+            {t("Cleared. Reloading…")}
+          </p>
+        ) : (
+          <div className="actions">
+            <button type="button" disabled={busy} onClick={cancel}>
+              {t("Cancel")}
+            </button>
+            <button type="submit" className="danger" disabled={!ok || busy}>
+              {busy ? t("Clearing…") : t("Clear data")}
+            </button>
+          </div>
+        )}
+      </form>
+    </section>
   );
 }

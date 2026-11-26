@@ -136,3 +136,24 @@ fn a_passphrase_lock_guards_every_command() {
     assert_eq!(e.run_in("default", &["--passphrase-stdin", "passphrase", "remove"], "a long passphrase\n").0, 0);
     assert_eq!(e.run(&["status"]).1["key_store"], "file");
 }
+
+#[test]
+fn wipe_needs_delete_typed_then_clears_everything_offline_and_init_starts_fresh() {
+    let e = Env::new();
+    assert_eq!(e.run(&["add", "loinc:8867-4", "60", "--at", "2026-11-11T07:00"]).0, 0);
+    let pdir = e.dir.path().join("data/profiles/default");
+    let id = std::fs::read_to_string(pdir.join("id")).unwrap();
+    for wrong in ["", "DELET", "DELETE NOW"] {
+        assert_eq!(e.run(&["wipe", "--confirm", wrong]).1["error"]["code"], "not_confirmed", "{wrong:?}");
+    }
+    assert_eq!(e.run(&["status"]).1["observations"], 1, "nothing deleted unconfirmed");
+    // any case, and no network needed
+    let (code, v) = e.run(&["--offline", "wipe", "--confirm", " delete "]);
+    assert_eq!((code, &v["cleared"]), (0, &Value::Bool(true)), "{v}");
+    assert!(!pdir.exists());
+    assert!(!e.dir.path().join("default.key").exists(), "the key goes too");
+    assert_eq!(e.run(&["status"]).0, 6, "no profile: the app's first run");
+    assert_eq!(e.run(&["init"]).0, 0);
+    assert_ne!(std::fs::read_to_string(pdir.join("id")).unwrap(), id);
+    assert_eq!(e.run(&["status"]).1["observations"], 0);
+}

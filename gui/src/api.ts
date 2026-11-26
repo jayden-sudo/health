@@ -92,6 +92,24 @@ export async function initProfile(): Promise<void> {
   }
 }
 
+/** "Clear data" (Tauri: the shell stops the core and runs `health wipe`); in the browser, the dev page's stand-in. */
+export async function clearData(confirm: string): Promise<void> {
+  if (inTauri) {
+    try {
+      await invoke("clear_data", { confirm });
+    } catch (e) {
+      const err = e as ApiError;
+      throw new OpError(err.code ?? "clear_failed", err.message ?? String(e));
+    }
+    return;
+  }
+  const r = await fetch("/shell/clear-data", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ confirm }) });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new OpError(body?.error?.code ?? "clear_failed", body?.error?.message ?? "");
+  }
+}
+
 /** The core binary's path, for an agent's MCP config ("health" when it is on PATH, as in the browser). */
 export async function corePath(): Promise<string> {
   return inTauri ? invoke<string>("core_path") : "health";

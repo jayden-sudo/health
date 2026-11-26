@@ -1,5 +1,5 @@
 {
- "about": "From the web code (pre-pol 138567cd) by scripts/gen-names-i18n.ts; do not edit",
+ "about": "From the web code (pre-pol ff62d01a) by scripts/gen-names-i18n.ts; do not edit",
  "names": {
   "x:hrv_rmssd": {
    "zh-Hans": "心率变异性（RMSSD）",
@@ -514,8 +514,8 @@
    "zh-Hant": "離心制動發力率"
   },
   "x:fd/cmj/body_mass": {
-   "zh-Hans": "ForceDecks 测得体重",
-   "zh-Hant": "ForceDecks 測得體重"
+   "zh-Hans": "VALD ForceDecks 测得体重",
+   "zh-Hant": "VALD ForceDecks 測得體重"
   },
   "weakly positive": {
    "zh-Hans": "弱阳性",

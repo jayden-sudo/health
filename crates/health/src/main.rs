@@ -47,6 +47,13 @@ struct Cli {
 enum Cmd {
     /// Create the profile (new key in the keychain, empty encrypted database)
     Init,
+    /// Delete this profile and its key ("Clear data"): every record, the health account, links and settings.
+    /// Quit the app (or stop `health serve`) first. The next `init` starts fresh.
+    Wipe {
+        /// Type DELETE to confirm
+        #[arg(long)]
+        confirm: String,
+    },
     /// Profile and database summary
     Status,
     /// List operations, or print one operation's request and response JSON Schema
@@ -522,6 +529,7 @@ fn request(cmd: &Cmd, now: i64) -> Result<(String, Value)> {
     let day = |s: &Option<String>| -> Result<Option<i64>> { s.as_deref().map(|s| time::parse(s).map(|w| w.ms)).transpose() };
     Ok(match cmd {
         Cmd::Init
+        | Cmd::Wipe { .. }
         | Cmd::Schema { .. }
         | Cmd::Passphrase(_)
         | Cmd::Serve { .. }
@@ -649,6 +657,30 @@ fn request(cmd: &Cmd, now: i64) -> Result<(String, Value)> {
     })
 }
 
+/// "Clear data": the profile's files (the database first, see `profile::wipe`), then its root key. No network.
+fn wipe(cli: &Cli, dir: &std::path::Path, pdir: &std::path::Path, confirm: &str) -> Result<Value> {
+    if !confirm.trim().eq_ignore_ascii_case("DELETE") {
+        return Err(usage("not_confirmed", "type --confirm DELETE"));
+    }
+    if cli.dry_run {
+        return Err(usage("no_dry_run", "wipe"));
+    }
+    if client::probe(pdir).is_some() {
+        return Err(Error::conflict("busy", "Health is running (the app or `health serve`): quit it, then try again"));
+    }
+    let Some(id) = health_core::profile::wipe(dir, &cli.profile)? else {
+        return Ok(json!({ "cleared": false }));
+    };
+    // the key last: without its database it opens nothing, and a key file left behind would stop the next init
+    let keys = keys::from_env();
+    match keys.kind() {
+        "keychain" => keys::keychain_delete(&id)?,
+        "file" => keys::forget_file()?,
+        _ => {}
+    }
+    Ok(json!({ "cleared": true }))
+}
+
 fn data_dir(cli: &Cli) -> Result<PathBuf> {
     cli.data_dir.clone().or_else(|| dirs::data_dir().map(|d| d.join("health"))).ok_or_else(|| usage("no_data_dir", "set --data-dir"))
 }
@@ -771,6 +803,7 @@ fn run(cli: &Cli) -> Result<Value> {
     let pdir = health_core::profile::profile_dir(&dir, &cli.profile)?;
     match &cli.cmd {
         Cmd::Passphrase(cmd) => return passphrase_cmd(cli, &dir, cmd),
+        Cmd::Wipe { confirm } => return wipe(cli, &dir, &pdir, confirm),
         Cmd::Component(ComponentCmd::List) => return Ok(ocr::status(&dir)),
         Cmd::Component(ComponentCmd::Install { name, from, no_matching }) => {
             if name != "ocr" {

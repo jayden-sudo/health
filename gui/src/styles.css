@@ -1911,3 +1911,19 @@ button.tonal:disabled {
   background: var(--accent-fill);
   color: var(--on-accent);
 }
+
+/* "Clear data": a quiet red text action on its own line, apart from the backup rows */
+.clear-row {
+  margin: 1.25rem 0 0;
+}
+button.link.danger {
+  color: var(--danger);
+  font-size: 13px;
+}
+p.warn {
+  margin: 0;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--r-group);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--ink);
+}

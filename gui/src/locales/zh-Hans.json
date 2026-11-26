@@ -697,5 +697,13 @@
  "Body composition report": "身体成分报告",
  "Body fat": "体脂率",
  "Skeletal muscle": "骨骼肌量",
- "Average build": "一般"
+ "Average build": "一般",
+ "Clear data": "清空数据",
+ "Health data is in use by another program (such as a connected AI assistant). Quit it, then try again.": "健康数据正被其他程序使用（例如已连接的 AI 助手），请先退出该程序再试",
+ "Couldn't clear the data": "清空失败",
+ "This deletes all Health data on this device: every record, your health account and identity code, links to other devices, and settings. This can't be undone.": "将删除本机的全部健康数据：所有记录、健康账户与身份码、与其他设备的连接和设置。此操作无法撤销。",
+ "To keep your data, save a backup first. Data on your other devices isn't affected; to sync again, link them again.": "如需保留，请先导出备份。其他设备上的数据不受影响；要再次同步，需要重新连接。",
+ "Type “{{words}}” to confirm": "请输入「{{words}}」以确认",
+ "Cleared. Reloading…": "已清空，正在重新载入",
+ "Clearing…": "正在清空…"
 }

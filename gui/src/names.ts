@@ -11,6 +11,8 @@ import zh from "./locales/names.json";
 const ZH = { ...extra.names, ...zh.names } as Record<string, { "zh-Hans": string; "zh-Hant": string }>;
 
 const NAMES: Record<string, string> = {
+  // as the web names it (device names stay in full)
+  "x:fd/cmj/body_mass": "Body weight on VALD ForceDecks",
   // body composition (seca and other bioimpedance scales)
   "x:body_skeletal_muscle_mass": "Skeletal muscle mass",
   "x:skeletal_muscle_mass_percentage": "Skeletal muscle %",
